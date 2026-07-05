@@ -2,6 +2,8 @@ import { useMemo, useState } from 'react';
 import { CATEGORIES, PRODUCTS, SHOP_INFO, type Category, type Product } from './data/products';
 import { ProductCard } from './components/ProductCard';
 import { ProductDetail } from './components/ProductDetail';
+import { ShopGallery } from './components/ShopGallery';
+import { ShopMap } from './components/ShopMap';
 
 type Tab = 'home' | 'products' | 'about' | 'contact';
 
@@ -87,6 +89,8 @@ export function App() {
             <button type="button" className="btn btn--primary btn--full btn--lg" onClick={() => setTab('products')}>
               ดูสินค้าทั้งหมด
             </button>
+
+            <ShopGallery />
           </section>
         )}
 
@@ -139,6 +143,10 @@ export function App() {
                 <strong>เวลาทำการ</strong>
                 <span>{SHOP_INFO.hours}</span>
               </li>
+              <li>
+                <strong>โทรศัพท์</strong>
+                <span>{SHOP_INFO.phone}</span>
+              </li>
             </ul>
           </section>
         )}
@@ -170,6 +178,8 @@ export function App() {
               </div>
             </div>
             <p className="contact-note">สนใจสินค้าใด กรุณาโทรสอบถามหรือสั่งซื้อได้โดยตรง</p>
+
+            <ShopMap />
           </section>
         )}
       </main>
