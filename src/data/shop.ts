@@ -14,9 +14,9 @@ export const SHOP_PHOTOS: ShopPhoto[] = [
   },
   {
     id: '2',
-    src: '/images/shop/shop-interior-2.jpg',
-    alt: 'ผลิตภัณฑ์หวายจากร้านราชาหวายสุรินทร์',
-    caption: 'ผลิตภัณฑ์หวายคุณภาพจากช่างท้องถิ่น',
+    src: '/products/basket-weave.jpg',
+    alt: 'ตะกร้าหวายลายสานถี่จากราชาหวายสุรินทร์',
+    caption: 'ตะกร้าหวายสานมือคุณภาพจากช่างท้องถิ่น',
   },
 ];
 
