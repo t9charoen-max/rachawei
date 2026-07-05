@@ -1,49 +1,38 @@
-:root {
-  --bg-deep: #1a1209;
-  --bg-warm: #2d1f14;
-  --bg-card: #3d2b1f;
-  --gold: #d4a853;
-  --gold-light: #f0d78c;
-  --gold-dark: #a67c32;
-  --cream: #f5ebe0;
-  --cream-muted: #c9b8a8;
-  --rattan: #8b6914;
-  --red: #c0392b;
-  --green: #27ae60;
-  --shadow: rgba(0, 0, 0, 0.4);
-  --radius: 16px;
-  --radius-sm: 10px;
-  font-family: 'Noto Sans Thai', system-ui, sans-serif;
-  line-height: 1.5;
-  font-weight: 400;
-  color: var(--cream);
-  background-color: var(--bg-deep);
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
+@import 'tailwindcss';
+
+@theme {
+  --font-sans: 'Noto Sans Thai', ui-sans-serif, system-ui, sans-serif;
+  --color-earth-950: #1a1209;
+  --color-earth-900: #2d1f14;
+  --color-earth-800: #3d2b1f;
+  --color-earth-700: #5c4030;
+  --color-cream-50: #faf6f0;
+  --color-cream-100: #f5ebe0;
+  --color-cream-200: #e8d9c8;
+  --color-gold-400: #d4a853;
+  --color-gold-500: #c9a227;
+  --color-gold-600: #a67c32;
+  --color-terracotta: #b85c38;
+  --color-sage: #5a7a5e;
 }
 
-*,
-*::before,
-*::after {
-  box-sizing: border-box;
-}
+@layer base {
+  :root {
+    --bg-deep: #1a1209;
+    --bg-card: #3d2b1f;
+    --gold: #d4a853;
+    --gold-light: #f0d78c;
+    --gold-dark: #a67c32;
+    --cream-muted: #c9b8a8;
+    --radius: 16px;
+    --radius-sm: 10px;
+  }
 
-body {
-  margin: 0;
-  min-height: 100dvh;
-  overflow-x: hidden;
-}
+  html {
+    @apply scroll-smooth;
+  }
 
-#root {
-  min-height: 100dvh;
-}
-
-button {
-  font-family: inherit;
-  cursor: pointer;
-}
-
-input {
-  font-family: inherit;
+  body {
+    @apply bg-earth-950 font-sans text-cream-100 antialiased;
+  }
 }

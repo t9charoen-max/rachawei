@@ -2,8 +2,8 @@ import { useMemo, useState } from 'react';
 import { CATEGORIES, PRODUCTS, SHOP_INFO, type Category, type Product } from './data/products';
 import { ProductCard } from './components/ProductCard';
 import { ProductDetail } from './components/ProductDetail';
-import { ShopGallery } from './components/ShopGallery';
 import { ShopMap } from './components/ShopMap';
+import { HomePage } from './components/home/HomePage';
 
 type Tab = 'home' | 'products' | 'about' | 'contact';
 
@@ -20,82 +20,38 @@ export function App() {
     [category],
   );
 
-  return (
-    <div className="app">
-      <div className="app-bg" aria-hidden />
+  const goTo = (next: Tab) => {
+    setTab(next);
+    setSelected(null);
+  };
 
-      <header className="header">
-        <button type="button" className="header__brand" onClick={() => setTab('home')}>
-          <span className="header__icon" aria-hidden>👑</span>
-          <span className="header__title">{SHOP_INFO.name}</span>
+  return (
+    <div className="relative mx-auto flex min-h-dvh max-w-lg flex-col bg-earth-950">
+      <div
+        className="pointer-events-none fixed inset-0 -z-10 bg-[radial-gradient(ellipse_80%_50%_at_50%_-10%,rgba(212,168,83,0.12),transparent),radial-gradient(ellipse_60%_40%_at_80%_100%,rgba(139,105,20,0.1),transparent)]"
+        aria-hidden
+      />
+
+      <header className="sticky top-0 z-20 border-b border-gold-400/10 bg-earth-950/90 px-4 py-3 backdrop-blur-md">
+        <button
+          type="button"
+          onClick={() => goTo('home')}
+          className="flex items-center gap-2 text-left"
+        >
+          <span className="text-xl" aria-hidden>
+            👑
+          </span>
+          <span className="text-lg font-bold text-gold-400">{SHOP_INFO.name}</span>
         </button>
       </header>
 
-      <main className="main">
+      <main className="flex-1 overflow-y-auto px-4 pb-4">
         {tab === 'home' && (
-          <section className="screen home-screen">
-            <div className="home-hero">
-              <div className="home-hero__image-wrap">
-                <img
-                  src={SHOP_INFO.heroImage}
-                  alt="งานหัตถกรรมหวายจากราชาหวาย"
-                  className="home-hero__image"
-                />
-              </div>
-              <span className="home-badge">OTOP สุรินทร์</span>
-              <h1 className="home-title">{SHOP_INFO.name}</h1>
-              <p className="home-tagline">{SHOP_INFO.tagline}</p>
-              <div className="home-weave" aria-hidden />
-            </div>
-
-            <div className="home-preview">
-              <h2 className="home-preview__title">สินค้าแนะนำ</h2>
-              <div className="home-preview__grid">
-                {PRODUCTS.slice(0, 4).map((product) => (
-                  <button
-                    key={product.id}
-                    type="button"
-                    className="home-preview__item"
-                    onClick={() => {
-                      setTab('products');
-                      setSelected(product);
-                    }}
-                  >
-                    <img src={product.image} alt={product.name} loading="lazy" />
-                    <span>{product.name}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="home-features">
-              <div className="feature-card">
-                <span className="feature-card__icon">🧵</span>
-                <h3>สานมือ 100%</h3>
-                <p>งานหัตถกรรมจากช่างท้องถิ่น</p>
-              </div>
-              <div className="feature-card">
-                <span className="feature-card__icon">🌿</span>
-                <h3>หวายคุณภาพ</h3>
-                <p>คัดสรรวัสดุจากธรรมชาติ</p>
-              </div>
-              <div className="feature-card">
-                <span className="feature-card__icon">📦</span>
-                <h3>จัดส่งทั่วไทย</h3>
-                <p>แพ็กอย่างดี ปลอดภัยระหว่างขนส่ง</p>
-              </div>
-            </div>
-
-            <button type="button" className="btn btn--primary btn--full btn--lg" onClick={() => setTab('products')}>
-              ดูสินค้าทั้งหมด
-            </button>
-
-            <ShopGallery />
-          </section>
+          <HomePage onViewProducts={() => goTo('products')} onContact={() => goTo('contact')} />
         )}
 
         {tab === 'products' && !selected && (
-          <section className="screen products-screen">
+          <section className="screen products-screen py-4">
             <h2 className="section-title">สินค้าหวาย</h2>
 
             <div className="category-bar">
@@ -124,12 +80,12 @@ export function App() {
         )}
 
         {tab === 'about' && (
-          <section className="screen about-screen">
+          <section className="screen about-screen py-4">
             <h2 className="section-title">เกี่ยวกับเรา</h2>
             <div className="about-card">
               <img
                 src={SHOP_INFO.heroImage}
-                alt="ช่างสานหวายราชาหวาย"
+                alt="ช่างสานหวายราชาหวายสุรินทร์"
                 className="about-card__image"
               />
               <p>{SHOP_INFO.story}</p>
@@ -152,7 +108,7 @@ export function App() {
         )}
 
         {tab === 'contact' && (
-          <section className="screen contact-screen">
+          <section className="screen contact-screen py-4">
             <h2 className="section-title">ติดต่อสั่งซื้อ</h2>
             <div className="contact-card">
               <div className="contact-row">
@@ -178,13 +134,12 @@ export function App() {
               </div>
             </div>
             <p className="contact-note">สนใจสินค้าใด กรุณาโทรสอบถามหรือสั่งซื้อได้โดยตรง</p>
-
             <ShopMap />
           </section>
         )}
       </main>
 
-      <nav className="bottom-nav">
+      <nav className="sticky bottom-0 z-20 grid grid-cols-4 border-t border-gold-400/10 bg-earth-950/95 backdrop-blur-md pb-[env(safe-area-inset-bottom)]">
         {([
           ['home', '🏠', 'หน้าแรก'],
           ['products', '🛍️', 'สินค้า'],
@@ -194,14 +149,13 @@ export function App() {
           <button
             key={id}
             type="button"
-            className={`bottom-nav__item ${tab === id ? 'bottom-nav__item--active' : ''}`}
-            onClick={() => {
-              setTab(id);
-              setSelected(null);
-            }}
+            onClick={() => goTo(id)}
+            className={`flex flex-col items-center gap-0.5 py-2 text-[0.7rem] font-medium transition ${
+              tab === id ? 'text-gold-400' : 'text-cream-200/60'
+            }`}
           >
-            <span className="bottom-nav__icon">{icon}</span>
-            <span className="bottom-nav__label">{label}</span>
+            <span className="text-xl">{icon}</span>
+            <span>{label}</span>
           </button>
         ))}
       </nav>
