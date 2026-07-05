@@ -1,0 +1,49 @@
+:root {
+  --bg-deep: #1a1209;
+  --bg-warm: #2d1f14;
+  --bg-card: #3d2b1f;
+  --gold: #d4a853;
+  --gold-light: #f0d78c;
+  --gold-dark: #a67c32;
+  --cream: #f5ebe0;
+  --cream-muted: #c9b8a8;
+  --rattan: #8b6914;
+  --red: #c0392b;
+  --green: #27ae60;
+  --shadow: rgba(0, 0, 0, 0.4);
+  --radius: 16px;
+  --radius-sm: 10px;
+  font-family: 'Noto Sans Thai', system-ui, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+  color: var(--cream);
+  background-color: var(--bg-deep);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100dvh;
+  overflow-x: hidden;
+}
+
+#root {
+  min-height: 100dvh;
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+}
+
+input {
+  font-family: inherit;
+}
