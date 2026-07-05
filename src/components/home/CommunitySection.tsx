@@ -1,56 +1,83 @@
 import { HOME_CONTENT } from '../../data/home';
+import { SectionHeader } from '../ui/SectionHeader';
 
 export function CommunitySection() {
   const { community } = HOME_CONTENT;
 
   return (
-    <section className="px-1 pb-12 sm:pb-16">
-      <div className="mb-8 text-center sm:mb-10">
-        <p className="text-sm font-medium tracking-wide text-sage">ความเป็นชุมชน</p>
-        <h2 className="mt-2 text-2xl font-bold text-cream-50 sm:text-3xl">{community.title}</h2>
-        <p className="mx-auto mt-3 max-w-md text-cream-200/80">{community.subtitle}</p>
-      </div>
+    <section className="relative pb-14 sm:pb-16">
+      <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-gold-400/20 to-transparent" />
 
-      <div className="space-y-4">
-        {community.impacts.map((item) => (
+      <SectionHeader
+        eyebrow="ความเป็นชุมชน"
+        title={community.title}
+        subtitle={community.subtitle}
+        accent="sage"
+      />
+
+      <div className="space-y-3">
+        {community.impacts.map((item, i) => (
           <div
             key={item.title}
-            className="flex gap-4 rounded-2xl border border-gold-400/10 bg-earth-800/30 p-5 transition hover:border-gold-400/25"
+            className="group flex gap-4 rounded-2xl border border-gold-400/8 bg-gradient-to-r from-earth-800/50 to-earth-900/30 p-5 transition hover:border-sage/30 hover:from-earth-800/70"
+            style={{ animationDelay: `${i * 80}ms` }}
           >
-            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-earth-900/80 text-2xl">
+            <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-earth-700/80 to-earth-900 text-2xl shadow-inner transition group-hover:scale-105">
               {item.icon}
             </span>
-            <div>
-              <h3 className="font-semibold text-cream-50">{item.title}</h3>
-              <p className="mt-1 text-sm leading-relaxed text-cream-200/80 sm:text-base">
-                {item.description}
-              </p>
+            <div className="flex-1">
+              <div className="flex items-center gap-2">
+                <span className="font-display text-xs font-bold text-sage-soft">0{i + 1}</span>
+                <h3 className="font-semibold text-cream-50">{item.title}</h3>
+              </div>
+              <p className="mt-1.5 text-sm leading-relaxed text-cream-300/80">{item.description}</p>
             </div>
           </div>
         ))}
       </div>
 
-      <div className="mt-8 grid gap-4 sm:grid-cols-2">
-        {community.gallery.map((photo) => (
+      <div className="mt-10 grid gap-4">
+        {community.gallery.map((photo, i) => (
           <figure
             key={photo.src}
-            className="overflow-hidden rounded-2xl border border-gold-400/10 bg-earth-800/30"
+            className={`group overflow-hidden rounded-3xl border border-gold-400/10 bg-earth-800/30 ${
+              i === 0 ? 'sm:col-span-2' : ''
+            }`}
           >
-            <img
-              src={photo.src}
-              alt={photo.alt}
-              className="aspect-[4/3] w-full object-cover"
-              loading="lazy"
-            />
-            <figcaption className="px-4 py-3 text-sm text-cream-200/75">{photo.caption}</figcaption>
+            <div className="relative overflow-hidden">
+              <img
+                src={photo.src}
+                alt={photo.alt}
+                className={`w-full object-cover transition duration-700 group-hover:scale-[1.03] ${
+                  i === 0 ? 'aspect-[16/10]' : 'aspect-[4/3]'
+                }`}
+                loading="lazy"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-earth-950/70 via-transparent to-transparent opacity-80" />
+            </div>
+            <figcaption className="border-t border-gold-400/8 px-5 py-4 text-sm leading-relaxed text-cream-300/85">
+              {photo.caption}
+            </figcaption>
           </figure>
         ))}
       </div>
 
-      <blockquote className="mt-8 rounded-2xl border-l-4 border-gold-500 bg-earth-800/40 px-6 py-5">
-        <p className="text-base italic leading-relaxed text-cream-100/90 sm:text-lg">
-          {community.quote}
-        </p>
+      <blockquote className="relative mt-10 overflow-hidden rounded-3xl border border-gold-400/15 bg-gradient-to-br from-earth-800/80 to-earth-900/60 p-6 sm:p-8">
+        <div className="absolute top-4 right-6 font-display text-6xl leading-none text-gold-400/15">"</div>
+        <div className="relative">
+          <div className="mb-4 flex items-center gap-3">
+            <span className="flex h-10 w-10 items-center justify-center rounded-full bg-gold-500/20 text-lg">
+              💛
+            </span>
+            <div>
+              <p className="text-sm font-semibold text-gold-300">จากใจชุมชน</p>
+              <p className="text-xs text-cream-300/60">ราชาหวายสุรินทร์</p>
+            </div>
+          </div>
+          <p className="font-display text-base leading-relaxed text-cream-100/95 italic sm:text-lg">
+            {community.quote.replace(/^["“]|["”]$/g, '')}
+          </p>
+        </div>
       </blockquote>
     </section>
   );

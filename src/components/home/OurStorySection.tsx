@@ -1,45 +1,67 @@
 import { HOME_CONTENT } from '../../data/home';
+import { SectionHeader } from '../ui/SectionHeader';
+import { WovenDivider } from '../ui/WovenDivider';
+
+const stats = [
+  { value: '100%', label: 'สานมือ', icon: '🧵' },
+  { value: 'OTOP', label: 'มาตรฐานชุมชน', icon: '🏅' },
+  { value: 'สุรินทร์', label: 'หมู่บ้านบุทม', icon: '🏡' },
+];
 
 export function OurStorySection() {
   const { story } = HOME_CONTENT;
 
   return (
-    <section className="px-1 py-12 sm:py-16">
-      <div className="mb-8 text-center sm:mb-10">
-        <p className="text-sm font-medium tracking-wide text-gold-400">เรื่องราวของเรา</p>
-        <h2 className="mt-2 text-2xl font-bold text-cream-50 sm:text-3xl">{story.title}</h2>
-        <p className="mx-auto mt-3 max-w-md text-cream-200/80">{story.subtitle}</p>
-      </div>
+    <section className="relative py-14 sm:py-16">
+      <SectionHeader
+        eyebrow="เรื่องราวของเรา"
+        title={story.title}
+        subtitle={story.subtitle}
+      />
 
-      <div className="overflow-hidden rounded-2xl border border-gold-400/15 bg-earth-800/40">
-        <img
-          src={story.image}
-          alt={story.imageAlt}
-          className="aspect-[16/9] w-full object-cover sm:aspect-[21/9]"
-          loading="lazy"
-        />
+      <div className="animate-scale-in overflow-hidden rounded-3xl border border-gold-400/15 glow-gold">
+        <div className="relative">
+          <img
+            src={story.image}
+            alt={story.imageAlt}
+            className="aspect-[5/3] w-full object-cover sm:aspect-[2/1]"
+            loading="lazy"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-earth-900 via-earth-900/20 to-transparent" />
+          <div className="absolute right-4 bottom-4 left-4 rounded-2xl glass-card px-4 py-3 sm:right-auto sm:max-w-xs">
+            <p className="text-xs text-gold-300">หมู่บ้านจักสานบ้านบุทม</p>
+            <p className="text-sm font-medium text-cream-50">ต.เมืองที อ.เมือง จ.สุรินทร์</p>
+          </div>
+        </div>
 
-        <div className="space-y-4 p-6 sm:p-8">
+        <div className="space-y-5 bg-earth-900/60 p-6 sm:p-8">
           {story.paragraphs.map((paragraph, index) => (
-            <p key={index} className="text-base leading-relaxed text-cream-200/90 sm:text-[1.05rem]">
+            <p
+              key={index}
+              className={`text-[0.95rem] leading-[1.85] text-cream-200/90 sm:text-base ${
+                index === 0 ? 'font-medium text-cream-100' : ''
+              }`}
+            >
+              {index === 0 && (
+                <span className="font-display mr-1 text-3xl leading-none text-gold-400/60">“</span>
+              )}
               {paragraph}
             </p>
           ))}
         </div>
       </div>
 
-      <div className="mt-6 grid grid-cols-3 gap-3 sm:gap-4">
-        {[
-          { value: '100%', label: 'สานมือ' },
-          { value: 'OTOP', label: 'มาตรฐานชุมชน' },
-          { value: 'สุรินทร์', label: 'หมู่บ้านบุทม' },
-        ].map((stat) => (
+      <WovenDivider />
+
+      <div className="grid grid-cols-3 gap-3">
+        {stats.map((stat) => (
           <div
             key={stat.label}
-            className="rounded-xl border border-gold-400/10 bg-earth-800/30 px-3 py-4 text-center"
+            className="group rounded-2xl border border-gold-400/10 bg-gradient-to-b from-earth-800/60 to-earth-900/40 px-3 py-5 text-center transition hover:border-gold-400/25"
           >
-            <p className="text-lg font-bold text-gold-400 sm:text-xl">{stat.value}</p>
-            <p className="mt-1 text-xs text-cream-200/70 sm:text-sm">{stat.label}</p>
+            <span className="text-2xl">{stat.icon}</span>
+            <p className="font-display mt-2 text-lg font-bold text-gold-400 sm:text-xl">{stat.value}</p>
+            <p className="mt-0.5 text-[0.7rem] text-cream-300/70 sm:text-xs">{stat.label}</p>
           </div>
         ))}
       </div>

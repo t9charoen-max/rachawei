@@ -7,6 +7,13 @@ import { HomePage } from './components/home/HomePage';
 
 type Tab = 'home' | 'products' | 'about' | 'contact';
 
+const NAV_ITEMS = [
+  { id: 'home' as const, icon: '🏠', label: 'หน้าแรก' },
+  { id: 'products' as const, icon: '🛍️', label: 'สินค้า' },
+  { id: 'about' as const, icon: '📖', label: 'เกี่ยวกับ' },
+  { id: 'contact' as const, icon: '📞', label: 'ติดต่อ' },
+];
+
 export function App() {
   const [tab, setTab] = useState<Tab>('home');
   const [category, setCategory] = useState<Category>('ทั้งหมด');
@@ -22,38 +29,47 @@ export function App() {
 
   const goTo = (next: Tab) => {
     setTab(next);
-    setSelected(null);
+    if (next !== 'products') setSelected(null);
+  };
+
+  const selectProduct = (product: Product) => {
+    setSelected(product);
+    setTab('products');
   };
 
   return (
     <div className="relative mx-auto flex min-h-dvh max-w-lg flex-col bg-earth-950">
       <div
-        className="pointer-events-none fixed inset-0 -z-10 bg-[radial-gradient(ellipse_80%_50%_at_50%_-10%,rgba(212,168,83,0.12),transparent),radial-gradient(ellipse_60%_40%_at_80%_100%,rgba(139,105,20,0.1),transparent)]"
+        className="pointer-events-none fixed inset-0 -z-10 bg-[radial-gradient(ellipse_90%_60%_at_50%_-20%,rgba(212,168,83,0.14),transparent),radial-gradient(ellipse_50%_40%_at_100%_100%,rgba(196,104,64,0.08),transparent)]"
         aria-hidden
       />
+      <div className="pointer-events-none fixed inset-0 -z-10 bg-woven-pattern opacity-30" aria-hidden />
 
-      <header className="sticky top-0 z-20 border-b border-gold-400/10 bg-earth-950/90 px-4 py-3 backdrop-blur-md">
-        <button
-          type="button"
-          onClick={() => goTo('home')}
-          className="flex items-center gap-2 text-left"
-        >
-          <span className="text-xl" aria-hidden>
+      <header className="sticky top-0 z-20 border-b border-gold-400/8 bg-earth-950/80 px-4 py-3 backdrop-blur-xl">
+        <button type="button" onClick={() => goTo('home')} className="flex w-full items-center gap-3 text-left">
+          <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-gold-400/20 bg-gradient-to-br from-earth-800 to-earth-900 text-lg shadow-inner">
             👑
           </span>
-          <span className="text-lg font-bold text-gold-400">{SHOP_INFO.name}</span>
+          <div className="min-w-0 flex-1">
+            <p className="font-display truncate text-base font-bold text-gold-400">{SHOP_INFO.name}</p>
+            <p className="truncate text-[0.7rem] text-cream-300/60">งานหัตถกรรมหวาย · สุรินทร์</p>
+          </div>
         </button>
       </header>
 
       <main className="flex-1 overflow-y-auto px-4 pb-4">
         {tab === 'home' && (
-          <HomePage onViewProducts={() => goTo('products')} onContact={() => goTo('contact')} />
+          <HomePage
+            products={PRODUCTS}
+            onViewProducts={() => goTo('products')}
+            onContact={() => goTo('contact')}
+            onSelectProduct={selectProduct}
+          />
         )}
 
         {tab === 'products' && !selected && (
           <section className="screen products-screen py-4">
             <h2 className="section-title">สินค้าหวาย</h2>
-
             <div className="category-bar">
               {CATEGORIES.map((c) => (
                 <button
@@ -66,10 +82,9 @@ export function App() {
                 </button>
               ))}
             </div>
-
             <div className="product-grid">
               {filtered.map((product) => (
-                <ProductCard key={product.id} product={product} onSelect={setSelected} />
+                <ProductCard key={product.id} product={product} onSelect={selectProduct} />
               ))}
             </div>
           </section>
@@ -139,25 +154,27 @@ export function App() {
         )}
       </main>
 
-      <nav className="sticky bottom-0 z-20 grid grid-cols-4 border-t border-gold-400/10 bg-earth-950/95 backdrop-blur-md pb-[env(safe-area-inset-bottom)]">
-        {([
-          ['home', '🏠', 'หน้าแรก'],
-          ['products', '🛍️', 'สินค้า'],
-          ['about', '📖', 'เกี่ยวกับ'],
-          ['contact', '📞', 'ติดต่อ'],
-        ] as const).map(([id, icon, label]) => (
-          <button
-            key={id}
-            type="button"
-            onClick={() => goTo(id)}
-            className={`flex flex-col items-center gap-0.5 py-2 text-[0.7rem] font-medium transition ${
-              tab === id ? 'text-gold-400' : 'text-cream-200/60'
-            }`}
-          >
-            <span className="text-xl">{icon}</span>
-            <span>{label}</span>
-          </button>
-        ))}
+      <nav className="sticky bottom-0 z-20 mx-3 mb-3 rounded-2xl border border-gold-400/10 bg-earth-900/90 p-1 shadow-2xl shadow-black/40 backdrop-blur-xl">
+        <div className="grid grid-cols-4">
+          {NAV_ITEMS.map(({ id, icon, label }) => {
+            const active = tab === id;
+            return (
+              <button
+                key={id}
+                type="button"
+                onClick={() => goTo(id)}
+                className={`flex flex-col items-center gap-0.5 rounded-xl py-2 text-[0.65rem] font-medium transition-all duration-200 ${
+                  active
+                    ? 'bg-gold-500/15 text-gold-400'
+                    : 'text-cream-300/50 hover:text-cream-200/80'
+                }`}
+              >
+                <span className={`text-lg transition-transform ${active ? 'scale-110' : ''}`}>{icon}</span>
+                <span>{label}</span>
+              </button>
+            );
+          })}
+        </div>
       </nav>
     </div>
   );
