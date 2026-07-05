@@ -33,10 +33,37 @@ export function App() {
         {tab === 'home' && (
           <section className="screen home-screen">
             <div className="home-hero">
+              <div className="home-hero__image-wrap">
+                <img
+                  src={SHOP_INFO.heroImage}
+                  alt="งานหัตถกรรมหวายจากราชาหวาย"
+                  className="home-hero__image"
+                />
+              </div>
               <span className="home-badge">OTOP สุรินทร์</span>
               <h1 className="home-title">{SHOP_INFO.name}</h1>
               <p className="home-tagline">{SHOP_INFO.tagline}</p>
               <div className="home-weave" aria-hidden />
+            </div>
+
+            <div className="home-preview">
+              <h2 className="home-preview__title">สินค้าแนะนำ</h2>
+              <div className="home-preview__grid">
+                {PRODUCTS.slice(0, 4).map((product) => (
+                  <button
+                    key={product.id}
+                    type="button"
+                    className="home-preview__item"
+                    onClick={() => {
+                      setTab('products');
+                      setSelected(product);
+                    }}
+                  >
+                    <img src={product.image} alt={product.name} loading="lazy" />
+                    <span>{product.name}</span>
+                  </button>
+                ))}
+              </div>
             </div>
 
             <div className="home-features">
@@ -96,7 +123,11 @@ export function App() {
           <section className="screen about-screen">
             <h2 className="section-title">เกี่ยวกับเรา</h2>
             <div className="about-card">
-              <span className="about-card__icon" aria-hidden>👑</span>
+              <img
+                src={SHOP_INFO.heroImage}
+                alt="ช่างสานหวายราชาหวาย"
+                className="about-card__image"
+              />
               <p>{SHOP_INFO.story}</p>
             </div>
             <ul className="about-list">

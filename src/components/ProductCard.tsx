@@ -1,4 +1,5 @@
 import type { Product } from '../data/products';
+import { ProductImage } from './ProductImage';
 
 interface ProductCardProps {
   product: Product;
@@ -9,7 +10,7 @@ export function ProductCard({ product, onSelect }: ProductCardProps) {
   return (
     <button type="button" className="product-card" onClick={() => onSelect(product)}>
       <div className="product-card__image">
-        <span className="product-card__emoji">{product.emoji}</span>
+        <ProductImage src={product.image} alt={product.name} />
       </div>
       <div className="product-card__body">
         <span className="product-card__category">{product.category}</span>

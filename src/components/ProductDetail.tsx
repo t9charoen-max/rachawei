@@ -1,5 +1,6 @@
 import type { Product } from '../data/products';
 import { SHOP_INFO } from '../data/products';
+import { ProductImage } from './ProductImage';
 
 interface ProductDetailProps {
   product: Product;
@@ -14,7 +15,7 @@ export function ProductDetail({ product, onBack }: ProductDetailProps) {
       </button>
 
       <div className="detail-hero">
-        <span className="detail-hero__emoji">{product.emoji}</span>
+        <ProductImage src={product.image} alt={product.name} className="product-image--detail" />
       </div>
 
       <div className="detail-body">

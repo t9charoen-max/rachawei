@@ -4,7 +4,7 @@ export interface Product {
   description: string;
   price: number;
   category: string;
-  emoji: string;
+  image: string;
 }
 
 export const CATEGORIES = ['ทั้งหมด', 'เฟอร์นิเจอร์', 'ของตกแต่ง', 'ของใช้ในบ้าน', 'ของฝาก'] as const;
@@ -18,7 +18,7 @@ export const PRODUCTS: Product[] = [
     description: 'กระเป๋าหวายสานมือทรงคลาสสิก เหมาะใช้ในชีวิตประจำวัน',
     price: 450,
     category: 'ของใช้ในบ้าน',
-    emoji: '👜',
+    image: '/products/bag.jpg',
   },
   {
     id: '2',
@@ -26,7 +26,7 @@ export const PRODUCTS: Product[] = [
     description: 'ตะกร้าหวายสานแน่น ใช้ใส่ผลไม้หรือของว่างในครัว',
     price: 280,
     category: 'ของใช้ในบ้าน',
-    emoji: '🧺',
+    image: '/products/basket.jpg',
   },
   {
     id: '3',
@@ -34,7 +34,7 @@ export const PRODUCTS: Product[] = [
     description: 'โคมไฟหวายทรงกลม ให้แสงนุ่มนวล เพิ่มบรรยากาศบ้าน',
     price: 890,
     category: 'ของตกแต่ง',
-    emoji: '🪔',
+    image: '/products/lamp.jpg',
   },
   {
     id: '4',
@@ -42,7 +42,7 @@ export const PRODUCTS: Product[] = [
     description: 'เก้าอี้หวายโครงแข็งแรง เบาะผ้าลายไทย นั่งสบาย',
     price: 1850,
     category: 'เฟอร์นิเจอร์',
-    emoji: '🪑',
+    image: '/products/chair.jpg',
   },
   {
     id: '5',
@@ -50,7 +50,7 @@ export const PRODUCTS: Product[] = [
     description: 'ถาดหวายขนาดต่างกัน ใช้เสิร์ฟขนมหรือของว่าง',
     price: 350,
     category: 'ของฝาก',
-    emoji: '🍱',
+    image: '/products/tray.jpg',
   },
   {
     id: '6',
@@ -58,7 +58,7 @@ export const PRODUCTS: Product[] = [
     description: 'กรอบรูปหวายลายสาน ของฝากจากสุรินทร์',
     price: 220,
     category: 'ของฝาก',
-    emoji: '🖼️',
+    image: '/products/frame.jpg',
   },
   {
     id: '7',
@@ -66,7 +66,7 @@ export const PRODUCTS: Product[] = [
     description: 'หมวกหวายสานทรงกว้าง กันแดดได้ดี เหมาะท่องเที่ยว',
     price: 180,
     category: 'ของฝาก',
-    emoji: '👒',
+    image: '/products/hat.jpg',
   },
   {
     id: '8',
@@ -74,7 +74,7 @@ export const PRODUCTS: Product[] = [
     description: 'ชั้นวางของหวายมินิมอล วางของตกแต่งหรือหนังสือ',
     price: 720,
     category: 'เฟอร์นิเจอร์',
-    emoji: '🗄️',
+    image: '/products/shelf.jpg',
   },
 ];
 
@@ -84,6 +84,7 @@ export const SHOP_INFO = {
   location: 'อำเภอจอมพระ จังหวัดสุรินทร์',
   phone: '08x-xxx-xxxx',
   hours: 'จันทร์–เสาร์ 08:00–17:00',
+  heroImage: '/images/hero.jpg',
   story:
     'ราชาหวาย เริ่มจากช่างสานหวายท้องถิ่นที่สืบทอดภูมิปัญญามาหลายชั่วอายุคน เราคัดสรรหวายคุณภาพ สานด้วยมือทุกชิ้น เพื่อสร้างงานหัตถกรรมที่ทั้งสวยงามและใช้งานได้จริง',
 };
