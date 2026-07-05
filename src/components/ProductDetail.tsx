@@ -1,5 +1,5 @@
 import type { Product } from '../data/products';
-import { SHOP_INFO } from '../data/products';
+import { SHOW_PRICES, SHOP_INFO } from '../data/products';
 import { ProductImage } from './ProductImage';
 
 interface ProductDetailProps {
@@ -21,12 +21,16 @@ export function ProductDetail({ product, onBack }: ProductDetailProps) {
       <div className="detail-body">
         <span className="detail-body__category">{product.category}</span>
         <h2 className="detail-body__name">{product.name}</h2>
-        <p className="detail-body__price">฿{product.price.toLocaleString('th-TH')}</p>
+        {SHOW_PRICES && product.price != null ? (
+          <p className="detail-body__price">฿{product.price.toLocaleString('th-TH')}</p>
+        ) : (
+          <p className="detail-body__inquire">สอบถามราคา — โทรสั่งซื้อ</p>
+        )}
         <p className="detail-body__desc">{product.description}</p>
       </div>
 
       <a href={`tel:${SHOP_INFO.phone.replace(/-/g, '')}`} className="btn btn--primary btn--full btn--lg">
-        โทรสั่งซื้อ
+        โทรสอบถาม / สั่งซื้อ
       </a>
     </section>
   );

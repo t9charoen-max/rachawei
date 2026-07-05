@@ -1,4 +1,5 @@
 import type { Product } from '../data/products';
+import { SHOW_PRICES } from '../data/products';
 import { ProductImage } from './ProductImage';
 
 interface ProductCardProps {
@@ -15,7 +16,11 @@ export function ProductCard({ product, onSelect }: ProductCardProps) {
       <div className="product-card__body">
         <span className="product-card__category">{product.category}</span>
         <h3 className="product-card__name">{product.name}</h3>
-        <p className="product-card__price">฿{product.price.toLocaleString('th-TH')}</p>
+        {SHOW_PRICES && product.price != null ? (
+          <p className="product-card__price">฿{product.price.toLocaleString('th-TH')}</p>
+        ) : (
+          <p className="product-card__inquire">สอบถามราคา</p>
+        )}
       </div>
     </button>
   );

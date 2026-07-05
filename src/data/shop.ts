@@ -14,9 +14,9 @@ export const SHOP_PHOTOS: ShopPhoto[] = [
   },
   {
     id: '2',
-    src: '/products/basket-weave.jpg',
-    alt: 'ตะกร้าหวายลายสานถี่จากราชาหวายสุรินทร์',
-    caption: 'ตะกร้าหวายสานมือคุณภาพจากช่างท้องถิ่น',
+    src: '/products/basket-03-lidded-pair.jpg',
+    alt: 'ตะกร้าหวายมีฝาจากราชาหวายสุรินทร์',
+    caption: 'ตะกร้าหวายมีฝา สานมือคุณภาพจากช่างท้องถิ่น',
   },
 ];
 

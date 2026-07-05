@@ -367,6 +367,13 @@
   color: var(--gold);
 }
 
+.product-card__inquire {
+  margin: 0.35rem 0 0;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--cream-muted);
+}
+
 /* Detail */
 .detail-hero {
   height: 260px;
@@ -391,6 +398,13 @@
   margin: 0;
   font-size: 1.35rem;
   font-weight: 700;
+  color: var(--gold);
+}
+
+.detail-body__inquire {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
   color: var(--gold);
 }
 

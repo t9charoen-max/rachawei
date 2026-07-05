@@ -2,17 +2,20 @@ export interface Product {
   id: string;
   name: string;
   description: string;
-  price: number;
   category: string;
   image: string;
+  price?: number;
 }
+
+/** เปิดเมื่อพร้อมแสดงราคา */
+export const SHOW_PRICES = false;
 
 export const CATEGORIES = [
   'ทั้งหมด',
   'ทรงกลม',
   'ทรงเหลี่ยม',
+  'มีฝา',
   'หูจับสูง',
-  'ของฝาก',
 ] as const;
 
 export type Category = (typeof CATEGORIES)[number];
@@ -20,67 +23,38 @@ export type Category = (typeof CATEGORIES)[number];
 export const PRODUCTS: Product[] = [
   {
     id: '1',
-    name: 'ตะกร้าหวายทรงกลม 2 ชั้น ปากหยัก',
-    description: 'ตะกร้าหวายทรงกลม 2 ชั้น ปากหยัก ฐาน 11 นิ้ว งานสานมือจากช่างบ้านบุทม',
-    price: 2500,
-    category: 'ทรงกลม',
-    image: '/products/basket-round-2tier.jpg',
+    name: 'ตะกร้าหวายทรงกลมปากหยัก',
+    description: 'ตะกร้าหวายทรงกลมปากหยัก หูจับสูง ลายสานถี่ งานประณีตจากช่างบ้านบุทม',
+    category: 'หูจับสูง',
+    image: '/products/basket-01-round-scalloped.jpg',
   },
   {
     id: '2',
-    name: 'ตะกร้าหวายทรงกลมปากหยัก',
-    description: 'ตะกร้าหวายทรงกลมลายปากหยัก สานแน่น เหมาะใส่ผลไม้หรือของประดับ',
-    price: 1200,
+    name: 'ตะกร้าหวายทรงกลมฐาน 11 นิ้ว',
+    description: 'ตะกร้าหวายทรงกลม ฐาน 11 นิ้ว หูจับมั่นคง สานมือ 100%',
     category: 'ทรงกลม',
-    image: '/products/basket-round-fluted.jpg',
+    image: '/products/basket-02-round-11inch.jpg',
   },
   {
     id: '3',
-    name: 'ตะกร้าหวายทรงกลมคลาสสิก',
-    description: 'ตะกร้าหวายทรงกลมแบบดั้งเดิม หูจับมั่นคง ใช้งานได้หลากหลาย',
-    price: 980,
-    category: 'ทรงกลม',
-    image: '/products/basket-classic.jpg',
+    name: 'ตะกร้าหวายมีฝา ชุดคู่',
+    description: 'ตะกร้าหวายมีฝาปิด ชุดคู่ ลายสานละเอียด เหมาะเป็นของฝาก',
+    category: 'มีฝา',
+    image: '/products/basket-03-lidded-pair.jpg',
   },
   {
     id: '4',
-    name: 'ตะกร้าหวายทรงเหลี่ยม',
-    description: 'ตะกร้าหวายทรงเหลี่ยม วางซ้อนได้สะดวก เหมาะจัดเก็บของในบ้าน',
-    price: 850,
+    name: 'ตะกร้าหวายทรงเหลี่ยมมีฝา',
+    description: 'ตะกร้าหวายทรงเหลี่ยมมีฝา หูจับสูง วางซ้อนได้สะดวก',
     category: 'ทรงเหลี่ยม',
-    image: '/products/basket-rectangular.jpg',
+    image: '/products/basket-04-rectangular-lid.jpg',
   },
   {
     id: '5',
-    name: 'ตะกร้าหวายทรงเหลี่ยมขนาดใหญ่',
-    description: 'ตะกร้าหวายทรงเหลี่ยมขนาดใหญ่ สานแน่น ใส่ของได้มาก',
-    price: 1500,
-    category: 'ทรงเหลี่ยม',
-    image: '/products/basket-oval-large.jpg',
-  },
-  {
-    id: '6',
-    name: 'ตะกร้าหวายหูจับสูง',
-    description: 'ตะกร้าหวายหูจับสูงแบบปิกนิก ถือพกพาสะดวก เหมาะท่องเที่ยว',
-    price: 1100,
-    category: 'หูจับสูง',
-    image: '/products/basket-handle-high.jpg',
-  },
-  {
-    id: '7',
-    name: 'ตะกร้าหวายลายสานถี่',
-    description: 'ตะกร้าหวายลายสานถี่ งานประณีต เนื้อแน่น ทนทาน',
-    price: 1350,
-    category: 'หูจับสูง',
-    image: '/products/basket-weave.jpg',
-  },
-  {
-    id: '8',
-    name: 'ตะกร้าหวายขนาดเล็ก',
-    description: 'ตะกร้าหวายขนาดเล็ก ของฝากจากสุรินทร์ ราคาประหยัด',
-    price: 350,
-    category: 'ของฝาก',
-    image: '/products/basket-small.jpg',
+    name: 'ตะกร้าหวายหลายแบบ',
+    description: 'ตะกร้าหวายหลากหลายทรง ทั้งกลม เหลี่ยม และปากหยัก จากราชาหวายสุรินทร์',
+    category: 'ทรงกลม',
+    image: '/products/basket-05-collection.jpg',
   },
 ];
 

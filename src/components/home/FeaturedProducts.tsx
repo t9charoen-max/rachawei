@@ -1,4 +1,5 @@
 import type { Product } from '../../data/products';
+import { SHOW_PRICES } from '../../data/products';
 
 interface FeaturedProductsProps {
   products: Product[];
@@ -13,8 +14,8 @@ export function FeaturedProducts({ products, onSelect, onViewAll }: FeaturedProd
     <section className="py-10">
       <div className="mb-6 flex items-end justify-between">
         <div>
-          <p className="text-xs font-semibold tracking-widest text-gold-400 uppercase">สินค้ายอดนิยม</p>
-          <h2 className="font-display mt-1 text-xl font-bold text-cream-50">ตะกร้าหวายแนะนำ</h2>
+          <p className="text-xs font-semibold tracking-widest text-gold-400 uppercase">สินค้าแนะนำ</p>
+          <h2 className="font-display mt-1 text-xl font-bold text-cream-50">ตะกร้าหวาย</h2>
         </div>
         <button
           type="button"
@@ -50,9 +51,13 @@ export function FeaturedProducts({ products, onSelect, onViewAll }: FeaturedProd
               <h3 className="line-clamp-2 text-sm font-semibold leading-snug text-cream-50">
                 {product.name}
               </h3>
-              <p className="mt-2 text-base font-bold text-gold-400">
-                ฿{product.price.toLocaleString('th-TH')}
-              </p>
+              {SHOW_PRICES && product.price != null ? (
+                <p className="mt-2 text-base font-bold text-gold-400">
+                  ฿{product.price.toLocaleString('th-TH')}
+                </p>
+              ) : (
+                <p className="mt-2 text-sm text-cream-300/70">สอบถามราคา</p>
+              )}
             </div>
           </button>
         ))}
