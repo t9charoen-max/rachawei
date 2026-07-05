@@ -39,9 +39,9 @@ export function HeroSection({ onViewProducts, onContact }: HeroSectionProps) {
             </span>
 
             <h1 className="font-display max-w-[16ch] text-[2rem] leading-[1.15] font-bold text-cream-50 sm:text-[2.35rem]">
-              <span className="text-gradient-gold">งานหัตถกรรมหวาย</span>
-              <br />
-              <span className="text-cream-50">คุณภาพจากชุมชนสุรินทร์</span>
+            <span className="text-gradient-gold">ตะกร้าหวาย</span>
+            <br />
+            <span className="text-cream-50">คุณภาพจากชุมชนสุรินทร์</span>
             </h1>
 
             <p className="mt-5 max-w-[28ch] text-[0.95rem] leading-relaxed text-cream-200/85 sm:text-base">

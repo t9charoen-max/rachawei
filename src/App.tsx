@@ -69,7 +69,7 @@ export function App() {
 
         {tab === 'products' && !selected && (
           <section className="screen products-screen py-4">
-            <h2 className="section-title">สินค้าหวาย</h2>
+            <h2 className="section-title">ตะกร้าหวาย</h2>
             <div className="category-bar">
               {CATEGORIES.map((c) => (
                 <button

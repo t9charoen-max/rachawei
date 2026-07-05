@@ -14,7 +14,7 @@ export function FeaturedProducts({ products, onSelect, onViewAll }: FeaturedProd
       <div className="mb-6 flex items-end justify-between">
         <div>
           <p className="text-xs font-semibold tracking-widest text-gold-400 uppercase">สินค้ายอดนิยม</p>
-          <h2 className="font-display mt-1 text-xl font-bold text-cream-50">งานหวายแนะนำ</h2>
+          <h2 className="font-display mt-1 text-xl font-bold text-cream-50">ตะกร้าหวายแนะนำ</h2>
         </div>
         <button
           type="button"
