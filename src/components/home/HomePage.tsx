@@ -24,7 +24,7 @@ export function HomePage({ onViewProducts, onContact, onSelectProduct, products 
         onViewAll={onViewProducts}
       />
       <OurStorySection />
-      <UsageSection />
+      <UsageSection onViewProducts={onViewProducts} />
       <CommunitySection />
     </div>
   );
