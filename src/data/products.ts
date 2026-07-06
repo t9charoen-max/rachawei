@@ -18,7 +18,7 @@ export interface Product {
 export const SHOW_PRICES = false;
 
 /** เปลี่ยนเมื่ออัปเดตรูปสินค้า เพื่อให้เบราว์เซอร์โหลดรูปใหม่ */
-export const PRODUCT_IMAGE_VERSION = 'rachawei-real-v8';
+export const PRODUCT_IMAGE_VERSION = 'rachawei-real-v9';
 
 export const CATEGORIES = [
   'ทั้งหมด',
@@ -49,7 +49,6 @@ export const PRODUCTS: Product[] = [
     price: 1500,
     special: true,
     image: `/products/basket-06-octagonal-single.jpg?v=${PRODUCT_IMAGE_VERSION}`,
-    panorama360: `/products/basket-06-360.jpg?v=${PRODUCT_IMAGE_VERSION}`,
   },
   {
     id: '1',
