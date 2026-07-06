@@ -15,7 +15,7 @@ export function ProductDetail({ product, onBack }: ProductDetailProps) {
       </button>
 
       <div className="detail-hero">
-        <ProductImage src={product.image} alt={product.name} className="product-image--detail" />
+        <ProductImage src={product.image} alt={product.name} variant="detail" />
       </div>
 
       <div className="detail-body">

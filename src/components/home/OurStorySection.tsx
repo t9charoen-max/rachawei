@@ -24,7 +24,7 @@ export function OurStorySection() {
           <img
             src={story.image}
             alt={story.imageAlt}
-            className="aspect-[5/3] w-full object-cover sm:aspect-[2/1]"
+            className="aspect-[4/5] w-full object-cover object-center sm:aspect-[5/4]"
             loading="lazy"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-earth-900 via-earth-900/20 to-transparent" />

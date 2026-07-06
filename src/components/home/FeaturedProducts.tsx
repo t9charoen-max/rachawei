@@ -26,37 +26,26 @@ export function FeaturedProducts({ products, onSelect, onViewAll }: FeaturedProd
         </button>
       </div>
 
-      <div className="flex gap-4 overflow-x-auto pb-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      <div className="featured-scroll">
         {featured.map((product, i) => (
           <button
             key={product.id}
             type="button"
             onClick={() => onSelect(product)}
-            className="group w-[68%] shrink-0 overflow-hidden rounded-2xl border border-gold-400/10 bg-earth-800/50 text-left transition hover:border-gold-400/30 hover:glow-gold sm:w-[45%]"
+            className="featured-card"
             style={{ animationDelay: `${i * 100}ms` }}
           >
-            <div className="relative aspect-[4/3] overflow-hidden">
-              <img
-                src={product.image}
-                alt={product.name}
-                className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
-                loading="lazy"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-earth-950/80 via-transparent to-transparent" />
-              <span className="absolute top-3 left-3 rounded-full bg-earth-950/70 px-2.5 py-0.5 text-[0.65rem] font-medium text-gold-300 backdrop-blur-sm">
-                {product.category}
-              </span>
+            <div className="featured-card__image">
+              <img src={product.image} alt={product.name} loading="lazy" decoding="async" />
+              <span className="featured-card__badge">{product.category}</span>
+              <span className="featured-card__tag">สานมือ OTOP</span>
             </div>
-            <div className="p-4">
-              <h3 className="line-clamp-2 text-sm font-semibold leading-snug text-cream-50">
-                {product.name}
-              </h3>
+            <div className="featured-card__body">
+              <h3 className="featured-card__name">{product.name}</h3>
               {SHOW_PRICES && product.price != null ? (
-                <p className="mt-2 text-base font-bold text-gold-400">
-                  ฿{product.price.toLocaleString('th-TH')}
-                </p>
+                <p className="featured-card__price">฿{product.price.toLocaleString('th-TH')}</p>
               ) : (
-                <p className="mt-2 text-sm text-cream-300/70">สอบถามราคา</p>
+                <p className="featured-card__inquire">สอบถามราคา</p>
               )}
             </div>
           </button>
