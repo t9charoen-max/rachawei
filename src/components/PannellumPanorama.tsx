@@ -1,60 +1,23 @@
 import { memo, useEffect, useRef } from 'react';
-import { TOUR_CONFIG } from '../data/tour';
+import type { PannellumConfig } from '../lib/pannellum';
 import 'pannellum/build/pannellum.css';
 
-function buildPannellumConfig() {
-  const scenes: Record<string, Record<string, unknown>> = {};
-
-  for (const scene of TOUR_CONFIG.scenes) {
-    scenes[scene.id] = {
-      title: scene.title,
-      type: 'equirectangular',
-      panorama: scene.panorama,
-      pitch: scene.pitch,
-      yaw: scene.yaw,
-      hfov: scene.hfov,
-      hotSpots: scene.hotSpots.map((spot) => ({
-        pitch: spot.pitch,
-        yaw: spot.yaw,
-        type: 'scene',
-        text: spot.text,
-        sceneId: spot.sceneId,
-      })),
-    };
-  }
-
-  return {
-    default: {
-      firstScene: TOUR_CONFIG.firstScene,
-      sceneFadeDuration: TOUR_CONFIG.sceneFadeDuration,
-      autoLoad: true,
-      showControls: true,
-      showZoomCtrl: true,
-      showFullscreenCtrl: true,
-      compass: false,
-      mouseZoom: true,
-      draggable: true,
-      keyboardZoom: true,
-      hfov: 95,
-      minHfov: 50,
-      maxHfov: 120,
-    },
-    scenes,
-  };
-}
-
 interface PannellumPanoramaProps {
-  onViewer: (viewer: PannellumViewer) => void;
-  onReady: () => void;
-  onSceneChange: (sceneId: string) => void;
-  onError: () => void;
+  config: PannellumConfig;
+  onViewer?: (viewer: PannellumViewer) => void;
+  onReady?: () => void;
+  onSceneChange?: (sceneId: string) => void;
+  onError?: () => void;
+  className?: string;
 }
 
 export const PannellumPanorama = memo(function PannellumPanorama({
+  config,
   onViewer,
   onReady,
   onSceneChange,
   onError,
+  className = 'virtual-tour__panorama-mount',
 }: PannellumPanoramaProps) {
   const mountRef = useRef<HTMLDivElement>(null);
   const onViewerRef = useRef(onViewer);
@@ -77,24 +40,24 @@ export const PannellumPanorama = memo(function PannellumPanorama({
         if (cancelled || !mountRef.current) return;
 
         if (!window.pannellum) {
-          onErrorRef.current();
+          onErrorRef.current?.();
           return;
         }
 
-        viewer = window.pannellum.viewer(mountRef.current, buildPannellumConfig());
-        onViewerRef.current(viewer);
+        viewer = window.pannellum.viewer(mountRef.current, config);
+        onViewerRef.current?.(viewer);
 
         viewer.on('load', () => {
-          if (!cancelled) onReadyRef.current();
+          if (!cancelled) onReadyRef.current?.();
         });
         viewer.on('scenechange', (sceneId) => {
-          if (!cancelled) onSceneChangeRef.current(sceneId ?? viewer!.getScene());
+          if (!cancelled) onSceneChangeRef.current?.(sceneId ?? viewer!.getScene());
         });
         viewer.on('error', () => {
-          if (!cancelled) onErrorRef.current();
+          if (!cancelled) onErrorRef.current?.();
         });
       } catch {
-        if (!cancelled) onErrorRef.current();
+        if (!cancelled) onErrorRef.current?.();
       }
     }
 
@@ -104,7 +67,7 @@ export const PannellumPanorama = memo(function PannellumPanorama({
       cancelled = true;
       viewer?.destroy();
     };
-  }, []);
+  }, [config]);
 
-  return <div ref={mountRef} className="virtual-tour__panorama-mount" />;
+  return <div ref={mountRef} className={className} />;
 });

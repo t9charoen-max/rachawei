@@ -12,6 +12,7 @@ export function ProductCard({ product, onSelect }: ProductCardProps) {
     <button type="button" className="product-card" onClick={() => onSelect(product)}>
       <div className="product-card__image">
         <ProductImage src={product.image} alt={product.name} />
+        {product.panorama360 && <span className="product-card__360">360°</span>}
       </div>
       <div className="product-card__body">
         <span className="product-card__category">{product.category}</span>

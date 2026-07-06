@@ -1,5 +1,6 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { TOUR_CONFIG, type TourScene } from '../data/tour';
+import { buildTourPannellumConfig, getTourScene } from '../lib/pannellum';
 import { PannellumPanorama } from './PannellumPanorama';
 
 export function VirtualTour() {
@@ -7,6 +8,8 @@ export function VirtualTour() {
   const [activeScene, setActiveScene] = useState<TourScene>(TOUR_CONFIG.scenes[0]);
   const [ready, setReady] = useState(false);
   const [failed, setFailed] = useState(false);
+
+  const tourConfig = useMemo(() => buildTourPannellumConfig(), []);
 
   const handleViewer = useCallback((viewer: PannellumViewer) => {
     viewerRef.current = viewer;
@@ -16,13 +19,13 @@ export function VirtualTour() {
   const handleError = useCallback(() => setFailed(true), []);
 
   const handleSceneChange = useCallback((sceneId: string) => {
-    const scene = TOUR_CONFIG.scenes.find((s) => s.id === sceneId);
+    const scene = getTourScene(sceneId);
     if (scene) setActiveScene(scene);
   }, []);
 
   const goToScene = (sceneId: string) => {
     viewerRef.current?.loadScene(sceneId);
-    const scene = TOUR_CONFIG.scenes.find((s) => s.id === sceneId);
+    const scene = getTourScene(sceneId);
     if (scene) setActiveScene(scene);
   };
 
@@ -50,6 +53,7 @@ export function VirtualTour() {
 
       <div className="virtual-tour__viewer-wrap">
         <PannellumPanorama
+          config={tourConfig}
           onViewer={handleViewer}
           onReady={handleReady}
           onSceneChange={handleSceneChange}

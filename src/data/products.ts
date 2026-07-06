@@ -5,6 +5,11 @@ export interface Product {
   category: string;
   image: string;
   price?: number;
+  /** ภาพ panorama สำหรับมุมมอง 360° (equirectangular 2:1) */
+  panorama360?: string;
+  panoramaPitch?: number;
+  panoramaYaw?: number;
+  panoramaHfov?: number;
 }
 
 /** เปิดเมื่อพร้อมแสดงราคา */
@@ -30,6 +35,7 @@ export const PRODUCTS: Product[] = [
     description: 'ตะกร้าหวายทรงกลมปากหยัก หูจับสูง ลายสานถี่ งานประณีตจากช่างบ้านบุทม',
     category: 'หูจับสูง',
     image: `/products/basket-01-round-scalloped.jpg?v=${PRODUCT_IMAGE_VERSION}`,
+    panorama360: `/products/basket-01-360.jpg?v=${PRODUCT_IMAGE_VERSION}`,
   },
   {
     id: '2',
@@ -37,6 +43,7 @@ export const PRODUCTS: Product[] = [
     description: 'ตะกร้าหวายทรงกลม ฐาน 11 นิ้ว หูจับมั่นคง สานมือ 100%',
     category: 'ทรงกลม',
     image: `/products/basket-02-round-11inch.jpg?v=${PRODUCT_IMAGE_VERSION}`,
+    panorama360: `/products/basket-02-360.jpg?v=${PRODUCT_IMAGE_VERSION}`,
   },
   {
     id: '3',
@@ -44,6 +51,7 @@ export const PRODUCTS: Product[] = [
     description: 'ตะกร้าหวายมีฝาปิด ชุดคู่ ลายสานละเอียด เหมาะเป็นของฝาก',
     category: 'มีฝา',
     image: `/products/basket-03-lidded-pair.jpg?v=${PRODUCT_IMAGE_VERSION}`,
+    panorama360: `/products/basket-03-360.jpg?v=${PRODUCT_IMAGE_VERSION}`,
   },
   {
     id: '4',
@@ -51,6 +59,7 @@ export const PRODUCTS: Product[] = [
     description: 'ตะกร้าหวายทรงเหลี่ยมมีฝา หูจับมั่นคง ลายสานโปร่งตรงกลาง วางซ้อนได้สะดวก',
     category: 'ทรงเหลี่ยม',
     image: `/products/basket-04-rectangular-lid.jpg?v=${PRODUCT_IMAGE_VERSION}`,
+    panorama360: `/products/basket-04-360.jpg?v=${PRODUCT_IMAGE_VERSION}`,
   },
   {
     id: '5',
@@ -58,6 +67,7 @@ export const PRODUCTS: Product[] = [
     description: 'ตะกร้าหวายหลากหลายทรง ทั้งกลม เหลี่ยม และปากหยัก จากราชาหวายสุรินทร์',
     category: 'ทรงกลม',
     image: `/products/basket-05-collection.jpg?v=${PRODUCT_IMAGE_VERSION}`,
+    panorama360: `/products/basket-05-360.jpg?v=${PRODUCT_IMAGE_VERSION}`,
   },
 ];
 
