@@ -5,6 +5,8 @@ export interface ShopPhoto {
   caption: string;
 }
 
+import { PRODUCT_IMAGE_VERSION } from './products';
+
 export const SHOP_PHOTOS: ShopPhoto[] = [
   {
     id: '1',
@@ -14,7 +16,7 @@ export const SHOP_PHOTOS: ShopPhoto[] = [
   },
   {
     id: '2',
-    src: '/products/basket-03-lidded-pair.jpg',
+    src: `/products/basket-03-lidded-pair.jpg?v=${PRODUCT_IMAGE_VERSION}`,
     alt: 'ตะกร้าหวายมีฝาจากราชาหวายสุรินทร์',
     caption: 'ตะกร้าหวายมีฝา สานมือคุณภาพจากช่างท้องถิ่น',
   },

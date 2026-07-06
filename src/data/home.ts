@@ -1,3 +1,5 @@
+import { PRODUCT_IMAGE_VERSION } from './products';
+
 export const HOME_CONTENT = {
   hero: {
     headline: 'ตะกร้าหวายคุณภาพจากชุมชนสุรินทร์',
@@ -15,7 +17,7 @@ export const HOME_CONTENT = {
       'วันนี้เรารวมช่างฝีมือในชุมชนมาสานตะกร้าหวายทุกทรง ทั้งกลม เหลี่ยม และหูจับสูง ทุกลายสาน ทุกรอยมือ คือเรื่องราวของคนอีสานที่ยังคงภูมิปัญญาท้องถิ่นไว้',
       'เรามุ่งมั่นพัฒนาคุณภาพอย่างต่อเนื่อง ผ่านมาตรฐานผลิตภัณฑ์ชุมชน OTOP เพื่อให้ลูกค้าได้ตะกร้าหวายที่ดีที่สุด และชุมชนได้รายได้ที่ยั่งยืน',
     ],
-    image: '/products/basket-01-round-scalloped.jpg',
+    image: `/products/basket-01-round-scalloped.jpg?v=${PRODUCT_IMAGE_VERSION}`,
     imageAlt: 'ตะกร้าหวายทรงกลมปากหยัก หูจับสูง จากราชาหวายสุรินทร์',
   },
   community: {
@@ -45,7 +47,7 @@ export const HOME_CONTENT = {
         caption: 'บรรยากาศภายในร้าน — งานสานเรียงราย รอส่งมอบถึงมือคุณ',
       },
       {
-        src: '/products/basket-05-collection.jpg',
+        src: `/products/basket-05-collection.jpg?v=${PRODUCT_IMAGE_VERSION}`,
         alt: 'ตะกร้าหวายหลากหลายทรงจากช่างฝีมือบ้านบุทม',
         caption: 'ตะกร้าหวายหลากหลายทรง จากฝีมือชาวบ้านบุทม',
       },
