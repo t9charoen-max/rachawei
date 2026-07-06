@@ -61,24 +61,24 @@ export const HOME_CONTENT = {
     subtitle: 'งานสานมือที่ใช้ได้จริง ทั้งในบ้าน ตลาด และพิธีกรรม',
     scenarios: [
       {
-        image: `/products/basket-01-round-scalloped.jpg?v=${PRODUCT_IMAGE_VERSION}`,
-        imageAlt: 'ตะกร้าหวายทรงกลมปากหยัก หูจับสูง จากราชาหวายสุรินทร์ บ้านบุทม',
+        image: '/images/promo/usage-market.jpg',
+        imageAlt: 'ผู้หญิงถือตะกร้าหวายใส่ผลไม้และขนมปังที่ตลาดนัด',
         tag: 'ช้อปปิ้ง',
         title: 'ช้อปของสดที่ตลาด',
         description:
           'ตะกร้าหวายหูจับสูง ถือพกพาสะดวก ใส่ผัก ผลไม้ หรือของชำได้มาก ทนทาน ระบายอากาศดี เหมาะกับการช้อปที่ตลาดนัดหรือตลาดสด',
       },
       {
-        image: `/products/basket-04-rectangular-lid.jpg?v=${PRODUCT_IMAGE_VERSION}`,
-        imageAlt: 'ตะกร้าหวายทรงเหลี่ยมมีฝา จากราชาหวายสุรินทร์ บ้านบุทม',
+        image: '/images/promo/usage-temple.jpg',
+        imageAlt: 'ผู้สูงอายุถือตะกร้าหวายใส่สิ่งของถวายพระที่วัด',
         tag: 'ทำบุญ',
         title: 'ใส่สิ่งของถวายพระ',
         description:
           'ตะกร้าหวายทรงเหลี่ยม ใส่ผ้าจีวร ดอกไม้ หรืออาหารถวายได้สวยงาม เป็นของใช้ในพิธีกรรมและวิถีชีวิตคนอีสานมาช้านาน',
       },
       {
-        image: `/products/basket-03-lidded-pair.jpg?v=${PRODUCT_IMAGE_VERSION}`,
-        imageAlt: 'ตะกร้าหวายมีฝา จากราชาหวายสุรินทร์ บ้านบุทม',
+        image: '/images/promo/usage-shopping.jpg',
+        imageAlt: 'หญิงสาวในชุดไทยถือตะกร้าหวายมีฝาใส่ผักที่ตลาด',
         tag: 'ครัวเรือน',
         title: 'จัดเก็บในครัวและบ้าน',
         description:

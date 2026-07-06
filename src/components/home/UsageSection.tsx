@@ -23,14 +23,14 @@ export function UsageSection() {
               i % 2 === 1 ? 'sm:flex-row-reverse' : ''
             } sm:flex`}
           >
-            <div className="relative overflow-hidden bg-[radial-gradient(ellipse_80%_70%_at_50%_40%,rgba(255,248,235,0.14),transparent),linear-gradient(180deg,rgba(255,248,235,0.08),rgba(212,168,83,0.04))] sm:w-1/2">
+            <div className="relative overflow-hidden sm:w-1/2">
               <img
                 src={item.image}
                 alt={item.imageAlt}
-                className="aspect-[4/3] h-full w-full object-contain p-4 transition duration-700 group-hover:scale-[1.03] sm:aspect-auto sm:min-h-[280px] sm:p-6"
+                className="aspect-[4/3] h-full w-full object-cover transition duration-700 group-hover:scale-[1.03] sm:aspect-auto sm:min-h-[280px]"
                 loading="lazy"
               />
-              <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-earth-950/30 via-transparent to-transparent sm:bg-gradient-to-r sm:from-transparent sm:via-transparent sm:to-earth-950/20" />
+              <div className="absolute inset-0 bg-gradient-to-t from-earth-950/50 via-transparent to-transparent sm:bg-gradient-to-r sm:from-transparent sm:via-transparent sm:to-earth-950/30" />
               <span className="absolute top-4 left-4 rounded-full bg-earth-950/70 px-3 py-1 text-xs font-medium text-gold-300 backdrop-blur-sm">
                 {item.tag}
               </span>
