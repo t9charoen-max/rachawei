@@ -45,7 +45,7 @@ export const PRODUCTS: Product[] = [
   {
     id: '4',
     name: 'ตะกร้าหวายทรงเหลี่ยมมีฝา',
-    description: 'ตะกร้าหวายทรงเหลี่ยมมีฝา หูจับสูง วางซ้อนได้สะดวก',
+    description: 'ตะกร้าหวายทรงเหลี่ยมมีฝา หูจับมั่นคง ลายสานโปร่งตรงกลาง วางซ้อนได้สะดวก',
     category: 'ทรงเหลี่ยม',
     image: '/products/basket-04-rectangular-lid.jpg',
   },
