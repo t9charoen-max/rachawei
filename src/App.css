@@ -774,3 +774,207 @@
   border: 0;
   display: block;
 }
+
+/* Virtual tour 360° */
+.virtual-tour {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  margin-bottom: 1.25rem;
+}
+
+.virtual-tour__header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.virtual-tour__eyebrow {
+  margin: 0;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--gold);
+}
+
+.virtual-tour__title {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--gold-light);
+}
+
+.virtual-tour__hint {
+  margin: 0.15rem 0 0;
+  font-size: 0.82rem;
+  line-height: 1.45;
+  color: var(--cream-muted);
+}
+
+.virtual-tour__viewer-wrap {
+  position: relative;
+  overflow: hidden;
+  border-radius: 1rem;
+  border: 1px solid rgba(212, 168, 83, 0.22);
+  background: var(--bg-card);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.28);
+}
+
+.virtual-tour__viewer {
+  width: 100%;
+  height: 280px;
+  touch-action: none;
+}
+
+.virtual-tour__viewer .pnlm-container {
+  border-radius: 1rem;
+}
+
+.virtual-tour__viewer .pnlm-hotspot-base {
+  width: 2rem;
+  height: 2rem;
+  background: rgba(212, 168, 83, 0.92);
+  border: 2px solid rgba(255, 248, 235, 0.9);
+  border-radius: 50%;
+  box-shadow: 0 0 16px rgba(212, 168, 83, 0.55);
+  animation: pulse-dot 2s ease-in-out infinite;
+}
+
+.virtual-tour__viewer .pnlm-hotspot-base::before {
+  border-color: transparent transparent rgba(212, 168, 83, 0.92);
+}
+
+.virtual-tour__viewer .pnlm-hotspot span {
+  background: rgba(26, 18, 12, 0.9);
+  border: 1px solid rgba(212, 168, 83, 0.35);
+  border-radius: 999px;
+  color: var(--gold-light);
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.3rem 0.65rem;
+}
+
+.virtual-tour__loading {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  background: rgba(26, 18, 12, 0.85);
+  color: var(--cream-muted);
+  font-size: 0.9rem;
+  pointer-events: none;
+}
+
+.virtual-tour__loading-icon {
+  font-size: 1.5rem;
+  animation: spin 1.2s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.virtual-tour__badge {
+  position: absolute;
+  top: 0.65rem;
+  left: 0.65rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border-radius: 999px;
+  background: rgba(26, 18, 12, 0.78);
+  backdrop-filter: blur(6px);
+  border: 1px solid rgba(212, 168, 83, 0.25);
+  padding: 0.25rem 0.6rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--gold-light);
+}
+
+.virtual-tour__live-dot {
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 50%;
+  background: #4ade80;
+  box-shadow: 0 0 8px rgba(74, 222, 128, 0.8);
+  animation: pulse-dot 2s ease-in-out infinite;
+}
+
+@keyframes pulse-dot {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.45;
+  }
+}
+
+.virtual-tour__scene-info {
+  position: absolute;
+  right: 0.65rem;
+  bottom: 0.65rem;
+  left: 0.65rem;
+  border-radius: 0.75rem;
+  background: rgba(26, 18, 12, 0.78);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(212, 168, 83, 0.18);
+  padding: 0.55rem 0.75rem;
+  pointer-events: none;
+}
+
+.virtual-tour__scene-title {
+  margin: 0;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--cream);
+}
+
+.virtual-tour__scene-sub {
+  margin: 0.15rem 0 0;
+  font-size: 0.72rem;
+  color: var(--cream-muted);
+}
+
+.virtual-tour__nav {
+  display: flex;
+  gap: 0.45rem;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.virtual-tour__nav::-webkit-scrollbar {
+  display: none;
+}
+
+.virtual-tour__nav-btn {
+  flex-shrink: 0;
+  border: 1px solid rgba(212, 168, 83, 0.2);
+  border-radius: 999px;
+  background: rgba(45, 33, 24, 0.9);
+  color: var(--cream-muted);
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 0.4rem 0.85rem;
+  transition: border-color 0.2s, color 0.2s, background 0.2s;
+}
+
+.virtual-tour__nav-btn--active {
+  border-color: var(--gold);
+  background: rgba(212, 168, 83, 0.15);
+  color: var(--gold-light);
+}
+
+.virtual-tour__note {
+  margin: 0;
+  font-size: 0.82rem;
+  line-height: 1.5;
+  color: var(--cream-muted);
+  text-align: center;
+}

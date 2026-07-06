@@ -3,6 +3,7 @@ import { CATEGORIES, PRODUCTS, SHOP_INFO, type Category, type Product } from './
 import { ProductCard } from './components/ProductCard';
 import { ProductDetail } from './components/ProductDetail';
 import { ShopMap } from './components/ShopMap';
+import { VirtualTour } from './components/VirtualTour';
 import { HomePage } from './components/home/HomePage';
 
 type Tab = 'home' | 'products' | 'about' | 'contact';
@@ -149,6 +150,7 @@ export function App() {
               </div>
             </div>
             <p className="contact-note">สนใจสินค้าใด กรุณาโทรสอบถามหรือสั่งซื้อได้โดยตรง</p>
+            <VirtualTour />
             <ShopMap />
           </section>
         )}
