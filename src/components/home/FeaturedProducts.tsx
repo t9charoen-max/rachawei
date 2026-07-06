@@ -1,5 +1,5 @@
 import type { Product } from '../../data/products';
-import { SHOW_PRICES } from '../../data/products';
+import { ProductPrice } from '../ProductPrice';
 
 interface FeaturedProductsProps {
   products: Product[];
@@ -42,11 +42,7 @@ export function FeaturedProducts({ products, onSelect, onViewAll }: FeaturedProd
             </div>
             <div className="featured-card__body">
               <h3 className="featured-card__name">{product.name}</h3>
-              {SHOW_PRICES && product.price != null ? (
-                <p className="featured-card__price">฿{product.price.toLocaleString('th-TH')}</p>
-              ) : (
-                <p className="featured-card__inquire">สอบถามราคา</p>
-              )}
+              <ProductPrice product={product} variant="featured" />
             </div>
           </button>
         ))}

@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import type { Product } from '../data/products';
-import { SHOW_PRICES, SHOP_INFO } from '../data/products';
+import { SHOP_INFO } from '../data/products';
 import { Product360Viewer } from './Product360Viewer';
 import { ProductImage } from './ProductImage';
+import { ProductPrice } from './ProductPrice';
 
 interface ProductDetailProps {
   product: Product;
@@ -53,13 +54,12 @@ export function ProductDetail({ product, onBack }: ProductDetailProps) {
       )}
 
       <div className="detail-body">
-        <span className="detail-body__category">{product.category}</span>
+        <div className="detail-body__meta">
+          <span className="detail-body__category">{product.category}</span>
+          {product.special && <span className="detail-body__special">สินค้าพิเศษ</span>}
+        </div>
         <h2 className="detail-body__name">{product.name}</h2>
-        {SHOW_PRICES && product.price != null ? (
-          <p className="detail-body__price">฿{product.price.toLocaleString('th-TH')}</p>
-        ) : (
-          <p className="detail-body__inquire">สอบถามราคา — โทรสั่งซื้อ</p>
-        )}
+        <ProductPrice product={product} variant="detail" />
         <p className="detail-body__desc">{product.description}</p>
       </div>
 

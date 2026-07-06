@@ -5,6 +5,8 @@ export interface Product {
   category: string;
   image: string;
   price?: number;
+  /** สินค้ารูปแบบพิเศษ */
+  special?: boolean;
   /** ภาพ panorama สำหรับมุมมอง 360° (equirectangular 2:1) */
   panorama360?: string;
   panoramaPitch?: number;
@@ -12,23 +14,43 @@ export interface Product {
   panoramaHfov?: number;
 }
 
-/** เปิดเมื่อพร้อมแสดงราคา */
+/** เปิดเมื่อพร้อมแสดงราคาทุกรายการ */
 export const SHOW_PRICES = false;
 
 /** เปลี่ยนเมื่ออัปเดตรูปสินค้า เพื่อให้เบราว์เซอร์โหลดรูปใหม่ */
-export const PRODUCT_IMAGE_VERSION = 'rachawei-real-v4';
+export const PRODUCT_IMAGE_VERSION = 'rachawei-real-v5';
 
 export const CATEGORIES = [
   'ทั้งหมด',
+  'พิเศษ',
   'ทรงกลม',
   'ทรงเหลี่ยม',
   'มีฝา',
   'หูจับสูง',
 ] as const;
 
+export function hasProductPrice(product: Product): boolean {
+  return product.price != null;
+}
+
+export function formatProductPrice(product: Product): string {
+  return `฿${product.price!.toLocaleString('th-TH')}`;
+}
+
 export type Category = (typeof CATEGORIES)[number];
 
 export const PRODUCTS: Product[] = [
+  {
+    id: '6',
+    name: 'ตะกร้าหวาย 8 เหลี่ยม ชั้นเดียว',
+    description:
+      'ตะกร้าหวายทรงแปดเหลี่ยม ชั้นเดียว หูจับสูง ลายสานเนี้ยบ งานพิเศษจากช่างฝีมือบ้านบุทม สวยงามทนทาน ใช้ได้หลากหลาย',
+    category: 'พิเศษ',
+    price: 1500,
+    special: true,
+    image: `/products/basket-06-octagonal-single.jpg?v=${PRODUCT_IMAGE_VERSION}`,
+    panorama360: `/products/basket-06-360.jpg?v=${PRODUCT_IMAGE_VERSION}`,
+  },
   {
     id: '1',
     name: 'ตะกร้าหวายทรงกลมปากหยัก',
