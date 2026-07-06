@@ -11,7 +11,6 @@ export function ShopMap() {
         <iframe
           title="แผนที่ร้านราชาหวายสุรินทร์"
           src={MAP_CONFIG.embedUrl}
-          loading="lazy"
           referrerPolicy="no-referrer-when-downgrade"
           allowFullScreen
         />

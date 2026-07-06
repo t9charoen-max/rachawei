@@ -1,89 +1,23 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { TOUR_CONFIG, type TourScene } from '../data/tour';
-import 'pannellum/build/pannellum.css';
-
-function buildPannellumConfig() {
-  const scenes: Record<string, Record<string, unknown>> = {};
-
-  for (const scene of TOUR_CONFIG.scenes) {
-    scenes[scene.id] = {
-      title: scene.title,
-      type: 'equirectangular',
-      panorama: scene.panorama,
-      pitch: scene.pitch,
-      yaw: scene.yaw,
-      hfov: scene.hfov,
-      haov: scene.haov,
-      vaov: scene.vaov,
-      hotSpots: scene.hotSpots.map((spot) => ({
-        pitch: spot.pitch,
-        yaw: spot.yaw,
-        type: 'scene',
-        text: spot.text,
-        sceneId: spot.sceneId,
-      })),
-    };
-  }
-
-  return {
-    default: {
-      firstScene: TOUR_CONFIG.firstScene,
-      sceneFadeDuration: TOUR_CONFIG.sceneFadeDuration,
-      autoLoad: true,
-      showControls: true,
-      showZoomCtrl: true,
-      showFullscreenCtrl: true,
-      compass: false,
-      mouseZoom: true,
-      draggable: true,
-      keyboardZoom: true,
-      hfov: 95,
-      minHfov: 50,
-      maxHfov: 120,
-    },
-    scenes,
-  };
-}
+import { PannellumPanorama } from './PannellumPanorama';
 
 export function VirtualTour() {
-  const containerRef = useRef<HTMLDivElement>(null);
   const viewerRef = useRef<PannellumViewer | null>(null);
   const [activeScene, setActiveScene] = useState<TourScene>(TOUR_CONFIG.scenes[0]);
   const [ready, setReady] = useState(false);
+  const [failed, setFailed] = useState(false);
 
-  useEffect(() => {
-    let cancelled = false;
+  const handleViewer = useCallback((viewer: PannellumViewer) => {
+    viewerRef.current = viewer;
+  }, []);
 
-    async function init() {
-      await import('pannellum/build/pannellum.js');
-      if (cancelled || !containerRef.current || !window.pannellum) return;
+  const handleReady = useCallback(() => setReady(true), []);
+  const handleError = useCallback(() => setFailed(true), []);
 
-      viewerRef.current?.destroy();
-      viewerRef.current = window.pannellum.viewer(containerRef.current, buildPannellumConfig());
-
-      const viewer = viewerRef.current;
-      const onSceneChange = (sceneId?: string) => {
-        const id = sceneId ?? viewer.getScene();
-        const scene = TOUR_CONFIG.scenes.find((s) => s.id === id);
-        if (scene) setActiveScene(scene);
-      };
-
-      viewer.on('scenechange', onSceneChange);
-      setReady(true);
-
-      return () => {
-        viewer.off('scenechange', onSceneChange);
-      };
-    }
-
-    const cleanupPromise = init();
-
-    return () => {
-      cancelled = true;
-      cleanupPromise.then((cleanup) => cleanup?.());
-      viewerRef.current?.destroy();
-      viewerRef.current = null;
-    };
+  const handleSceneChange = useCallback((sceneId: string) => {
+    const scene = TOUR_CONFIG.scenes.find((s) => s.id === sceneId);
+    if (scene) setActiveScene(scene);
   }, []);
 
   const goToScene = (sceneId: string) => {
@@ -91,6 +25,18 @@ export function VirtualTour() {
     const scene = TOUR_CONFIG.scenes.find((s) => s.id === sceneId);
     if (scene) setActiveScene(scene);
   };
+
+  if (failed) {
+    return (
+      <section className="virtual-tour virtual-tour--fallback">
+        <p className="virtual-tour__eyebrow">ชมร้านแบบ 360°</p>
+        <h2 className="virtual-tour__title">เดินชมร้านเสมือนจริง</h2>
+        <p className="virtual-tour__note">
+          ไม่สามารถโหลดทัวร์ 360° บนอุปกรณ์นี้ได้ กรุณาใช้แผนที่ด้านบนเพื่อนำทางมาร้าน
+        </p>
+      </section>
+    );
+  }
 
   return (
     <section className="virtual-tour">
@@ -103,7 +49,12 @@ export function VirtualTour() {
       </div>
 
       <div className="virtual-tour__viewer-wrap">
-        <div ref={containerRef} className="virtual-tour__viewer" aria-label="ทัวร์ร้าน 360 องศา" />
+        <PannellumPanorama
+          onViewer={handleViewer}
+          onReady={handleReady}
+          onSceneChange={handleSceneChange}
+          onError={handleError}
+        />
         {!ready && (
           <div className="virtual-tour__loading">
             <span className="virtual-tour__loading-icon">🔄</span>
@@ -114,10 +65,12 @@ export function VirtualTour() {
           <span className="virtual-tour__live-dot" aria-hidden />
           360°
         </div>
-        <div className="virtual-tour__scene-info">
-          <p className="virtual-tour__scene-title">{activeScene.title}</p>
-          <p className="virtual-tour__scene-sub">{activeScene.subtitle}</p>
-        </div>
+        {ready && (
+          <div className="virtual-tour__scene-info">
+            <p className="virtual-tour__scene-title">{activeScene.title}</p>
+            <p className="virtual-tour__scene-sub">{activeScene.subtitle}</p>
+          </div>
+        )}
       </div>
 
       <div className="virtual-tour__nav" role="tablist" aria-label="มุมมองทัวร์">

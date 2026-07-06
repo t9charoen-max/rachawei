@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { CATEGORIES, PRODUCTS, SHOP_INFO, type Category, type Product } from './data/products';
 import { ProductCard } from './components/ProductCard';
 import { ProductDetail } from './components/ProductDetail';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { ShopMap } from './components/ShopMap';
 import { VirtualTour } from './components/VirtualTour';
 import { HomePage } from './components/home/HomePage';
@@ -150,8 +151,16 @@ export function App() {
               </div>
             </div>
             <p className="contact-note">สนใจสินค้าใด กรุณาโทรสอบถามหรือสั่งซื้อได้โดยตรง</p>
-            <VirtualTour />
             <ShopMap />
+            <ErrorBoundary
+              fallback={
+                <p className="contact-note">
+                  ไม่สามารถโหลดทัวร์ 360° ได้ — ใช้แผนที่ด้านบนเพื่อนำทางมาร้าน
+                </p>
+              }
+            >
+              <VirtualTour />
+            </ErrorBoundary>
           </section>
         )}
       </main>
