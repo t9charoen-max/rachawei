@@ -1,5 +1,8 @@
 import { PRODUCT_IMAGE_VERSION } from './products';
 
+/** เปลี่ยนเมื่ออัปเดตรูปโปรโมชัน เพื่อให้เบราว์เซอร์โหลดรูปใหม่ */
+export const PROMO_IMAGE_VERSION = 'user-v1';
+
 export const HOME_CONTENT = {
   hero: {
     headline: 'ตะกร้าหวายคุณภาพจากชุมชนสุรินทร์',
@@ -61,7 +64,7 @@ export const HOME_CONTENT = {
     subtitle: 'งานสานมือที่ใช้ได้จริง ทั้งในบ้าน ตลาด และพิธีกรรม',
     scenarios: [
       {
-        image: '/images/promo/usage-market.jpg',
+        image: `/images/promo/usage-market.jpg?v=${PROMO_IMAGE_VERSION}`,
         imageAlt: 'ผู้หญิงถือตะกร้าหวายใส่ผลไม้และขนมปังที่ตลาดนัด',
         tag: 'ช้อปปิ้ง',
         title: 'ช้อปของสดที่ตลาด',
@@ -69,7 +72,7 @@ export const HOME_CONTENT = {
           'ตะกร้าหวายหูจับสูง ถือพกพาสะดวก ใส่ผัก ผลไม้ หรือของชำได้มาก ทนทาน ระบายอากาศดี เหมาะกับการช้อปที่ตลาดนัดหรือตลาดสด',
       },
       {
-        image: '/images/promo/usage-temple.jpg',
+        image: `/images/promo/usage-temple.jpg?v=${PROMO_IMAGE_VERSION}`,
         imageAlt: 'ผู้สูงอายุถือตะกร้าหวายใส่สิ่งของถวายพระที่วัด',
         tag: 'ทำบุญ',
         title: 'ใส่สิ่งของถวายพระ',
@@ -77,7 +80,7 @@ export const HOME_CONTENT = {
           'ตะกร้าหวายทรงเหลี่ยม ใส่ผ้าจีวร ดอกไม้ หรืออาหารถวายได้สวยงาม เป็นของใช้ในพิธีกรรมและวิถีชีวิตคนอีสานมาช้านาน',
       },
       {
-        image: '/images/promo/usage-shopping.jpg',
+        image: `/images/promo/usage-shopping.jpg?v=${PROMO_IMAGE_VERSION}`,
         imageAlt: 'หญิงสาวในชุดไทยถือตะกร้าหวายมีฝาใส่ผักที่ตลาด',
         tag: 'ครัวเรือน',
         title: 'จัดเก็บในครัวและบ้าน',

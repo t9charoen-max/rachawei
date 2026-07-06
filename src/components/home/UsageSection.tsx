@@ -27,7 +27,7 @@ export function UsageSection() {
               <img
                 src={item.image}
                 alt={item.imageAlt}
-                className="aspect-[4/3] h-full w-full object-cover transition duration-700 group-hover:scale-[1.03] sm:aspect-auto sm:min-h-[280px]"
+                className="aspect-[3/2] h-full w-full object-cover object-center transition duration-700 group-hover:scale-[1.03] sm:aspect-auto sm:min-h-[280px]"
                 loading="lazy"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-earth-950/50 via-transparent to-transparent sm:bg-gradient-to-r sm:from-transparent sm:via-transparent sm:to-earth-950/30" />
