@@ -23,14 +23,14 @@ export function UsageSection() {
               i % 2 === 1 ? 'sm:flex-row-reverse' : ''
             } sm:flex`}
           >
-            <div className="relative overflow-hidden sm:w-1/2">
+            <div className="relative sm:w-1/2">
               <img
                 src={item.image}
                 alt={item.imageAlt}
-                className="aspect-[3/2] h-full w-full object-cover object-center transition duration-700 group-hover:scale-[1.03] sm:aspect-auto sm:min-h-[280px]"
+                className="block h-auto w-full"
                 loading="lazy"
+                decoding="async"
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-earth-950/50 via-transparent to-transparent sm:bg-gradient-to-r sm:from-transparent sm:via-transparent sm:to-earth-950/30" />
               <span className="absolute top-4 left-4 rounded-full bg-earth-950/70 px-3 py-1 text-xs font-medium text-gold-300 backdrop-blur-sm">
                 {item.tag}
               </span>
