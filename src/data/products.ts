@@ -18,7 +18,7 @@ export interface Product {
 export const SHOW_PRICES = false;
 
 /** เปลี่ยนเมื่ออัปเดตรูปสินค้า เพื่อให้เบราว์เซอร์โหลดรูปใหม่ */
-export const PRODUCT_IMAGE_VERSION = 'rachawei-real-v6';
+export const PRODUCT_IMAGE_VERSION = 'rachawei-real-v7';
 
 export const CATEGORIES = [
   'ทั้งหมด',
