@@ -20,7 +20,7 @@ export interface Product {
 export const SHOW_PRICES = false;
 
 /** เปลี่ยนเมื่ออัปเดตรูปสินค้า เพื่อให้เบราว์เซอร์โหลดรูปใหม่ */
-export const PRODUCT_IMAGE_VERSION = 'rachawei-real-v14';
+export const PRODUCT_IMAGE_VERSION = 'rachawei-real-v15';
 
 export const CATEGORIES = [
   'ทั้งหมด',
@@ -47,6 +47,19 @@ export function getProductImages(product: Product): string[] {
 export type Category = (typeof CATEGORIES)[number];
 
 export const PRODUCTS: Product[] = [
+  {
+    id: '8',
+    name: 'ตะกร้ากลม 2 ชั้น ถักปาก',
+    description:
+      'ตะกร้าหวายทรงกลม 2 ชั้น ปากถักตกแต่ง หูจับสูง งานสานมือจากช่างฝีมือบ้านบุทม เหมาะถวายทำบุญและใช้งานทั่วไป',
+    category: 'ทรงกลม',
+    image: `/products/basket-08-round-studio.jpg?v=${PRODUCT_IMAGE_VERSION}`,
+    images: [
+      `/products/basket-08-round-studio.jpg?v=${PRODUCT_IMAGE_VERSION}`,
+      `/products/basket-08-round-temple.jpg?v=${PRODUCT_IMAGE_VERSION}`,
+      `/products/basket-08-round-grass.jpg?v=${PRODUCT_IMAGE_VERSION}`,
+    ],
+  },
   {
     id: '7',
     name: 'ตะกร้าหวาย 8 เหลี่ยม 2 ชั้น',
