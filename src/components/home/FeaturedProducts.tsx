@@ -36,7 +36,7 @@ export function FeaturedProducts({ products, onSelect, onViewAll }: FeaturedProd
             style={{ animationDelay: `${i * 100}ms` }}
           >
             <div className="featured-card__image">
-              <img src={product.image} alt={product.name} loading="lazy" decoding="async" />
+              <img src={product.image} alt={product.name} loading={i === 0 ? 'eager' : 'lazy'} decoding="async" />
               <span className="featured-card__badge">{product.category}</span>
               <span className="featured-card__tag">สานมือ OTOP</span>
             </div>

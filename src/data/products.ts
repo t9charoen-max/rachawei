@@ -20,7 +20,7 @@ export interface Product {
 export const SHOW_PRICES = false;
 
 /** เปลี่ยนเมื่ออัปเดตรูปสินค้า เพื่อให้เบราว์เซอร์โหลดรูปใหม่ */
-export const PRODUCT_IMAGE_VERSION = 'rachawei-real-v11';
+export const PRODUCT_IMAGE_VERSION = 'rachawei-real-v12';
 
 export const CATEGORIES = [
   'ทั้งหมด',
@@ -55,10 +55,10 @@ export const PRODUCTS: Product[] = [
     category: 'พิเศษ',
     price: 1500,
     special: true,
-    image: `/products/basket-06-octagonal-single.jpg?v=${PRODUCT_IMAGE_VERSION}`,
+    image: `/products/basket-06-octagonal-lifestyle.jpg?v=${PRODUCT_IMAGE_VERSION}`,
     images: [
-      `/products/basket-06-octagonal-single.jpg?v=${PRODUCT_IMAGE_VERSION}`,
       `/products/basket-06-octagonal-lifestyle.jpg?v=${PRODUCT_IMAGE_VERSION}`,
+      `/products/basket-06-octagonal-studio.jpg?v=${PRODUCT_IMAGE_VERSION}`,
     ],
   },
   {

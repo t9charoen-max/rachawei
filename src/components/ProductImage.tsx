@@ -11,7 +11,7 @@ export function ProductImage({ src, alt, className = '', variant = 'card' }: Pro
       src={src}
       alt={alt}
       className={`product-image product-image--${variant} ${className}`.trim()}
-      loading="lazy"
+      loading={variant === 'detail' ? 'eager' : 'lazy'}
       decoding="async"
     />
   );
