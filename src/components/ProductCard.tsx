@@ -1,4 +1,5 @@
 import type { Product } from '../data/products';
+import { EcoHandmadeBadge } from './EcoHandmadeBadge';
 import { ProductImage } from './ProductImage';
 import { ProductPrice } from './ProductPrice';
 
@@ -14,6 +15,7 @@ export function ProductCard({ product, onSelect }: ProductCardProps) {
         <ProductImage src={product.image} alt={product.name} />
         {product.special && <span className="product-card__special">พิเศษ</span>}
         {product.panorama360 && <span className="product-card__360">360°</span>}
+        <EcoHandmadeBadge variant="card" />
       </div>
       <div className="product-card__body">
         <span className="product-card__category">{product.category}</span>
