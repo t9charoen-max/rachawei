@@ -20,7 +20,7 @@ export interface Product {
 export const SHOW_PRICES = false;
 
 /** เปลี่ยนเมื่ออัปเดตรูปสินค้า เพื่อให้เบราว์เซอร์โหลดรูปใหม่ */
-export const PRODUCT_IMAGE_VERSION = 'rachawei-real-v13';
+export const PRODUCT_IMAGE_VERSION = 'rachawei-real-v14';
 
 export const CATEGORIES = [
   'ทั้งหมด',
@@ -49,17 +49,13 @@ export type Category = (typeof CATEGORIES)[number];
 export const PRODUCTS: Product[] = [
   {
     id: '7',
-    name: 'ตะกร้าหวายแปดเหลี่ยม หูจับสูง',
+    name: 'ตะกร้าหวาย 8 เหลี่ยม 2 ชั้น',
     description:
-      'ตะกร้าหวายทรงแปดเหลี่ยม ชั้นเดียว หูจับสูง ลายสานโปร่ง งานพิเศษจากช่างฝีมือบ้านบุทม เหมาะใช้งานและตกแต่งบ้าน',
+      'ตะกร้าหวายทรงแปดเหลี่ยม 2 ชั้น หูจับสูง ลายสานโปร่ง งานพิเศษจากช่างฝีมือบ้านบุทม เหมาะใช้งานและตกแต่งบ้าน',
     category: 'พิเศษ',
     price: 1500,
     special: true,
     image: `/products/basket-07-octagonal-lifestyle.jpg?v=${PRODUCT_IMAGE_VERSION}`,
-    images: [
-      `/products/basket-07-octagonal-lifestyle.jpg?v=${PRODUCT_IMAGE_VERSION}`,
-      `/products/basket-07-octagonal-studio.jpg?v=${PRODUCT_IMAGE_VERSION}`,
-    ],
   },
   {
     id: '6',
