@@ -7,6 +7,8 @@ export interface Product {
   price?: number;
   /** สินค้ารูปแบบพิเศษ */
   special?: boolean;
+  /** รูปเพิ่มเติมในหน้ารายละเอียด (รูปแรกใช้ image) */
+  images?: string[];
   /** ภาพ panorama สำหรับมุมมอง 360° (equirectangular 2:1) */
   panorama360?: string;
   panoramaPitch?: number;
@@ -18,7 +20,7 @@ export interface Product {
 export const SHOW_PRICES = false;
 
 /** เปลี่ยนเมื่ออัปเดตรูปสินค้า เพื่อให้เบราว์เซอร์โหลดรูปใหม่ */
-export const PRODUCT_IMAGE_VERSION = 'rachawei-real-v10';
+export const PRODUCT_IMAGE_VERSION = 'rachawei-real-v11';
 
 export const CATEGORIES = [
   'ทั้งหมด',
@@ -37,6 +39,11 @@ export function formatProductPrice(product: Product): string {
   return `฿${product.price!.toLocaleString('th-TH')}`;
 }
 
+export function getProductImages(product: Product): string[] {
+  if (product.images?.length) return product.images;
+  return [product.image];
+}
+
 export type Category = (typeof CATEGORIES)[number];
 
 export const PRODUCTS: Product[] = [
@@ -49,6 +56,10 @@ export const PRODUCTS: Product[] = [
     price: 1500,
     special: true,
     image: `/products/basket-06-octagonal-single.jpg?v=${PRODUCT_IMAGE_VERSION}`,
+    images: [
+      `/products/basket-06-octagonal-single.jpg?v=${PRODUCT_IMAGE_VERSION}`,
+      `/products/basket-06-octagonal-lifestyle.jpg?v=${PRODUCT_IMAGE_VERSION}`,
+    ],
   },
   {
     id: '1',
