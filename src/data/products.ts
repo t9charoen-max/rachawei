@@ -20,7 +20,7 @@ export interface Product {
 export const SHOW_PRICES = false;
 
 /** เปลี่ยนเมื่ออัปเดตรูปสินค้า เพื่อให้เบราว์เซอร์โหลดรูปใหม่ */
-export const PRODUCT_IMAGE_VERSION = 'rachawei-real-v17';
+export const PRODUCT_IMAGE_VERSION = 'rachawei-real-v18';
 
 export const CATEGORIES = [
   'ทั้งหมด',
@@ -48,6 +48,14 @@ export function getProductImages(product: Product): string[] {
 export type Category = (typeof CATEGORIES)[number];
 
 export const PRODUCTS: Product[] = [
+  {
+    id: '11',
+    name: 'เก้าอี้หวาย ทรงกลม',
+    description:
+      'เก้าอี้หวายทรงกลมสานมือ ชุดคู่พร้อมโต๊ะหวาย ดีไซน์หลังมน นั่งสบาย เหมาะมุมระเบียง มุมนั่งเล่น และพื้นที่พักผ่อน งานช่างฝีมือบ้านบุทม',
+    category: 'เก้าอี้',
+    image: `/products/chair-11-patio-set.jpg?v=${PRODUCT_IMAGE_VERSION}`,
+  },
   {
     id: '10',
     name: 'เก้าอี้หวาย',
