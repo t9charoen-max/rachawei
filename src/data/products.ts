@@ -20,7 +20,7 @@ export interface Product {
 export const SHOW_PRICES = false;
 
 /** เปลี่ยนเมื่ออัปเดตรูปสินค้า เพื่อให้เบราว์เซอร์โหลดรูปใหม่ */
-export const PRODUCT_IMAGE_VERSION = 'rachawei-real-v18';
+export const PRODUCT_IMAGE_VERSION = 'rachawei-real-v19';
 
 export const CATEGORIES = [
   'ทั้งหมด',
@@ -75,10 +75,10 @@ export const PRODUCTS: Product[] = [
       'ตะกร้าหวายทรงรีเหลี่ยม 2 ชั้น ปากหยัก หูจับสูง ลายสานโปร่ง งานพิเศษสานมือจากช่างฝีมือบ้านบุทม เหมาะใส่ผลไม้ ของใช้ และตกแต่งบ้าน',
     category: 'พิเศษ',
     special: true,
-    image: `/products/basket-09-oval-lifestyle.jpg?v=${PRODUCT_IMAGE_VERSION}`,
+    image: `/products/basket-09-oval-community.jpg?v=${PRODUCT_IMAGE_VERSION}`,
     images: [
-      `/products/basket-09-oval-lifestyle.jpg?v=${PRODUCT_IMAGE_VERSION}`,
       `/products/basket-09-oval-community.jpg?v=${PRODUCT_IMAGE_VERSION}`,
+      `/products/basket-09-oval-lifestyle.jpg?v=${PRODUCT_IMAGE_VERSION}`,
       `/products/basket-09-oval-topdown.jpg?v=${PRODUCT_IMAGE_VERSION}`,
     ],
   },
