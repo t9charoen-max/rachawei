@@ -20,11 +20,12 @@ export interface Product {
 export const SHOW_PRICES = false;
 
 /** เปลี่ยนเมื่ออัปเดตรูปสินค้า เพื่อให้เบราว์เซอร์โหลดรูปใหม่ */
-export const PRODUCT_IMAGE_VERSION = 'rachawei-real-v16';
+export const PRODUCT_IMAGE_VERSION = 'rachawei-real-v17';
 
 export const CATEGORIES = [
   'ทั้งหมด',
   'พิเศษ',
+  'เก้าอี้',
   'ทรงกลม',
   'ทรงเหลี่ยม',
   'มีฝา',
@@ -47,6 +48,18 @@ export function getProductImages(product: Product): string[] {
 export type Category = (typeof CATEGORIES)[number];
 
 export const PRODUCTS: Product[] = [
+  {
+    id: '10',
+    name: 'เก้าอี้หวาย',
+    description:
+      'เก้าอี้หวายสานมือ พร้อมโต๊ะหวาย ดีไซน์โค้งมน นั่งสบาย เหมาะมุมนั่งเล่น มุมสวน และพื้นที่พักผ่อน งานช่างฝีมือบ้านบุทม',
+    category: 'เก้าอี้',
+    image: `/products/chair-10-garden-set-1.jpg?v=${PRODUCT_IMAGE_VERSION}`,
+    images: [
+      `/products/chair-10-garden-set-1.jpg?v=${PRODUCT_IMAGE_VERSION}`,
+      `/products/chair-10-garden-set-2.jpg?v=${PRODUCT_IMAGE_VERSION}`,
+    ],
+  },
   {
     id: '9',
     name: 'ตะกร้าหวายรีเหลี่ยม 2 ชั้น พิเศษ',
