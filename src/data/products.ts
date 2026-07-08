@@ -20,7 +20,7 @@ export interface Product {
 export const SHOW_PRICES = false;
 
 /** เปลี่ยนเมื่ออัปเดตรูปสินค้า เพื่อให้เบราว์เซอร์โหลดรูปใหม่ */
-export const PRODUCT_IMAGE_VERSION = 'rachawei-real-v20';
+export const PRODUCT_IMAGE_VERSION = 'rachawei-real-v21';
 
 export const CATEGORIES = [
   'ทั้งหมด',
@@ -55,11 +55,11 @@ export const PRODUCTS: Product[] = [
       'ตะกร้าหวายทรงสี่เหลี่ยมจัตุรัส 2 ชั้น หูจับสูง ลายสานโปร่ง งานพิเศษสานมือจากช่างฝีมือบ้านบุทม เหมาะใส่ของใช้ ผลไม้ และตกแต่งบ้าน',
     category: 'พิเศษ',
     special: true,
-    image: `/products/basket-12-square-topdown.jpg?v=${PRODUCT_IMAGE_VERSION}`,
+    image: `/products/basket-12-square-lifestyle.jpg?v=${PRODUCT_IMAGE_VERSION}`,
     images: [
-      `/products/basket-12-square-topdown.jpg?v=${PRODUCT_IMAGE_VERSION}`,
-      `/products/basket-12-square-usage.jpg?v=${PRODUCT_IMAGE_VERSION}`,
       `/products/basket-12-square-lifestyle.jpg?v=${PRODUCT_IMAGE_VERSION}`,
+      `/products/basket-12-square-usage.jpg?v=${PRODUCT_IMAGE_VERSION}`,
+      `/products/basket-12-square-topdown.jpg?v=${PRODUCT_IMAGE_VERSION}`,
     ],
   },
   {
