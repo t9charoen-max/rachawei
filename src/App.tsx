@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
-import { CATEGORIES, PRODUCTS, SHOP_INFO, type Category, type Product } from './data/products';
-import { ProductCard } from './components/ProductCard';
+import { PRODUCTS, SHOP_INFO, type Category, type Product } from './data/products';
+import { ProductsPage } from './components/products/ProductsPage';
 import { ProductDetail } from './components/ProductDetail';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { FloatingCallButton } from './components/FloatingCallButton';
@@ -82,35 +82,12 @@ export function App() {
         )}
 
         {tab === 'products' && !selected && (
-          <section className="screen products-screen py-4">
-            <div className="products-screen__header">
-              <div>
-                <h2 className="section-title">ตะกร้าหวาย</h2>
-                <p className="products-screen__subtitle">สานมือจากบ้านบุทม · โทรหรือแชทสั่งได้ทันที</p>
-              </div>
-              <span className="products-screen__count">{filtered.length} รายการ</span>
-            </div>
-            <div className="category-bar">
-              {CATEGORIES.map((c) => (
-                <button
-                  key={c}
-                  type="button"
-                  className={`category-chip ${category === c ? 'category-chip--active' : ''}`}
-                  onClick={() => setCategory(c)}
-                >
-                  {c}
-                </button>
-              ))}
-            </div>
-            <div className="product-grid">
-              {filtered.map((product) => (
-                <ProductCard key={product.id} product={product} onSelect={selectProduct} />
-              ))}
-            </div>
-            {filtered.length === 0 && (
-              <p className="products-screen__empty">ไม่พบสินค้าในหมวดนี้ — ลองเลือกหมวดอื่น</p>
-            )}
-          </section>
+          <ProductsPage
+            products={filtered}
+            category={category}
+            onCategoryChange={setCategory}
+            onSelectProduct={selectProduct}
+          />
         )}
 
         {tab === 'products' && selected && (
