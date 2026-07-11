@@ -1,7 +1,5 @@
 import { BANTHOM_KNOWLEDGE } from '../../data/knowledge';
-import { RattanTypesList } from '../knowledge/RattanTypesList';
 import { SectionHeader } from '../ui/SectionHeader';
-import { WovenDivider } from '../ui/WovenDivider';
 
 export function BanthomKnowledgeSection() {
   const { intro } = BANTHOM_KNOWLEDGE;
@@ -28,10 +26,6 @@ export function BanthomKnowledgeSection() {
           <p className="knowledge-intro__text">{intro.closing}</p>
         </div>
       </article>
-
-      <WovenDivider />
-
-      <RattanTypesList />
     </section>
   );
 }
