@@ -3,6 +3,8 @@ import { CATEGORIES, PRODUCTS, SHOP_INFO, type Category, type Product } from './
 import { ProductCard } from './components/ProductCard';
 import { ProductDetail } from './components/ProductDetail';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { FloatingCallButton } from './components/FloatingCallButton';
+import { OrderActions } from './components/OrderActions';
 import { ShopMap } from './components/ShopMap';
 import { VirtualTour } from './components/VirtualTour';
 import { HomePage } from './components/home/HomePage';
@@ -48,18 +50,27 @@ export function App() {
       <div className="pointer-events-none fixed inset-0 -z-10 bg-woven-pattern opacity-30" aria-hidden />
 
       <header className="sticky top-0 z-20 border-b border-gold-400/8 bg-earth-950/80 px-4 py-3 backdrop-blur-xl">
-        <button type="button" onClick={() => goTo('home')} className="flex w-full items-center gap-3 text-left">
-          <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-gold-400/20 bg-gradient-to-br from-earth-800 to-earth-900 text-lg shadow-inner">
-            👑
-          </span>
-          <div className="min-w-0 flex-1">
-            <p className="font-display truncate text-base font-bold text-gold-400">{SHOP_INFO.name}</p>
-            <p className="truncate text-[0.7rem] text-cream-300/60">งานหัตถกรรมหวาย · สุรินทร์</p>
-          </div>
-        </button>
+        <div className="flex w-full items-center gap-3">
+          <button type="button" onClick={() => goTo('home')} className="flex min-w-0 flex-1 items-center gap-3 text-left">
+            <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-gold-400/20 bg-gradient-to-br from-earth-800 to-earth-900 text-lg shadow-inner">
+              👑
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="font-display truncate text-base font-bold text-gold-400">{SHOP_INFO.name}</p>
+              <p className="truncate text-[0.7rem] text-cream-300/60">งานหัตถกรรมหวาย · สุรินทร์</p>
+            </div>
+          </button>
+          <a
+            href={`tel:${SHOP_INFO.phone.replace(/-/g, '')}`}
+            className="header-call-btn"
+            aria-label="โทรสั่งซื้อ"
+          >
+            📞
+          </a>
+        </div>
       </header>
 
-      <main className="flex-1 overflow-y-auto px-4 pb-4">
+      <main className={`flex-1 overflow-y-auto px-4 ${selected ? 'main--detail' : 'pb-4'}`}>
         {tab === 'home' && (
           <HomePage
             products={PRODUCTS}
@@ -71,7 +82,13 @@ export function App() {
 
         {tab === 'products' && !selected && (
           <section className="screen products-screen py-4">
-            <h2 className="section-title">ตะกร้าหวาย</h2>
+            <div className="products-screen__header">
+              <div>
+                <h2 className="section-title">ตะกร้าหวาย</h2>
+                <p className="products-screen__subtitle">สานมือจากบ้านบุทม · โทรหรือแชทสั่งได้ทันที</p>
+              </div>
+              <span className="products-screen__count">{filtered.length} รายการ</span>
+            </div>
             <div className="category-bar">
               {CATEGORIES.map((c) => (
                 <button
@@ -89,6 +106,9 @@ export function App() {
                 <ProductCard key={product.id} product={product} onSelect={selectProduct} />
               ))}
             </div>
+            {filtered.length === 0 && (
+              <p className="products-screen__empty">ไม่พบสินค้าในหมวดนี้ — ลองเลือกหมวดอื่น</p>
+            )}
           </section>
         )}
 
@@ -127,6 +147,7 @@ export function App() {
         {tab === 'contact' && (
           <section className="screen contact-screen py-4">
             <h2 className="section-title">ติดต่อสั่งซื้อ</h2>
+            <OrderActions layout="stack" size="lg" />
             <div className="contact-card">
               <div className="contact-row">
                 <span className="contact-row__icon">📍</span>
@@ -164,6 +185,8 @@ export function App() {
           </section>
         )}
       </main>
+
+      {tab === 'products' && !selected && <FloatingCallButton />}
 
       <nav className="sticky bottom-0 z-20 mx-3 mb-3 rounded-2xl border border-gold-400/10 bg-earth-900/90 p-1 shadow-2xl shadow-black/40 backdrop-blur-xl">
         <div className="grid grid-cols-4">

@@ -65,6 +65,14 @@ export function HeroSection({ onViewProducts, onContact }: HeroSectionProps) {
                 ติดต่อร้าน
               </button>
             </div>
+
+            <p className="mt-5 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-xs font-medium text-cream-300/75">
+              <span>🌿 สานมือ 100%</span>
+              <span className="text-gold-400/40">·</span>
+              <span>🏅 OTOP</span>
+              <span className="text-gold-400/40">·</span>
+              <span>📞 โทรสั่งได้ทันที</span>
+            </p>
           </div>
         </div>
       </div>
