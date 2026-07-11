@@ -21,6 +21,7 @@ export function ProductCard({ product, onSelect }: ProductCardProps) {
         <span className="product-card__category">{product.category}</span>
         <h3 className="product-card__name">{product.name}</h3>
         <ProductPrice product={product} />
+        <span className="product-card__cta">ดูรายละเอียด →</span>
       </div>
     </button>
   );
