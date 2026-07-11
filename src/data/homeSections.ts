@@ -16,10 +16,3 @@ export const HOME_SECTIONS: HomeSectionItem[] = [
   { id: 'community', icon: '🤝', label: 'ชุมชน', desc: 'สนับสนุนช่างฝีมือ', accent: 'sage' },
   { id: 'contact', icon: '📞', label: 'ติดต่อ', desc: 'โทรสั่งซื้อ', accent: 'sage' },
 ];
-
-export const HOME_SECTION_PEEKS: Record<Exclude<HomeSectionId, 'products' | 'contact'>, string> = {
-  story: 'จากหมู่บ้านบุทม สู่งานหัตถกรรมที่ภาคภูมิใจ',
-  weaving: 'กว่าจะเป็นตะกร้าหวายหนึ่งใบ — จากมือช่างสุรินทร์',
-  usage: 'ตลาดนัด ครัวเรือน ตกแต่งบ้าน — ใช้ได้ทุกวัน',
-  community: 'ทุกการซื้อช่วยส่งต่อภูมิปัญญาและรายได้ชุมชน',
-};
