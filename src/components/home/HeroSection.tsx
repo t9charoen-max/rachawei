@@ -10,7 +10,7 @@ export function HeroSection({ onViewProducts, onContact }: HeroSectionProps) {
 
   return (
     <section className="relative -mx-4 -mt-4 overflow-hidden">
-      <div className="relative min-h-[80vh]">
+      <div className="relative min-h-[58vh] sm:min-h-[62vh]">
         <img
           src={hero.image}
           alt={hero.imageAlt}
@@ -24,7 +24,7 @@ export function HeroSection({ onViewProducts, onContact }: HeroSectionProps) {
         <div className="absolute top-0 right-0 h-64 w-64 rounded-full bg-gold-500/5 blur-3xl" />
         <div className="absolute bottom-20 left-0 h-48 w-48 rounded-full bg-terracotta/5 blur-3xl" />
 
-        <div className="relative flex min-h-[80vh] flex-col justify-between px-5 pt-8 pb-10 sm:px-8 sm:pb-14">
+        <div className="relative flex min-h-[58vh] flex-col justify-between px-5 pt-8 pb-10 sm:min-h-[62vh] sm:px-8 sm:pb-14">
           <div className="animate-fade-in flex items-center gap-2">
             <span className="flex h-9 w-9 items-center justify-center rounded-full border border-gold-400/20 bg-earth-900/60 text-lg backdrop-blur-sm">
               👑
