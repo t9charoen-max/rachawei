@@ -164,7 +164,7 @@ export function ProductDetail({ product, onBack }: ProductDetailProps) {
             ) : (
               <span className="detail-price-panel__value detail-price-panel__value--inquire">สอบถามราคา</span>
             )}
-            <p className="detail-price-panel__note">โทรหรือแชทเพื่อยืนยันราคาและค่าจัดส่ง</p>
+            <p className="detail-price-panel__note">โทรหรือ LINE เพื่อยืนยันราคาและค่าจัดส่ง</p>
           </div>
 
           <p className="detail-body__desc">{product.description}</p>

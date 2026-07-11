@@ -14,6 +14,7 @@
   },
   "dependencies": {
     "pannellum": "^2.5.7",
+    "qrcode.react": "^4.2.0",
     "react": "^19.2.7",
     "react-dom": "^19.2.7"
   },
