@@ -2,6 +2,7 @@ import type { Product } from '../../data/products';
 import { HeroSection } from './HeroSection';
 import { FeaturedProducts } from './FeaturedProducts';
 import { OurStorySection } from './OurStorySection';
+import { WeavingStorySection } from './WeavingStorySection';
 import { UsageSection } from './UsageSection';
 import { CommunitySection } from './CommunitySection';
 
@@ -24,6 +25,7 @@ export function HomePage({ onViewProducts, onContact, onSelectProduct, products 
         onViewAll={onViewProducts}
       />
       <OurStorySection />
+      <WeavingStorySection />
       <UsageSection onViewProducts={onViewProducts} />
       <CommunitySection />
     </div>
