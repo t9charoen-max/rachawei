@@ -45,6 +45,13 @@ export function getProductImages(product: Product): string[] {
   return [product.image];
 }
 
+export function getLowestPrice(products: Product[]): number | null {
+  const prices = products
+    .map((product) => product.price)
+    .filter((price): price is number => price != null);
+  return prices.length > 0 ? Math.min(...prices) : null;
+}
+
 export type Category = (typeof CATEGORIES)[number];
 
 export const PRODUCTS: Product[] = [
