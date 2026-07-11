@@ -1,6 +1,11 @@
 import { formatProductPrice, hasProductPrice, type Product } from '../data/products';
 import { SHOP_INFO } from '../data/products';
 
+export const LINE_CONFIG = {
+  id: 'kamjira2504racha',
+  displayName: 'ราชาหวายสุรินทร์',
+} as const;
+
 export function phoneDigits(): string {
   return SHOP_INFO.phone.replace(/\D/g, '');
 }
@@ -9,10 +14,8 @@ export function telLink(): string {
   return `tel:${phoneDigits()}`;
 }
 
-export function whatsAppLink(message?: string): string {
-  const text = message ? `?text=${encodeURIComponent(message)}` : '';
-  const intl = phoneDigits().replace(/^0/, '66');
-  return `https://wa.me/${intl}${text}`;
+export function lineAddUrl(): string {
+  return `https://line.me/ti/p/~${LINE_CONFIG.id}`;
 }
 
 export function buildOrderMessage(product: Product): string {

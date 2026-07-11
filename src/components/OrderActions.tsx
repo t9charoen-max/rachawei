@@ -1,5 +1,6 @@
 import type { Product } from '../data/products';
-import { buildOrderMessage, generalInquiryMessage, telLink, whatsAppLink } from '../utils/contact';
+import { telLink } from '../utils/contact';
+import { LineAddButton } from './LineAddButton';
 
 interface OrderActionsProps {
   product?: Product;
@@ -8,7 +9,6 @@ interface OrderActionsProps {
 }
 
 export function OrderActions({ product, layout = 'row', size = 'md' }: OrderActionsProps) {
-  const message = product ? buildOrderMessage(product) : generalInquiryMessage();
   const sizeClass = size === 'lg' ? 'order-actions--lg' : '';
 
   return (
@@ -17,15 +17,12 @@ export function OrderActions({ product, layout = 'row', size = 'md' }: OrderActi
         <span aria-hidden>📞</span>
         โทรสั่งซื้อ
       </a>
-      <a
-        href={whatsAppLink(message)}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="order-actions__btn order-actions__btn--chat"
-      >
-        <span aria-hidden>💬</span>
-        แชทสั่งซื้อ
-      </a>
+      <LineAddButton
+        product={product}
+        className="order-actions__btn order-actions__btn--line"
+        label="สแกนเพิ่ม LINE"
+        size={size === 'lg' ? 'lg' : 'md'}
+      />
     </div>
   );
 }
