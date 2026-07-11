@@ -11,6 +11,7 @@ import { OurStorySection } from './OurStorySection';
 import { WeavingStorySection } from './WeavingStorySection';
 import { UsageSection } from './UsageSection';
 import { CommunitySection } from './CommunitySection';
+import { RattanTypesSection } from './RattanTypesSection';
 import { HomeQuickNav } from './HomeQuickNav';
 import { HomeSectionPanel } from './HomeSectionPanel';
 
@@ -22,8 +23,11 @@ interface HomePageProps {
 }
 
 const COLLAPSIBLE_SECTIONS = HOME_SECTIONS.filter(
-  (section): section is HomeSectionItem & { id: 'story' | 'weaving' | 'usage' | 'community' } =>
-    section.id !== 'products' && section.id !== 'contact',
+  (
+    section,
+  ): section is HomeSectionItem & {
+    id: 'story' | 'weaving' | 'rattan' | 'usage' | 'community';
+  } => section.id !== 'products' && section.id !== 'contact',
 );
 
 export function HomePage({ onViewProducts, onContact, onSelectProduct, products }: HomePageProps) {
@@ -90,6 +94,7 @@ export function HomePage({ onViewProducts, onContact, onSelectProduct, products 
           >
             {section.id === 'story' && <OurStorySection />}
             {section.id === 'weaving' && <WeavingStorySection />}
+            {section.id === 'rattan' && <RattanTypesSection />}
             {section.id === 'usage' && <UsageSection onViewProducts={onViewProducts} />}
             {section.id === 'community' && <CommunitySection />}
           </HomeSectionPanel>
