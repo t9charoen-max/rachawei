@@ -106,7 +106,7 @@ export function MaterialDetailView({ product, demo }: Props) {
             disabled={isSubmitting}
             className="rounded-2xl bg-[var(--brand-primary)] px-5 py-3 text-sm font-semibold text-white shadow-xl disabled:opacity-60"
           >
-            ส่งคำขอราคา {count} รายการ
+            {isSubmitting ? 'กำลังเปิด Line...' : `ส่งไป Line ${count} รายการ`}
           </button>
         </div>
       )}

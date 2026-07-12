@@ -1,39 +1,13 @@
-import { BRAND } from '@/lib/materials/brand';
 import { createClient } from '@/lib/supabase/client';
 import { isPublicSupabaseReady } from '@/lib/materials/env';
+import { formatQuoteText, openLineWithQuote } from '@/lib/materials/line-quote';
 import type { QuoteRequestPayload } from '@/types/material';
-
-function formatQuoteText(payload: QuoteRequestPayload) {
-  const lines = payload.items.map(
-    (item, index) =>
-      `${index + 1}. ${item.product_name} — ${item.quantity} ${item.unit} × ฿${item.unit_price.toLocaleString('th-TH')}`,
-  );
-  const total = payload.items.reduce((sum, item) => sum + item.quantity * item.unit_price, 0);
-
-  return [
-    `📋 ขอใบเสนอราคา — ${BRAND.shopName}`,
-    `ชื่อ: ${payload.customer_name}`,
-    `โทร: ${payload.phone}`,
-    payload.address ? `ที่อยู่: ${payload.address}` : null,
-    payload.note ? `หมายเหตุ: ${payload.note}` : null,
-    '',
-    ...lines,
-    '',
-    `รวมประมาณ: ฿${total.toLocaleString('th-TH')}`,
-  ]
-    .filter(Boolean)
-    .join('\n');
-}
-
-function lineOaMessageUrl(text: string) {
-  const id = BRAND.lineId.replace('@', '');
-  return `https://line.me/R/oaMessage/%40${id}/?${encodeURIComponent(text)}`;
-}
 
 export type SubmitQuoteResult = {
   ok: boolean;
   demo: boolean;
   lineSent: boolean;
+  lineOpened: boolean;
   message: string;
   quoteId?: string | null;
 };
@@ -42,13 +16,13 @@ export async function submitQuoteRequest(
   payload: QuoteRequestPayload,
 ): Promise<SubmitQuoteResult> {
   if (!isPublicSupabaseReady()) {
-    const text = formatQuoteText(payload);
-    window.open(lineOaMessageUrl(text), '_blank', 'noopener,noreferrer');
+    await openLineWithQuote(payload);
     return {
       ok: true,
       demo: true,
       lineSent: false,
-      message: 'เปิด Line เพื่อส่งคำขอราคาแล้ว (โหมดตัวอย่าง — ตั้ง Supabase + Line OA ใน Vercel)',
+      lineOpened: true,
+      message: 'เปิด Line แล้ว — กดส่งข้อความในแชท',
     };
   }
 
@@ -70,13 +44,13 @@ export async function submitQuoteRequest(
     .single();
 
   if (error) {
-    const text = formatQuoteText(payload);
-    window.open(lineOaMessageUrl(text), '_blank', 'noopener,noreferrer');
+    await openLineWithQuote(payload);
     return {
       ok: true,
       demo: true,
       lineSent: false,
-      message: `บันทึกไม่สำเร็จ — เปิด Line ให้ส่งแทน (${error.message})`,
+      lineOpened: true,
+      message: `บันทึกไม่สำเร็จ — เปิด Line ให้ส่งแทน`,
     };
   }
 
@@ -95,19 +69,21 @@ export async function submitQuoteRequest(
       ok: true,
       demo: false,
       lineSent: true,
+      lineOpened: false,
       quoteId: data.id,
       message: 'บันทึกคำขอราคาแล้ว และส่งแจ้งเตือนไป Line OA',
     };
   }
 
-  const text = formatQuoteText(payload);
-  window.open(lineOaMessageUrl(text), '_blank', 'noopener,noreferrer');
+  await openLineWithQuote(payload);
   return {
     ok: true,
     demo: false,
     lineSent: false,
+    lineOpened: true,
     quoteId: data.id,
-    message:
-      'บันทึกคำขอราคาแล้ว — เปิด Line ให้ส่งข้อความ (ตั้ง Edge Function line-quote-notify ใน Supabase)',
+    message: 'บันทึกแล้ว — เปิด Line ให้ส่งข้อความยืนยัน',
   };
 }
+
+export { formatQuoteText, openLineWithQuote };

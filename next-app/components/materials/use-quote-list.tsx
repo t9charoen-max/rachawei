@@ -73,7 +73,9 @@ export function useQuoteList() {
 
       try {
         const result = await submitQuoteRequest(payload);
-        alert(result.message);
+        if (!result.lineOpened) {
+          alert(result.message);
+        }
         if (result.ok) {
           setQuoteList([]);
           sessionStorage.removeItem(STORAGE_KEY);

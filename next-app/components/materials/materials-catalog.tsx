@@ -89,7 +89,7 @@ export function MaterialsCatalog({ products, demo }: Props) {
           </p>
           {demo ? (
             <p className="mt-4 inline-block rounded-full bg-white/15 px-4 py-1 text-xs">
-              โหมดตัวอย่าง — ตั้ง Supabase env บน Vercel แล้ว Redeploy (ดู next-app/supabase/SETUP.md)
+              กดขอราคา → ส่งไป Line {BRAND.lineId} พร้อมข้อความสรุปอัตโนมัติ
             </p>
           ) : (
             <p className="mt-4 inline-block rounded-full bg-white/15 px-4 py-1 text-xs">
@@ -229,7 +229,7 @@ export function MaterialsCatalog({ products, demo }: Props) {
             disabled={isSubmitting}
             className="rounded-2xl bg-[var(--brand-primary)] px-5 py-3 text-sm font-semibold text-white shadow-xl hover:bg-[var(--brand-primary-dark)] disabled:opacity-60 sm:px-6 sm:text-base"
           >
-            {isSubmitting ? 'กำลังส่ง...' : `ส่งคำขอราคา ${count} รายการ →`}
+            {isSubmitting ? 'กำลังเปิด Line...' : `ส่งไป Line ${count} รายการ →`}
           </button>
         </div>
       )}
