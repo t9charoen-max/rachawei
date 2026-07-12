@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { DemoBanner } from '@/components/demo-banner';
 import { ProductCatalog } from '@/components/products/product-catalog';
 import { getCategories, getProducts } from '@/lib/products';
 
@@ -8,7 +9,7 @@ export const metadata: Metadata = {
 };
 
 export default async function HomePage() {
-  const { products, error } = await getProducts();
+  const { products, error, demo } = await getProducts();
   const categories = getCategories(products);
 
   return (
@@ -20,6 +21,8 @@ export default async function HomePage() {
             แคตตาล็อกงานหัตถกรรมหวายสานมือ — ค้นหา กรอง และสั่งซื้อออนไลน์
           </p>
         </div>
+
+        {demo ? <DemoBanner /> : null}
 
         <ProductCatalog products={products} categories={categories} error={error} />
       </div>

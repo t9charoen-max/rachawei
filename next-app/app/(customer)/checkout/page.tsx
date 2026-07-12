@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { DemoBanner } from '@/components/demo-banner';
 import { CheckoutForm } from '@/components/checkout/checkout-form';
 import { parseCartFromSearchParams } from '@/lib/checkout';
 import { getDeliveryZones } from '@/lib/delivery';
@@ -17,10 +18,8 @@ export default async function CheckoutPage({ searchParams }: CheckoutPageProps) 
   const params = await searchParams;
   const initialItems = parseCartFromSearchParams(params);
 
-  const [{ products, error: productsError }, { zones, error: zonesError }] = await Promise.all([
-    getProducts(),
-    getDeliveryZones(),
-  ]);
+  const [{ products, error: productsError, demo }, { zones, error: zonesError }] =
+    await Promise.all([getProducts(), getDeliveryZones()]);
 
   const error = productsError ?? zonesError;
 
@@ -33,6 +32,8 @@ export default async function CheckoutPage({ searchParams }: CheckoutPageProps) 
             เลือกโซนจัดส่ง — ระบบคำนวณค่าส่งและยอดรวมให้อัตโนมัติ
           </p>
         </div>
+
+        {demo ? <DemoBanner /> : null}
 
         <CheckoutForm
           products={products}

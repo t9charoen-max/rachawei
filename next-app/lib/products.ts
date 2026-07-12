@@ -1,3 +1,4 @@
+import { DEMO_PRODUCTS } from '@/lib/demo-data';
 import { createClient } from '@/lib/supabase/server';
 import type { Product } from '@/types/product';
 
@@ -7,14 +8,20 @@ export function isSupabaseConfigured() {
   );
 }
 
+export function isDemoMode() {
+  return !isSupabaseConfigured();
+}
+
 export async function getProducts(): Promise<{
   products: Product[];
   error: string | null;
+  demo: boolean;
 }> {
   if (!isSupabaseConfigured()) {
     return {
-      products: [],
-      error: 'ยังไม่ได้ตั้งค่า Supabase — คัดลอก .env.example เป็น .env.local',
+      products: DEMO_PRODUCTS,
+      error: null,
+      demo: true,
     };
   }
 
@@ -27,14 +34,16 @@ export async function getProducts(): Promise<{
 
   if (error) {
     return {
-      products: [],
-      error: `ไม่สามารถโหลดสินค้าได้: ${error.message}`,
+      products: DEMO_PRODUCTS,
+      error: `โหลดจาก Supabase ไม่ได้ — แสดงข้อมูลตัวอย่างแทน (${error.message})`,
+      demo: true,
     };
   }
 
   return {
     products: (data ?? []) as Product[],
     error: null,
+    demo: false,
   };
 }
 
@@ -43,7 +52,8 @@ export async function getProductById(id: string): Promise<{
   error: string | null;
 }> {
   if (!isSupabaseConfigured()) {
-    return { product: null, error: 'ยังไม่ได้ตั้งค่า Supabase' };
+    const product = DEMO_PRODUCTS.find((item) => item.id === id) ?? null;
+    return { product, error: product ? null : 'ไม่พบสินค้า' };
   }
 
   const supabase = await createClient();
@@ -55,11 +65,13 @@ export async function getProductById(id: string): Promise<{
     .maybeSingle();
 
   if (error) {
-    return { product: null, error: error.message };
+    const product = DEMO_PRODUCTS.find((item) => item.id === id) ?? null;
+    return { product, error: product ? null : error.message };
   }
 
   if (!data) {
-    return { product: null, error: 'ไม่พบสินค้า' };
+    const product = DEMO_PRODUCTS.find((item) => item.id === id) ?? null;
+    return { product, error: product ? null : 'ไม่พบสินค้า' };
   }
 
   return { product: data as Product, error: null };

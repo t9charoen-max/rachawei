@@ -79,23 +79,24 @@ export function ProductCatalog({ products, categories, error }: ProductCatalogPr
     });
   }, [products, query, category]);
 
-  if (error) {
+  if (error && products.length === 0) {
     return (
       <Card className="mx-auto max-w-2xl">
         <CardHeader>
           <CardTitle>ยังโหลดแคตตาล็อกไม่ได้</CardTitle>
           <CardDescription>{error}</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-2 text-sm text-muted-foreground">
-          <p>1. ตั้งค่า `.env.local` จาก `.env.example`</p>
-          <p>2. รัน SQL ใน `supabase/products.sql` ที่ Supabase SQL Editor</p>
-        </CardContent>
       </Card>
     );
   }
 
   return (
     <div className="space-y-6">
+      {error ? (
+        <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm">
+          {error}
+        </p>
+      ) : null}
       <section className="space-y-4">
         <div className="relative">
           <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />

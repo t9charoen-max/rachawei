@@ -130,22 +130,20 @@ export function CheckoutForm({ products, zones, initialItems, error }: CheckoutF
     });
   }
 
-  if (error) {
+  if (error && products.length === 0 && zones.length === 0) {
     return (
       <Card className="mx-auto max-w-2xl">
         <CardHeader>
           <CardTitle>ยังเปิดหน้าชำระเงินไม่ได้</CardTitle>
           <CardDescription>{error}</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-2 text-sm text-muted-foreground">
-          <p>1. ตั้งค่า `.env.local` จาก `.env.example`</p>
-          <p>2. รัน SQL ใน `supabase/products.sql` และ `supabase/checkout.sql`</p>
-        </CardContent>
       </Card>
     );
   }
 
   if (result?.success) {
+    const isDemoOrder = result.orderId.startsWith('demo-');
+
     return (
       <Card className="mx-auto max-w-2xl border-primary/20">
         <CardHeader>
@@ -179,6 +177,11 @@ export function CheckoutForm({ products, zones, initialItems, error }: CheckoutF
               </li>
             ))}
           </ul>
+          {isDemoOrder ? (
+            <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm">
+              โหมดตัวอย่าง — ออเดอร์ยังไม่ถูกบันทึกจริง ตั้งค่า Supabase บน Vercel เพื่อรับออเดอร์จริง
+            </p>
+          ) : null}
           <PromptPayQr amount={result.summary.total} />
         </CardContent>
         <CardFooter>

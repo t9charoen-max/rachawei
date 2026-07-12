@@ -1,3 +1,4 @@
+import { DEMO_PRODUCTS } from '@/lib/demo-data';
 import { createClient } from '@/lib/supabase/server';
 import { isSupabaseConfigured } from '@/lib/products';
 
@@ -38,8 +39,13 @@ export async function getOrders() {
 export async function getAdminStats() {
   if (!isSupabaseConfigured()) {
     return {
-      stats: { products: 0, orders: 0, pending: 0, revenue: 0 },
-      error: 'ยังไม่ได้ตั้งค่า Supabase',
+      stats: {
+        products: DEMO_PRODUCTS.length,
+        orders: 0,
+        pending: 0,
+        revenue: 0,
+      },
+      error: null,
     };
   }
 

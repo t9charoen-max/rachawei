@@ -1,3 +1,4 @@
+import { DEMO_DELIVERY_ZONES } from '@/lib/demo-data';
 import { createClient } from '@/lib/supabase/server';
 import { isSupabaseConfigured } from '@/lib/products';
 import type { DeliveryZone } from '@/types/checkout';
@@ -8,8 +9,8 @@ export async function getDeliveryZones(): Promise<{
 }> {
   if (!isSupabaseConfigured()) {
     return {
-      zones: [],
-      error: 'ยังไม่ได้ตั้งค่า Supabase — คัดลอก .env.example เป็น .env.local',
+      zones: DEMO_DELIVERY_ZONES,
+      error: null,
     };
   }
 
@@ -22,13 +23,13 @@ export async function getDeliveryZones(): Promise<{
 
   if (error) {
     return {
-      zones: [],
-      error: `ไม่สามารถโหลดโซนจัดส่งได้: ${error.message}`,
+      zones: DEMO_DELIVERY_ZONES,
+      error: null,
     };
   }
 
   return {
-    zones: (data ?? []) as DeliveryZone[],
+    zones: (data ?? DEMO_DELIVERY_ZONES) as DeliveryZone[],
     error: null,
   };
 }

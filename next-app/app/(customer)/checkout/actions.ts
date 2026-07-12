@@ -6,7 +6,7 @@ import {
   mergeCartItems,
 } from '@/lib/checkout';
 import { getDeliveryZones } from '@/lib/delivery';
-import { isSupabaseConfigured } from '@/lib/products';
+import { getProducts, isSupabaseConfigured } from '@/lib/products';
 import { createClient } from '@/lib/supabase/server';
 import type { CreateOrderInput, CreateOrderResult } from '@/types/checkout';
 
@@ -14,96 +14,106 @@ function normalizePhone(phone: string) {
   return phone.replace(/\D/g, '');
 }
 
-export async function createOrder(input: CreateOrderInput): Promise<CreateOrderResult> {
-  if (!isSupabaseConfigured()) {
-    return { success: false, error: 'ยังไม่ได้ตั้งค่า Supabase' };
-  }
-
+async function validateAndBuildOrder(input: CreateOrderInput) {
   const customerName = input.customerName.trim();
   const customerPhone = normalizePhone(input.customerPhone);
   const customerAddress = input.customerAddress.trim();
   const note = input.note?.trim() ?? '';
 
   if (!customerName) {
-    return { success: false, error: 'กรุณากรอกชื่อผู้รับ' };
+    return { error: 'กรุณากรอกชื่อผู้รับ' } as const;
   }
 
   if (customerPhone.length < 9) {
-    return { success: false, error: 'กรุณากรอกเบอร์โทรให้ถูกต้อง' };
+    return { error: 'กรุณากรอกเบอร์โทรให้ถูกต้อง' } as const;
   }
 
   if (!customerAddress) {
-    return { success: false, error: 'กรุณากรอกที่อยู่จัดส่ง' };
+    return { error: 'กรุณากรอกที่อยู่จัดส่ง' } as const;
   }
 
   if (!input.deliveryZoneId) {
-    return { success: false, error: 'กรุณาเลือกโซนจัดส่ง' };
+    return { error: 'กรุณาเลือกโซนจัดส่ง' } as const;
   }
 
   const mergedItems = mergeCartItems(input.items);
   if (mergedItems.length === 0) {
-    return { success: false, error: 'กรุณาเลือกสินค้าอย่างน้อย 1 รายการ' };
+    return { error: 'กรุณาเลือกสินค้าอย่างน้อย 1 รายการ' } as const;
   }
 
-  const supabase = await createClient();
-
-  const [{ data: products, error: productsError }, { zones, error: zonesError }] =
-    await Promise.all([
-      supabase.from('products').select('*').eq('is_active', true),
-      getDeliveryZones(),
-    ]);
-
-  if (productsError) {
-    return { success: false, error: `โหลดสินค้าไม่สำเร็จ: ${productsError.message}` };
-  }
-
-  if (zonesError) {
-    return { success: false, error: zonesError };
-  }
-
+  const [{ products }, { zones }] = await Promise.all([getProducts(), getDeliveryZones()]);
   const zone = zones.find((item) => item.id === input.deliveryZoneId);
+
   if (!zone) {
-    return { success: false, error: 'ไม่พบโซนจัดส่งที่เลือก' };
+    return { error: 'ไม่พบโซนจัดส่งที่เลือก' } as const;
   }
 
-  const lines = buildCheckoutLines(mergedItems, products ?? []);
+  const lines = buildCheckoutLines(mergedItems, products);
   if (lines.length === 0) {
-    return { success: false, error: 'ไม่พบสินค้าที่เลือก หรือสินค้าหมดแล้ว' };
+    return { error: 'ไม่พบสินค้าที่เลือก หรือสินค้าหมดแล้ว' } as const;
   }
 
   for (const item of mergedItems) {
     const line = lines.find((entry) => entry.productId === item.productId);
-    const product = (products ?? []).find((entry) => entry.id === item.productId);
+    const product = products.find((entry) => entry.id === item.productId);
 
     if (!product) {
-      return { success: false, error: 'มีสินค้าบางรายการไม่พบในระบบ' };
+      return { error: 'มีสินค้าบางรายการไม่พบในระบบ' } as const;
     }
 
     if (product.stock < item.quantity) {
       return {
-        success: false,
         error: `${product.name} มีสต็อกไม่พอ (คงเหลือ ${product.stock} ${product.unit})`,
-      };
+      } as const;
     }
 
     if (!line || line.quantity !== item.quantity) {
-      return { success: false, error: `จำนวนสินค้า ${product.name} ไม่ถูกต้อง` };
+      return { error: `จำนวนสินค้า ${product.name} ไม่ถูกต้อง` } as const;
     }
   }
 
   const summary = calculateOrderSummary(lines, zone);
 
+  return {
+    customerName,
+    customerPhone,
+    customerAddress,
+    note,
+    zone,
+    lines,
+    summary,
+  } as const;
+}
+
+export async function createOrder(input: CreateOrderInput): Promise<CreateOrderResult> {
+  const built = await validateAndBuildOrder(input);
+
+  if ('error' in built) {
+    return { success: false, error: built.error ?? 'เกิดข้อผิดพลาด' };
+  }
+
+  if (!isSupabaseConfigured()) {
+    return {
+      success: true,
+      orderId: `demo-${Date.now()}`,
+      summary: built.summary,
+      zoneName: built.zone.name,
+    };
+  }
+
+  const supabase = await createClient();
+
   const { data: order, error: orderError } = await supabase
     .from('orders')
     .insert({
-      customer_name: customerName,
-      customer_phone: customerPhone,
-      customer_address: customerAddress,
-      note,
-      delivery_zone_id: zone.id,
-      subtotal: summary.subtotal,
-      shipping_fee: summary.shippingFee,
-      total: summary.total,
+      customer_name: built.customerName,
+      customer_phone: built.customerPhone,
+      customer_address: built.customerAddress,
+      note: built.note,
+      delivery_zone_id: built.zone.id,
+      subtotal: built.summary.subtotal,
+      shipping_fee: built.summary.shippingFee,
+      total: built.summary.total,
       status: 'pending',
     })
     .select('id')
@@ -113,7 +123,7 @@ export async function createOrder(input: CreateOrderInput): Promise<CreateOrderR
     return { success: false, error: `บันทึกออเดอร์ไม่สำเร็จ: ${orderError?.message}` };
   }
 
-  const orderItems = lines.map((line) => ({
+  const orderItems = built.lines.map((line) => ({
     order_id: order.id,
     product_id: line.productId,
     product_name: line.name,
@@ -132,7 +142,7 @@ export async function createOrder(input: CreateOrderInput): Promise<CreateOrderR
   return {
     success: true,
     orderId: order.id,
-    summary,
-    zoneName: zone.name,
+    summary: built.summary,
+    zoneName: built.zone.name,
   };
 }
