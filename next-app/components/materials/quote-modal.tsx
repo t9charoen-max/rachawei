@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { isPublicSupabaseReady } from '@/lib/materials/env';
+import { getLineDisplayId } from '@/lib/materials/line-quote';
 import { submitQuoteRequest } from '@/lib/materials/submit-quote';
 import type { MaterialProduct } from '@/types/material';
 
@@ -88,7 +89,7 @@ export function QuoteModal({ product, open, onClose, onSubmit }: QuoteModalProps
         <p className="mt-1 font-medium text-[var(--brand-primary)]">{product.name}</p>
         {lineDirect ? (
           <p className="mt-2 text-sm text-gray-500">
-            กดส่งแล้วคัดลอกข้อความ → เปิด Line → วางในแชทแล้วกดส่ง
+            กดส่ง → เปิด Line แชร์ → เลือกส่งให้ {getLineDisplayId()} (ข้อความคัดลอกไว้แล้ว)
           </p>
         ) : null}
 

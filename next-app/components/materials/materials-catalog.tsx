@@ -90,7 +90,7 @@ export function MaterialsCatalog({ products, demo }: Props) {
           </p>
           {demo ? (
             <p className="mt-4 inline-block rounded-full bg-white/15 px-4 py-1 text-xs">
-              กดขอราคา → ส่งไป Line {getLineDisplayId()} (คัดลอกข้อความแล้วเปิดแชท)
+              กดขอราคา → แชร์ไป Line {getLineDisplayId()}
             </p>
           ) : (
             <p className="mt-4 inline-block rounded-full bg-white/15 px-4 py-1 text-xs">
