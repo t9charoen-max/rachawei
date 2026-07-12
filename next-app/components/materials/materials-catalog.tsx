@@ -4,6 +4,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
 import { BRAND } from '@/lib/materials/brand';
+import { assetUrl } from '@/lib/materials/asset-url';
 import { MATERIAL_CATEGORIES } from '@/lib/materials/demo-data';
 import type { MaterialProduct } from '@/types/material';
 import { QuoteModal } from '@/components/materials/quote-modal';
@@ -154,7 +155,7 @@ export function MaterialsCatalog({ products, demo }: Props) {
               <Link href={`/products/${product.id}`} className="block">
                 <div className="relative aspect-[4/3] bg-orange-50">
                   <Image
-                    src={product.image_url}
+                    src={assetUrl(product.image_url)}
                     alt={product.name}
                     fill
                     className="object-cover"

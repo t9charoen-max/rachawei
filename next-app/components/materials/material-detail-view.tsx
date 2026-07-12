@@ -4,6 +4,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useState } from 'react';
 import { BRAND } from '@/lib/materials/brand';
+import { assetUrl } from '@/lib/materials/asset-url';
 import type { MaterialProduct } from '@/types/material';
 import { QuoteModal } from '@/components/materials/quote-modal';
 import { useQuoteList } from '@/components/materials/use-quote-list';
@@ -37,7 +38,7 @@ export function MaterialDetailView({ product, demo }: Props) {
         <article className="overflow-hidden rounded-3xl border border-orange-100 bg-white shadow-sm">
           <div className="relative aspect-[4/3] bg-orange-50 sm:aspect-[16/10]">
             <Image
-              src={product.image_url}
+              src={assetUrl(product.image_url)}
               alt={product.name}
               fill
               priority
