@@ -8,8 +8,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "npm run build:rajawasu && tsc -b && vite build",
-    "build:rajawasu": "cd next-app && npm ci && STATIC_EXPORT=1 NEXT_PUBLIC_BASE_PATH=/rajawasu npm run build:static && rm -rf ../public/rajawasu && mkdir -p ../public/rajawasu && cp -r out/. ../public/rajawasu/ && touch ../public/rajawasu/.nojekyll",
+    "build": "npm run build:rachawatsadu && tsc -b && vite build",
+    "build:rachawatsadu": "cd next-app && npm ci && STATIC_EXPORT=1 NEXT_PUBLIC_BASE_PATH=/rachawatsadu npm run build:static && rm -rf ../public/rachawatsadu ../public/rajawasu && mkdir -p ../public/rachawatsadu && cp -r out/. ../public/rachawatsadu/ && touch ../public/rachawatsadu/.nojekyll",
     "lint": "oxlint",
     "preview": "vite preview"
   },

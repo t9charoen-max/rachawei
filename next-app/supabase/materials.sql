@@ -1,4 +1,4 @@
--- ราชาวัสดุ สุรินทร์ — schema สำหรับแคตตาล็อกวัสดุก่อสร้าง + ใบขอราคา
+-- Rachawatsadu — schema สำหรับแคตตาล็อกวัสดุก่อสร้าง + ใบขอราคา
 -- รันใน Supabase SQL Editor
 
 create table if not exists public.material_products (
