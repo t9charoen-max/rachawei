@@ -1,11 +1,14 @@
 import type { Metadata } from 'next';
-import ConstructionMaterialsStore from '@/components/construction-materials-store';
+import { MaterialsCatalog } from '@/components/materials/materials-catalog';
+import { BRAND } from '@/lib/materials/brand';
+import { getMaterials } from '@/lib/materials/products';
 
 export const metadata: Metadata = {
-  title: 'ราชาวัสดุ สุรินทร์ | วัสดุก่อสร้าง',
-  description: 'วัสดุก่อสร้างคุณภาพ ส่งตรงถึงหน้างาน สุรินทร์และใกล้เคียง',
+  title: `${BRAND.shopName} | วัสดุก่อสร้าง`,
+  description: BRAND.tagline,
 };
 
-export default function HomePage() {
-  return <ConstructionMaterialsStore />;
+export default async function HomePage() {
+  const { products, demo } = await getMaterials();
+  return <MaterialsCatalog products={products} demo={demo} />;
 }
