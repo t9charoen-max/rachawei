@@ -3,7 +3,7 @@ export const BRAND = {
   shopNameTh: 'ราชาวัสดุ สุรินทร์',
   tagline: 'วัสดุก่อสร้างคุณภาพ ส่งตรงถึงหน้างาน',
   location: '126 หมู่ 4 บ้านบุทม ต.เมืองที อ.เมือง จ.สุรินทร์ 32000',
-  lineId: '@rachawatsadu',
+  lineId: '@rajawasu',
   phone: '08x-xxx-xxxx',
   themeColor: '#ea580c',
   logoPath: '/brand/rachawatsadu-logo.svg',

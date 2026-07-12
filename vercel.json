@@ -6,13 +6,13 @@
   "cleanUrls": true,
   "ignoreCommand": "if [ \"$VERCEL_GIT_COMMIT_REF\" = \"next-deploy\" ]; then exit 0; fi; git diff HEAD^ HEAD --quiet -- . && exit 0 || exit 1",
   "redirects": [
-    { "source": "/rajawasu", "destination": "/rachawatsadu", "permanent": true },
-    { "source": "/rajawasu/", "destination": "/rachawatsadu/", "permanent": true },
-    { "source": "/rajawasu/:path*", "destination": "/rachawatsadu/:path*", "permanent": true }
+    { "source": "/rachawatsadu", "destination": "/rajawasu", "permanent": true },
+    { "source": "/rachawatsadu/", "destination": "/rajawasu/", "permanent": true },
+    { "source": "/rachawatsadu/:path*", "destination": "/rajawasu/:path*", "permanent": true }
   ],
   "rewrites": [
-    { "source": "/rachawatsadu", "destination": "/rachawatsadu/index.html" },
-    { "source": "/rachawatsadu/products/:slug", "destination": "/rachawatsadu/products/:slug.html" }
+    { "source": "/rajawasu", "destination": "/rajawasu/index.html" },
+    { "source": "/rajawasu/products/:slug", "destination": "/rajawasu/products/:slug.html" }
   ],
   "headers": [
     {
@@ -28,7 +28,7 @@
       ]
     },
     {
-      "source": "/rachawatsadu/(.*)",
+      "source": "/rajawasu/(.*)",
       "headers": [
         { "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" }
       ]
