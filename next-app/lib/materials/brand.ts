@@ -1,5 +1,5 @@
 export const BRAND = {
-  shopName: 'Rachawatsadu',
+  shopName: 'ราชาวัสดุ',
   tagline: 'วัสดุก่อสร้างคุณภาพ ส่งตรงถึงหน้างาน',
   location: '126 หมู่ 4 บ้านบุทม ต.เมืองที อ.เมือง จ.สุรินทร์ 32000',
   /** personal = Line ส่วนตัว (ทดสอบ) | oa = Line Official Account */

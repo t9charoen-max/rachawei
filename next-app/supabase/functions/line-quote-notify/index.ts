@@ -29,7 +29,7 @@ function formatMessage(quote: QuoteRow) {
   );
 
   return [
-    '📋 ใบขอราคาใหม่ — Rachawatsadu',
+    '📋 ใบขอราคาใหม่ — ราชาวัสดุ',
     '',
     `👤 ${quote.customer_name}`,
     `📞 ${quote.phone}`,
