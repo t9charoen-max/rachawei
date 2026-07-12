@@ -2,6 +2,7 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "framework": "vite",
+  "ignoreCommand": "git diff HEAD^ HEAD --quiet -- . ':(exclude)next-app'",
   "headers": [
     {
       "source": "/index.html",
