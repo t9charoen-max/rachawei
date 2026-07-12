@@ -9,6 +9,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "build:next": "npm install --prefix next-app && npm run build --prefix next-app",
     "lint": "oxlint",
     "preview": "vite preview"
   },
