@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { createPromptPayQr } from '@/lib/promptpay';
 import { formatPrice } from '@/lib/format';
 
 type PromptPayQrProps = {
@@ -12,28 +13,12 @@ export function PromptPayQr({ amount }: PromptPayQrProps) {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    async function loadQr() {
-      try {
-        const response = await fetch('/api/promptpay', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ amount }),
-        });
-
-        const data = (await response.json()) as { dataUrl?: string; error?: string };
-
-        if (!response.ok) {
-          setError(data.error ?? 'สร้าง QR ไม่สำเร็จ');
-          return;
-        }
-
-        setDataUrl(data.dataUrl ?? null);
-      } catch {
-        setError('สร้าง QR ไม่สำเร็จ');
-      }
-    }
-
-    loadQr();
+    createPromptPayQr({ amount })
+      .then((result) => setDataUrl(result.dataUrl))
+      .catch((err: unknown) => {
+        const message = err instanceof Error ? err.message : 'สร้าง QR ไม่สำเร็จ';
+        setError(message);
+      });
   }, [amount]);
 
   if (error) {

@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useTransition } from 'react';
 import { Minus, Plus, ShoppingBag } from 'lucide-react';
-import { createOrder } from '@/app/(customer)/checkout/actions';
+import { createOrderClient } from '@/lib/create-order';
 import { PromptPayQr } from '@/components/checkout/promptpay-qr';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -109,14 +109,18 @@ export function CheckoutForm({ products, zones, initialItems, error }: CheckoutF
     setSubmitError(null);
 
     startTransition(async () => {
-      const response = await createOrder({
-        customerName: form.customerName,
-        customerPhone: form.customerPhone,
-        customerAddress: form.customerAddress,
-        note: form.note,
-        deliveryZoneId: form.deliveryZoneId,
-        items: mergeCartItems(cartItems),
-      });
+      const response = createOrderClient(
+        {
+          customerName: form.customerName,
+          customerPhone: form.customerPhone,
+          customerAddress: form.customerAddress,
+          note: form.note,
+          deliveryZoneId: form.deliveryZoneId,
+          items: mergeCartItems(cartItems),
+        },
+        products,
+        zones,
+      );
 
       if (!response.success) {
         setSubmitError(response.error);
