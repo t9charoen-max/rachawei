@@ -3,10 +3,11 @@
   "installCommand": "npm ci && npm ci --prefix next-app",
   "outputDirectory": "dist",
   "framework": "vite",
+  "cleanUrls": true,
   "ignoreCommand": "if [ \"$VERCEL_GIT_COMMIT_REF\" = \"next-deploy\" ]; then exit 0; fi; git diff HEAD^ HEAD --quiet -- . && exit 0 || exit 1",
   "rewrites": [
     { "source": "/rajawasu", "destination": "/rajawasu/index.html" },
-    { "source": "/rajawasu/products/(.*)", "destination": "/rajawasu/products/$1.html" }
+    { "source": "/rajawasu/products/:slug", "destination": "/rajawasu/products/:slug.html" }
   ],
   "headers": [
     {
