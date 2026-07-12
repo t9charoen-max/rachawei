@@ -7,7 +7,7 @@ export type PendingQuoteItem = QuoteItemInput & {
   product: MaterialProduct;
 };
 
-const STORAGE_KEY = 'rajawasu-quote-list';
+const STORAGE_KEY = 'rachawatsadu-quote-list';
 
 export function useQuoteList() {
   const [quoteList, setQuoteList] = useState<PendingQuoteItem[]>([]);
