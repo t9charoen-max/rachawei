@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 const NAV_ITEMS = [
   { href: '/', label: 'หน้าแรก' },
   { href: '/products', label: 'สินค้า' },
+  { href: '/checkout', label: 'ชำระเงิน' },
 ] as const;
 
 export function SiteHeader() {

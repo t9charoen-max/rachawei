@@ -173,15 +173,28 @@ export function ProductCatalog({ products, categories, error }: ProductCatalogPr
                 </div>
               </CardContent>
 
-              <CardFooter>
+              <CardFooter className="flex-col gap-2">
                 <Button
                   className="w-full"
                   disabled={product.stock === 0}
                   render={
-                    <a href="tel:0814707089" aria-label={`ติดต่อสั่งซื้อ ${product.name}`} />
+                    <a
+                      href={`/checkout?product=${product.id}&qty=1`}
+                      aria-label={`สั่งซื้อ ${product.name}`}
+                    />
                   }
                 >
-                  {product.stock === 0 ? 'สินค้าหมด' : 'ติดต่อสั่งซื้อ'}
+                  {product.stock === 0 ? 'สินค้าหมด' : 'สั่งซื้อเลย'}
+                </Button>
+                <Button
+                  className="w-full"
+                  variant="outline"
+                  disabled={product.stock === 0}
+                  render={
+                    <a href="tel:0814707089" aria-label={`โทรสั่งซื้อ ${product.name}`} />
+                  }
+                >
+                  โทรสั่งซื้อ
                 </Button>
               </CardFooter>
             </Card>
