@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useMemo, useState } from 'react';
 import { BRAND } from '@/lib/materials/brand';
 import { assetUrl } from '@/lib/materials/asset-url';
+import { getLineDisplayId, getLineProfileUrl } from '@/lib/materials/line-quote';
 import { MATERIAL_CATEGORIES } from '@/lib/materials/demo-data';
 import type { MaterialProduct } from '@/types/material';
 import { QuoteModal } from '@/components/materials/quote-modal';
@@ -55,12 +56,12 @@ export function MaterialsCatalog({ products, demo }: Props) {
           </Link>
           <div className="flex shrink-0 items-center gap-2">
             <a
-              href={`https://line.me/R/ti/p/${BRAND.lineId}`}
+              href={getLineProfileUrl()}
               target="_blank"
               rel="noreferrer"
               className="hidden rounded-xl border border-orange-200 px-3 py-2 text-sm hover:bg-orange-50 sm:inline-block"
             >
-              Line {BRAND.lineId}
+              Line {getLineDisplayId()}
             </a>
             {count > 0 && (
               <button
@@ -89,7 +90,7 @@ export function MaterialsCatalog({ products, demo }: Props) {
           </p>
           {demo ? (
             <p className="mt-4 inline-block rounded-full bg-white/15 px-4 py-1 text-xs">
-              กดขอราคา → ส่งไป Line {BRAND.lineId} พร้อมข้อความสรุปอัตโนมัติ
+              กดขอราคา → ส่งไป Line {getLineDisplayId()} (คัดลอกข้อความแล้วเปิดแชท)
             </p>
           ) : (
             <p className="mt-4 inline-block rounded-full bg-white/15 px-4 py-1 text-xs">

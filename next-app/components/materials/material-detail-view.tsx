@@ -4,6 +4,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useState } from 'react';
 import { BRAND } from '@/lib/materials/brand';
+import { getLineDisplayId, getLineProfileUrl } from '@/lib/materials/line-quote';
 import { assetUrl } from '@/lib/materials/asset-url';
 import type { MaterialProduct } from '@/types/material';
 import { QuoteModal } from '@/components/materials/quote-modal';
@@ -86,12 +87,12 @@ export function MaterialDetailView({ product, demo }: Props) {
                 ขอใบเสนอราคา
               </button>
               <a
-                href={`https://line.me/R/ti/p/${BRAND.lineId}`}
+                href={getLineProfileUrl()}
                 target="_blank"
                 rel="noreferrer"
                 className="rounded-2xl border border-orange-200 py-3.5 text-center font-semibold text-[var(--brand-primary)] hover:bg-orange-50"
               >
-                แชท Line {BRAND.lineId}
+                แชท Line {getLineDisplayId()}
               </a>
             </div>
           </div>

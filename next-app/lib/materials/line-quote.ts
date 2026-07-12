@@ -23,30 +23,40 @@ export function formatQuoteText(payload: QuoteRequestPayload) {
     .join('\n');
 }
 
-function lineOaProfileUrl() {
-  const id = encodeURIComponent(BRAND.lineId);
-  return `https://line.me/R/ti/p/${id}`;
+function lineProfileUrl() {
+  const id = BRAND.lineId.replace(/^@/, '');
+  return `https://line.me/R/ti/p/${encodeURIComponent(id)}`;
 }
 
 function lineOaMessageUrl(text: string) {
-  const id = encodeURIComponent(BRAND.lineId);
+  const id = encodeURIComponent(BRAND.lineId.startsWith('@') ? BRAND.lineId : `@${BRAND.lineId}`);
   if (!text.trim()) {
     return `https://line.me/R/oaMessage/${id}/`;
   }
   return `https://line.me/R/oaMessage/${id}/?${encodeURIComponent(text)}`;
 }
 
-/** เปิด Line OA พร้อมข้อความในกล่องพิมพ์ (ใช้ได้แม้ยังไม่ตั้ง Supabase) */
+/** เปิด Line พร้อมข้อความสรุป (OA = ใส่ในกล่องพิมพ์, ส่วนตัว = คัดลอกแล้วเปิดแชท) */
 export async function openLineWithQuote(payload: QuoteRequestPayload) {
   const text = formatQuoteText(payload);
-  let url = lineOaMessageUrl(text);
 
+  if (BRAND.lineType === 'personal') {
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      // มือถือบางรุ่นอนุญาตหลัง user gesture — ไม่เป็นไร
+    }
+    window.location.assign(lineProfileUrl());
+    return { opened: true, url: lineProfileUrl(), copied: true };
+  }
+
+  let url = lineOaMessageUrl(text);
   if (url.length > 1900) {
     try {
       await navigator.clipboard.writeText(text);
       url = lineOaMessageUrl('(วางข้อความจากคลิปบอร์ด)');
     } catch {
-      url = lineOaProfileUrl();
+      url = lineProfileUrl();
     }
   }
 
@@ -55,5 +65,9 @@ export async function openLineWithQuote(payload: QuoteRequestPayload) {
 }
 
 export function getLineProfileUrl() {
-  return lineOaProfileUrl();
+  return lineProfileUrl();
+}
+
+export function getLineDisplayId() {
+  return BRAND.lineIdDisplay ?? BRAND.lineId;
 }

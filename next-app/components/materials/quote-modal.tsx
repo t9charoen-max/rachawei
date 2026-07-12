@@ -88,7 +88,7 @@ export function QuoteModal({ product, open, onClose, onSubmit }: QuoteModalProps
         <p className="mt-1 font-medium text-[var(--brand-primary)]">{product.name}</p>
         {lineDirect ? (
           <p className="mt-2 text-sm text-gray-500">
-            กดส่งแล้วจะเปิด Line พร้อมข้อความสรุปให้อัตโนมัติ
+            กดส่งแล้วคัดลอกข้อความ → เปิด Line → วางในแชทแล้วกดส่ง
           </p>
         ) : null}
 
