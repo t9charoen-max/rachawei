@@ -1,12 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
-import {
-  CATEGORIES,
-  formatProductPrice,
-  getLowestPrice,
-  hasProductPrice,
-  type Category,
-  type Product,
-} from '../../data/products';
+import { useEffect, useState } from 'react';
+import { CATEGORIES, type Category, type Product } from '../../data/products';
 import { SHOP_INFO } from '../../data/products';
 import { EcoHandmadeBadge } from '../EcoHandmadeBadge';
 
@@ -17,16 +10,6 @@ interface ProductsPageProps {
   onSelectProduct: (product: Product) => void;
 }
 
-function showcasePriceText(product: Product, lowestInList: number | null): string {
-  if (hasProductPrice(product) && product.price != null) {
-    return formatProductPrice(product);
-  }
-  if (lowestInList != null) {
-    return `เริ่มต้นที่ ${formatProductPrice({ ...product, price: lowestInList })}`;
-  }
-  return 'สอบถามราคา — โทรสั่งได้ทันที';
-}
-
 export function ProductsPage({
   products,
   category,
@@ -35,7 +18,6 @@ export function ProductsPage({
 }: ProductsPageProps) {
   const [activeIndex, setActiveIndex] = useState(0);
   const active = products[activeIndex] ?? products[0];
-  const lowestPrice = useMemo(() => getLowestPrice(products), [products]);
 
   useEffect(() => {
     setActiveIndex(0);
@@ -71,9 +53,7 @@ export function ProductsPage({
               <p className="products-showcase__brand">{SHOP_INFO.name}</p>
               <p className="products-showcase__category">{active.category}</p>
               <h3 className="products-showcase__name">{active.name}</h3>
-              <p className="products-showcase__price">
-                {showcasePriceText(active, lowestPrice)}
-              </p>
+              <p className="products-showcase__tagline">สานมือ 100% · โทรหรือ LINE สั่งได้ทันที</p>
 
               <div className="products-showcase__stage" key={active.id}>
                 <div className="products-showcase__glow" aria-hidden />

@@ -1,7 +1,6 @@
 import type { Product } from '../data/products';
 import { EcoHandmadeBadge } from './EcoHandmadeBadge';
 import { ProductImage } from './ProductImage';
-import { ProductPrice } from './ProductPrice';
 
 interface ProductCardProps {
   product: Product;
@@ -20,7 +19,6 @@ export function ProductCard({ product, onSelect }: ProductCardProps) {
       <div className="product-card__body">
         <span className="product-card__category">{product.category}</span>
         <h3 className="product-card__name">{product.name}</h3>
-        <ProductPrice product={product} />
         <span className="product-card__cta">ดูรายละเอียด →</span>
       </div>
     </button>

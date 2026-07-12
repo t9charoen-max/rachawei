@@ -4,7 +4,6 @@ export interface Product {
   description: string;
   category: string;
   image: string;
-  price?: number;
   /** สินค้ารูปแบบพิเศษ */
   special?: boolean;
   /** รูปเพิ่มเติมในหน้ารายละเอียด (รูปแรกใช้ image) */
@@ -15,9 +14,6 @@ export interface Product {
   panoramaYaw?: number;
   panoramaHfov?: number;
 }
-
-/** เปิดเมื่อพร้อมแสดงราคาทุกรายการ */
-export const SHOW_PRICES = false;
 
 /** เปลี่ยนเมื่ออัปเดตรูปสินค้า เพื่อให้เบราว์เซอร์โหลดรูปใหม่ */
 export const PRODUCT_IMAGE_VERSION = 'rachawei-real-v21';
@@ -32,24 +28,9 @@ export const CATEGORIES = [
   'หูจับสูง',
 ] as const;
 
-export function hasProductPrice(product: Product): boolean {
-  return product.price != null;
-}
-
-export function formatProductPrice(product: Product): string {
-  return `฿${product.price!.toLocaleString('th-TH')}`;
-}
-
 export function getProductImages(product: Product): string[] {
   if (product.images?.length) return product.images;
   return [product.image];
-}
-
-export function getLowestPrice(products: Product[]): number | null {
-  const prices = products
-    .map((product) => product.price)
-    .filter((price): price is number => price != null);
-  return prices.length > 0 ? Math.min(...prices) : null;
 }
 
 export type Category = (typeof CATEGORIES)[number];
@@ -122,7 +103,6 @@ export const PRODUCTS: Product[] = [
     description:
       'ตะกร้าหวายทรงแปดเหลี่ยม 2 ชั้น หูจับสูง ลายสานโปร่ง งานพิเศษจากช่างฝีมือบ้านบุทม เหมาะใช้งานและตกแต่งบ้าน',
     category: 'พิเศษ',
-    price: 1500,
     special: true,
     image: `/products/basket-07-octagonal-lifestyle.jpg?v=${PRODUCT_IMAGE_VERSION}`,
   },
@@ -132,7 +112,6 @@ export const PRODUCTS: Product[] = [
     description:
       'ตะกร้าหวายทรงแปดเหลี่ยม ชั้นเดียว หูจับสูง ลายสานเนี้ยบ งานพิเศษจากช่างฝีมือบ้านบุทม สวยงามทนทาน ใช้ได้หลากหลาย',
     category: 'พิเศษ',
-    price: 1500,
     special: true,
     image: `/products/basket-06-octagonal-single.jpg?v=${PRODUCT_IMAGE_VERSION}`,
   },

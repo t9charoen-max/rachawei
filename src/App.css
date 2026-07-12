@@ -1418,11 +1418,11 @@
   color: #1f1712;
 }
 
-.products-showcase__price {
+.products-showcase__tagline {
   margin: 0.5rem 0 0;
-  font-size: 1rem;
-  font-weight: 600;
-  color: #4a3a2c;
+  font-size: 0.88rem;
+  font-weight: 500;
+  color: #6b5340;
 }
 
 .products-showcase__stage {
@@ -1802,16 +1802,16 @@
   color: var(--cream-muted);
 }
 
-.sticky-order-bar__price {
+.sticky-order-bar__name {
   margin: 0.1rem 0 0;
-  font-size: 1rem;
-  font-weight: 800;
-  color: var(--gold);
-  line-height: 1.1;
-}
-
-.sticky-order-bar__price--inquire {
-  font-size: 0.82rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--gold-light);
+  line-height: 1.25;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .sticky-order-bar .order-actions {

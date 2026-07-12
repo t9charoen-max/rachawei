@@ -1,6 +1,5 @@
 import type { Product } from '../../data/products';
 import { EcoHandmadeBadge } from '../EcoHandmadeBadge';
-import { ProductPrice } from '../ProductPrice';
 
 interface FeaturedProductsProps {
   products: Product[];
@@ -43,7 +42,6 @@ export function FeaturedProducts({ products, onSelect, onViewAll }: FeaturedProd
             </div>
             <div className="featured-card__body">
               <h3 className="featured-card__name">{product.name}</h3>
-              <ProductPrice product={product} variant="featured" />
             </div>
           </button>
         ))}

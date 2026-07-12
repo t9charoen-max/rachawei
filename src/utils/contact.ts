@@ -1,4 +1,4 @@
-import { formatProductPrice, hasProductPrice, type Product } from '../data/products';
+import type { Product } from '../data/products';
 import { SHOP_INFO } from '../data/products';
 
 export const LINE_CONFIG = {
@@ -19,12 +19,9 @@ export function lineAddUrl(): string {
 }
 
 export function buildOrderMessage(product: Product): string {
-  const priceLine = hasProductPrice(product) && product.price != null
-    ? `\nราคา: ${formatProductPrice(product)}`
-    : '\nขอสอบถามราคา';
-  return `สวัสดีครับ/ค่า สนใจสินค้า: ${product.name}${priceLine}\nจากราชาหวายสุรินทร์ ขอสอบถามการจัดส่งครับ/ค่า`;
+  return `สวัสดีครับ/ค่า สนใจสินค้า: ${product.name}\nจากราชาหวายสุรินทร์ ขอสอบถามการจัดส่งครับ/ค่า`;
 }
 
 export function generalInquiryMessage(): string {
-  return 'สวัสดีครับ/ค่า สนใจสินค้าตะกร้าหวายจากราชาหวายสุรินทร์ ขอสอบถามรายละเอียดและราคาครับ/ค่า';
+  return 'สวัสดีครับ/ค่า สนใจสินค้าตะกร้าหวายจากราชาหวายสุรินทร์ ขอสอบถามรายละเอียดครับ/ค่า';
 }

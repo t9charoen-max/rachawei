@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import type { Product } from '../data/products';
-import { formatProductPrice, getProductImages, hasProductPrice } from '../data/products';
+import { getProductImages } from '../data/products';
 import { HowToOrder } from './HowToOrder';
 import { Product360Viewer } from './Product360Viewer';
 import { ProductImage } from './ProductImage';
@@ -24,7 +24,6 @@ export function ProductDetail({ product, onBack }: ProductDetailProps) {
   const [photoIndex, setPhotoIndex] = useState(0);
   const touchStartX = useRef<number | null>(null);
   const activePhoto = photos[photoIndex] ?? product.image;
-  const showPrice = hasProductPrice(product) && product.price != null;
 
   useEffect(() => {
     setPhotoIndex(0);
@@ -156,17 +155,6 @@ export function ProductDetail({ product, onBack }: ProductDetailProps) {
             {product.special && <span className="detail-body__special">สินค้าพิเศษ</span>}
           </div>
           <h2 className="detail-body__name">{product.name}</h2>
-
-          <div className="detail-price-panel">
-            <span className="detail-price-panel__label">ราคา</span>
-            {showPrice ? (
-              <span className="detail-price-panel__value">{formatProductPrice(product)}</span>
-            ) : (
-              <span className="detail-price-panel__value detail-price-panel__value--inquire">สอบถามราคา</span>
-            )}
-            <p className="detail-price-panel__note">โทรหรือ LINE เพื่อยืนยันราคาและค่าจัดส่ง</p>
-          </div>
-
           <p className="detail-body__desc">{product.description}</p>
         </div>
 
