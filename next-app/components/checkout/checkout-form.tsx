@@ -192,9 +192,9 @@ export function CheckoutForm({ products, zones, initialItems, error }: CheckoutF
   }
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
-      <div className="space-y-6">
-        <Card>
+    <div className="grid gap-5">
+      <div className="space-y-5">
+        <Card className="rounded-2xl border-border/70 shadow-sm">
           <CardHeader>
             <CardTitle>รายการสินค้า</CardTitle>
             <CardDescription>ปรับจำนวนสินค้าก่อนยืนยันออเดอร์</CardDescription>
@@ -270,7 +270,7 @@ export function CheckoutForm({ products, zones, initialItems, error }: CheckoutF
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="rounded-2xl border-border/70 shadow-sm">
           <CardHeader>
             <CardTitle>ข้อมูลจัดส่ง</CardTitle>
             <CardDescription>กรอกข้อมูลผู้รับและเลือกโซนจัดส่ง</CardDescription>
@@ -355,8 +355,8 @@ export function CheckoutForm({ products, zones, initialItems, error }: CheckoutF
         </Card>
       </div>
 
-      <div className="lg:sticky lg:top-20 lg:self-start">
-        <Card>
+      <div>
+        <Card className="rounded-2xl border-border/70 shadow-sm">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <ShoppingBag className="size-4" />

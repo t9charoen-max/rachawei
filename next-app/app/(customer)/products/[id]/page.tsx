@@ -36,13 +36,13 @@ export default async function ProductDetailPage({ params }: ProductPageProps) {
   }
 
   return (
-    <div className="flex-1 bg-muted/30">
-      <div className="mx-auto w-full max-w-4xl space-y-6 px-4 py-8 sm:px-6">
-        <Button variant="ghost" size="sm" render={<Link href="/" />}>
+    <div className="bg-[linear-gradient(180deg,oklch(0.97_0.02_165)_0%,var(--background)_180px)]">
+      <div className="mx-auto w-full max-w-lg space-y-5 px-4 py-5">
+        <Button variant="ghost" size="sm" className="text-primary" render={<Link href="/" />}>
           ← กลับแคตตาล็อก
         </Button>
 
-        <Card className="overflow-hidden pt-0">
+        <Card className="overflow-hidden rounded-2xl border-border/70 pt-0 shadow-sm">
           <div className="aspect-[4/3] bg-muted">
             {product.image_url ? (
               // eslint-disable-next-line @next/next/no-img-element

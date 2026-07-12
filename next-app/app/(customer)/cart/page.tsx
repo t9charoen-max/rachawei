@@ -11,11 +11,11 @@ export default async function CartPage() {
   const { products } = await getProducts();
 
   return (
-    <div className="flex-1 bg-muted/30">
-      <div className="mx-auto w-full max-w-6xl space-y-6 px-4 py-8 sm:px-6">
-        <div className="space-y-2">
-          <h1 className="text-3xl font-semibold tracking-tight">ตะกร้าสินค้า</h1>
-          <p className="text-muted-foreground">ตรวจสอบรายการก่อนไปหน้าชำระเงิน</p>
+    <div className="bg-[linear-gradient(180deg,oklch(0.97_0.02_165)_0%,var(--background)_180px)]">
+      <div className="mx-auto w-full max-w-lg space-y-5 px-4 py-5">
+        <div className="space-y-1">
+          <h1 className="text-xl font-semibold text-primary">ตะกร้าสินค้า</h1>
+          <p className="text-sm text-muted-foreground">ตรวจสอบรายการก่อนไปหน้าชำระเงิน</p>
         </div>
 
         <CartView products={products} />

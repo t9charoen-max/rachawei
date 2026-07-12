@@ -24,11 +24,11 @@ export default async function CheckoutPage({ searchParams }: CheckoutPageProps) 
   const error = productsError ?? zonesError;
 
   return (
-    <div className="flex-1 bg-muted/30">
-      <div className="mx-auto w-full max-w-6xl space-y-6 px-4 py-8 sm:px-6">
-        <div className="space-y-2">
-          <h1 className="text-3xl font-semibold tracking-tight">ชำระเงิน</h1>
-          <p className="text-muted-foreground">
+    <div className="bg-[linear-gradient(180deg,oklch(0.97_0.02_165)_0%,var(--background)_180px)]">
+      <div className="mx-auto w-full max-w-lg space-y-5 px-4 py-5">
+        <div className="space-y-1">
+          <h1 className="text-xl font-semibold text-primary">ชำระเงิน</h1>
+          <p className="text-sm text-muted-foreground">
             เลือกโซนจัดส่ง — ระบบคำนวณค่าส่งและยอดรวมให้อัตโนมัติ
           </p>
         </div>

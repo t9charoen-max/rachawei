@@ -1,4 +1,4 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { Noto_Sans_Thai, Geist_Mono } from 'next/font/google';
 import './globals.css';
 
@@ -16,6 +16,12 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: 'ราชาหวาย Next',
   description: 'Next.js App Router + shadcn/ui + Supabase',
+};
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  themeColor: '#0b4f4a',
 };
 
 export default function RootLayout({

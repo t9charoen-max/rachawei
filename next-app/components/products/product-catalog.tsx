@@ -22,6 +22,7 @@ import {
   stockBadgeLabel,
   stockBadgeVariant,
 } from '@/lib/format';
+import { cn } from '@/lib/utils';
 import { ALL_CATEGORY } from '@/types/product';
 import type { Product } from '@/types/product';
 
@@ -99,18 +100,18 @@ export function ProductCatalog({ products, categories, error }: ProductCatalogPr
       ) : null}
       <section className="space-y-4">
         <div className="relative">
-          <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-primary/50" />
           <Input
             type="search"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="ค้นหาสินค้า ชื่อ หมวดหมู่ หรือรายละเอียด..."
-            className="pl-9"
+            placeholder="ค้นหาสินค้า ชื่อ หมวดหมู่..."
+            className="rounded-2xl border-primary/10 bg-card pl-9 shadow-sm"
             aria-label="ค้นหาสินค้า"
           />
         </div>
 
-        <div className="flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <div className="flex gap-1 overflow-x-auto rounded-2xl bg-muted/80 p-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {categories.map((item) => {
             const active = category === item;
 
@@ -118,8 +119,11 @@ export function ProductCatalog({ products, categories, error }: ProductCatalogPr
               <Button
                 key={item}
                 size="sm"
-                variant={active ? 'default' : 'outline'}
-                className="shrink-0"
+                variant={active ? 'default' : 'ghost'}
+                className={cn(
+                  'shrink-0 rounded-xl',
+                  active && 'bg-primary text-primary-foreground shadow-sm',
+                )}
                 onClick={() => setCategory(item)}
               >
                 {item}
@@ -153,9 +157,12 @@ export function ProductCatalog({ products, categories, error }: ProductCatalogPr
           </CardFooter>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4">
           {filtered.map((product) => (
-            <Card key={product.id} className="flex h-full flex-col overflow-hidden pt-0">
+            <Card
+              key={product.id}
+              className="flex h-full flex-col overflow-hidden rounded-2xl border-border/70 pt-0 shadow-sm"
+            >
               <div className="aspect-[4/3] w-full overflow-hidden bg-muted">
                 <ProductImage product={product} />
               </div>
