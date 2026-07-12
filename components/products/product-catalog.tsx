@@ -1,0 +1,221 @@
+'use client';
+
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { useMemo, useState } from 'react';
+import { Search } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { addToCart, readCartFromStorage, writeCartToStorage } from '@/lib/cart';
+import {
+  formatPrice,
+  formatStock,
+  stockBadgeLabel,
+  stockBadgeVariant,
+} from '@/lib/format';
+import { cn } from '@/lib/utils';
+import { ALL_CATEGORY } from '@/types/product';
+import type { Product } from '@/types/product';
+
+type ProductCatalogProps = {
+  products: Product[];
+  categories: string[];
+  error?: string | null;
+};
+
+function normalize(text: string) {
+  return text.toLocaleLowerCase('th-TH').trim();
+}
+
+function ProductImage({ product }: { product: Product }) {
+  if (product.image_url) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={product.image_url}
+        alt={product.name}
+        className="h-full w-full object-cover"
+        loading="lazy"
+      />
+    );
+  }
+
+  return (
+    <div className="flex h-full w-full items-center justify-center bg-muted text-4xl">🧺</div>
+  );
+}
+
+export function ProductCatalog({ products, categories, error }: ProductCatalogProps) {
+  const router = useRouter();
+  const [query, setQuery] = useState('');
+  const [category, setCategory] = useState<string>(ALL_CATEGORY);
+
+  function handleAddToCart(productId: string) {
+    const next = addToCart(readCartFromStorage(), productId, 1);
+    writeCartToStorage(next);
+    router.push('/cart');
+  }
+
+  const filtered = useMemo(() => {
+    const normalizedQuery = normalize(query);
+
+    return products.filter((product) => {
+      const matchesCategory = category === ALL_CATEGORY || product.category === category;
+      const matchesQuery =
+        normalizedQuery.length === 0 ||
+        normalize(product.name).includes(normalizedQuery) ||
+        normalize(product.description).includes(normalizedQuery) ||
+        normalize(product.category).includes(normalizedQuery);
+
+      return matchesCategory && matchesQuery;
+    });
+  }, [products, query, category]);
+
+  if (error && products.length === 0) {
+    return (
+      <Card className="mx-auto max-w-2xl">
+        <CardHeader>
+          <CardTitle>ยังโหลดแคตตาล็อกไม่ได้</CardTitle>
+          <CardDescription>{error}</CardDescription>
+        </CardHeader>
+      </Card>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {error ? (
+        <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm">
+          {error}
+        </p>
+      ) : null}
+      <section className="space-y-4">
+        <div className="relative">
+          <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-primary/50" />
+          <Input
+            type="search"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="ค้นหาสินค้า ชื่อ หมวดหมู่..."
+            className="rounded-2xl border-primary/10 bg-card pl-9 shadow-sm"
+            aria-label="ค้นหาสินค้า"
+          />
+        </div>
+
+        <div className="flex gap-1 overflow-x-auto rounded-2xl bg-muted/80 p-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {categories.map((item) => {
+            const active = category === item;
+
+            return (
+              <Button
+                key={item}
+                size="sm"
+                variant={active ? 'default' : 'ghost'}
+                className={cn(
+                  'shrink-0 rounded-xl',
+                  active && 'bg-primary text-primary-foreground shadow-sm',
+                )}
+                onClick={() => setCategory(item)}
+              >
+                {item}
+              </Button>
+            );
+          })}
+        </div>
+      </section>
+
+      <p className="text-sm text-muted-foreground">
+        แสดง {filtered.length.toLocaleString('th-TH')} จาก {products.length.toLocaleString('th-TH')}{' '}
+        รายการ
+      </p>
+
+      {filtered.length === 0 ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>ไม่พบสินค้า</CardTitle>
+            <CardDescription>ลองเปลี่ยนคำค้นหาหรือเลือกหมวดหมู่อื่น</CardDescription>
+          </CardHeader>
+          <CardFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setQuery('');
+                setCategory(ALL_CATEGORY);
+              }}
+            >
+              ล้างตัวกรอง
+            </Button>
+          </CardFooter>
+        </Card>
+      ) : (
+        <div className="grid grid-cols-1 gap-4">
+          {filtered.map((product) => (
+            <Card
+              key={product.id}
+              className="flex h-full flex-col overflow-hidden rounded-2xl border-border/70 pt-0 shadow-sm"
+            >
+              <div className="aspect-[4/3] w-full overflow-hidden bg-muted">
+                <ProductImage product={product} />
+              </div>
+
+              <CardHeader className="gap-2">
+                <div className="flex items-start justify-between gap-2">
+                  <CardTitle className="line-clamp-2 text-base leading-snug">
+                    <Link href={`/products/${product.id}`} className="hover:underline">
+                      {product.name}
+                    </Link>
+                  </CardTitle>
+                  <Badge variant="outline" className="shrink-0">
+                    {product.category}
+                  </Badge>
+                </div>
+                <CardDescription className="line-clamp-2">{product.description}</CardDescription>
+              </CardHeader>
+
+              <CardContent className="mt-auto space-y-2">
+                <div className="flex items-baseline gap-2">
+                  <p className="text-xl font-semibold text-primary">{formatPrice(product.price)}</p>
+                  <p className="text-sm text-muted-foreground">/ {product.unit}</p>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge variant={stockBadgeVariant(product.stock)}>{stockBadgeLabel(product.stock)}</Badge>
+                  <span className="text-sm text-muted-foreground">
+                    {formatStock(product.stock, product.unit)}
+                  </span>
+                </div>
+              </CardContent>
+
+              <CardFooter className="flex-col gap-2">
+                <Button
+                  className="w-full"
+                  variant="outline"
+                  disabled={product.stock === 0}
+                  render={<Link href={`/products/${product.id}`} />}
+                >
+                  ดูรายละเอียด
+                </Button>
+                <Button
+                  className="w-full"
+                  disabled={product.stock === 0}
+                  onClick={() => handleAddToCart(product.id)}
+                >
+                  {product.stock === 0 ? 'สินค้าหมด' : 'เพิ่มลงตะกร้า'}
+                </Button>
+              </CardFooter>
+            </Card>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}

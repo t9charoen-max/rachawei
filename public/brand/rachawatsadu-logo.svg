@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" role="img" aria-label="ราชาวัสดุ">
+  <defs>
+    <linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ea580c"/>
+      <stop offset="100%" stop-color="#c2410c"/>
+    </linearGradient>
+  </defs>
+  <rect width="120" height="120" rx="28" fill="url(#g)"/>
+  <path d="M28 78V42h10l14 24 14-24h10v36h-10V58l-12 20h-6L38 58v20H28z" fill="#fff"/>
+  <rect x="22" y="86" width="76" height="8" rx="4" fill="#fff" opacity=".85"/>
+</svg>

@@ -1,0 +1,3 @@
+Branch สำหรับ Vercel deploy โดยตรง
+- Root Directory ว่าง (./) หรือ next-app ใช้ได้ทั้งคู่
+- Production Branch ตั้งเป็น next-deploy
