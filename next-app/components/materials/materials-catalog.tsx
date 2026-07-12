@@ -50,6 +50,7 @@ export function MaterialsCatalog({ products, demo }: Props) {
               <h1 className="truncate text-lg font-bold text-[var(--brand-primary)] sm:text-xl">
                 {BRAND.shopName}
               </h1>
+              <p className="truncate text-xs text-gray-400">{BRAND.shopNameTh}</p>
               <p className="truncate text-xs text-gray-500 sm:text-sm">{BRAND.location}</p>
             </div>
           </Link>
