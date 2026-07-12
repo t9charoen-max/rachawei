@@ -1,14 +1,23 @@
 @import "tailwindcss";
 
 :root {
-  --background: #fff7ed;
+  --background: #fff8f3;
   --foreground: #1c1917;
   --brand-primary: #ea580c;
   --brand-primary-dark: #c2410c;
-  --brand-surface: #fff7ed;
+  --brand-primary-light: #fb923c;
+  --brand-secondary: #0d9488;
+  --brand-secondary-dark: #0f766e;
+  --brand-accent: #f59e0b;
+  --brand-surface: #fff8f3;
   --brand-card: #ffffff;
   --brand-muted: #78716c;
   --brand-border: #fed7aa;
+  --brand-gradient: linear-gradient(135deg, #ea580c 0%, #f97316 35%, #f59e0b 100%);
+  --brand-gradient-soft: linear-gradient(180deg, #fff7ed 0%, #fff8f3 50%, #fef3c7 100%);
+  --shadow-card: 0 4px 24px -4px rgba(234, 88, 12, 0.12);
+  --shadow-card-hover: 0 12px 40px -8px rgba(234, 88, 12, 0.22);
+  --shadow-glow: 0 0 40px rgba(251, 146, 60, 0.35);
 }
 
 @theme inline {
@@ -18,7 +27,8 @@
 }
 
 body {
-  background: var(--background);
+  background: var(--brand-gradient-soft);
+  background-attachment: fixed;
   color: var(--foreground);
   font-family: var(--font-sarabun), "Sarabun", system-ui, sans-serif;
 }
@@ -26,6 +36,9 @@ body {
 /* Brand utility classes */
 .bg-brand-primary {
   background-color: var(--brand-primary);
+}
+.bg-brand-gradient {
+  background: var(--brand-gradient);
 }
 .text-brand-primary {
   color: var(--brand-primary);
@@ -35,4 +48,82 @@ body {
 }
 .ring-brand-primary {
   --tw-ring-color: var(--brand-primary);
+}
+
+/* Animations */
+@keyframes float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+@keyframes pulse-glow {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(234, 88, 12, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 12px rgba(234, 88, 12, 0);
+  }
+}
+
+.animate-float {
+  animation: float 4s ease-in-out infinite;
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+.btn-shine {
+  position: relative;
+  overflow: hidden;
+}
+
+.btn-shine::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    105deg,
+    transparent 40%,
+    rgba(255, 255, 255, 0.35) 50%,
+    transparent 60%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 3s infinite;
+}
+
+.card-lift {
+  transition:
+    transform 0.25s ease,
+    box-shadow 0.25s ease;
+}
+
+.card-lift:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-card-hover);
+}
+
+.pattern-dots {
+  background-image: radial-gradient(rgba(255, 255, 255, 0.15) 1px, transparent 1px);
+  background-size: 20px 20px;
+}
+
+.glass {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(12px);
 }
