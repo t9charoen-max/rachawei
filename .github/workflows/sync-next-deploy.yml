@@ -1,0 +1,46 @@
+name: Sync next-deploy branch
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - next-app/**
+      - .github/workflows/sync-next-deploy.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: sync-next-deploy
+  cancel-in-progress: true
+
+jobs:
+  sync:
+    name: Publish next-app to next-deploy branch
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Build flat deploy tree
+        run: |
+          rm -rf /tmp/next-deploy
+          mkdir -p /tmp/next-deploy
+          cp -a next-app/. /tmp/next-deploy/
+          printf '%s\n' "Deploy branch — สร้างอัตโนมัติจาก next-app/ บน main" > /tmp/next-deploy/DEPLOY_BRANCH.txt
+
+      - name: Push to next-deploy branch
+        run: |
+          cd /tmp/next-deploy
+          git init -q
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -q -m "deploy: sync next-app from ${GITHUB_SHA::7}"
+          git branch -M next-deploy
+          git push --force "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" next-deploy
