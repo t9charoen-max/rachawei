@@ -24,7 +24,7 @@ export function LineAddModal({ product, onClose }: LineAddModalProps) {
         <h2 id="line-modal-title" className="line-modal__title">
           สแกนเพิ่มเพื่อน LINE
         </h2>
-        <p className="line-modal__subtitle">สั่งซื้อและสอบถามราคาผ่าน LINE ได้ทันที</p>
+        <p className="line-modal__subtitle">สั่งซื้อและสอบถามผ่าน LINE ได้ทันที</p>
 
         <div className="line-modal__qr-wrap">
           <QRCodeSVG
