@@ -19,6 +19,7 @@ concurrency:
 jobs:
   sync:
     name: Push next-app to t9charoen-max/Building
+    if: ${{ secrets.BUILDING_REPO_TOKEN != '' }}
     runs-on: ubuntu-latest
 
     steps:

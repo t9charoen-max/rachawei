@@ -31,8 +31,8 @@ jobs:
         run: |
           rm -rf /tmp/next-deploy
           mkdir -p /tmp/next-deploy/next-app
-          cp -a next-app/. /tmp/next-deploy/
-          cp -a next-app/. /tmp/next-deploy/next-app/
+          rsync -a --exclude='.github' --exclude='.next' --exclude='out' --exclude='node_modules' next-app/ /tmp/next-deploy/
+          rsync -a --exclude='.github' --exclude='.next' --exclude='out' --exclude='node_modules' next-app/ /tmp/next-deploy/next-app/
           cat > /tmp/next-deploy/DEPLOY_BRANCH.txt <<'EOF'
           Branch สำหรับ Vercel deploy โดยตรง
           - Root Directory ว่าง (./) หรือ next-app ใช้ได้ทั้งคู่

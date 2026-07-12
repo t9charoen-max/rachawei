@@ -17,6 +17,7 @@ concurrency:
 jobs:
   deploy:
     name: Deploy to Vercel (rachawei-next)
+    if: ${{ secrets.VERCEL_TOKEN != '' }}
     runs-on: ubuntu-latest
     defaults:
       run:
