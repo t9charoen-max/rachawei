@@ -4,11 +4,13 @@ import { usePathname } from 'next/navigation';
 import { MobileBottomNav } from '@/components/mobile-bottom-nav';
 import { SiteHeader } from '@/components/site-header';
 
+const MATERIALS_ROUTES = /^\/$|^\/products\//;
+
 export function CustomerShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const isFullPageStore = pathname === '/';
+  const isMaterialsStore = MATERIALS_ROUTES.test(pathname);
 
-  if (isFullPageStore) {
+  if (isMaterialsStore) {
     return <>{children}</>;
   }
 
