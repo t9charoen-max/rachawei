@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { Noto_Sans_Thai, Geist_Mono } from 'next/font/google';
+import { SiteHeader } from '@/components/site-header';
 import './globals.css';
 
 const notoSansThai = Noto_Sans_Thai({
@@ -25,7 +26,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="th" className={`${notoSansThai.variable} ${geistMono.variable} h-full antialiased`}>
-      <body className="flex min-h-full flex-col">{children}</body>
+      <body className="flex min-h-full flex-col">
+        <SiteHeader />
+        {children}
+      </body>
     </html>
   );
 }

@@ -1,5 +1,7 @@
+import Link from 'next/link';
 import { HomeActions } from '@/components/home-actions';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { createClient } from '@/lib/supabase/server';
 
@@ -74,7 +76,10 @@ export default async function HomePage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <p className="text-sm leading-relaxed">{authStatus.message}</p>
-            <HomeActions />
+            <div className="flex flex-wrap gap-3">
+              <Button render={<Link href="/products" />}>ดูแคตตาล็อกสินค้า</Button>
+              <HomeActions />
+            </div>
           </CardContent>
         </Card>
       </main>
