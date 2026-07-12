@@ -3,9 +3,10 @@ import { createClient } from '@/lib/supabase/server';
 import type { Product } from '@/types/product';
 
 export function isSupabaseConfigured() {
-  return Boolean(
-    process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-  );
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim();
+
+  return Boolean(url && key && url.startsWith('http') && key.length > 20);
 }
 
 export function isDemoMode() {
@@ -25,26 +26,34 @@ export async function getProducts(): Promise<{
     };
   }
 
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from('products')
-    .select('*')
-    .eq('is_active', true)
-    .order('name', { ascending: true });
+  try {
+    const supabase = await createClient();
+    const { data, error } = await supabase
+      .from('products')
+      .select('*')
+      .eq('is_active', true)
+      .order('name', { ascending: true });
 
-  if (error) {
+    if (error) {
+      return {
+        products: DEMO_PRODUCTS,
+        error: `โหลดจาก Supabase ไม่ได้ — แสดงข้อมูลตัวอย่างแทน (${error.message})`,
+        demo: true,
+      };
+    }
+
+    return {
+      products: (data ?? []) as Product[],
+      error: null,
+      demo: false,
+    };
+  } catch {
     return {
       products: DEMO_PRODUCTS,
-      error: `โหลดจาก Supabase ไม่ได้ — แสดงข้อมูลตัวอย่างแทน (${error.message})`,
+      error: null,
       demo: true,
     };
   }
-
-  return {
-    products: (data ?? []) as Product[],
-    error: null,
-    demo: false,
-  };
 }
 
 export async function getProductById(id: string): Promise<{
@@ -56,25 +65,30 @@ export async function getProductById(id: string): Promise<{
     return { product, error: product ? null : 'ไม่พบสินค้า' };
   }
 
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from('products')
-    .select('*')
-    .eq('id', id)
-    .eq('is_active', true)
-    .maybeSingle();
+  try {
+    const supabase = await createClient();
+    const { data, error } = await supabase
+      .from('products')
+      .select('*')
+      .eq('id', id)
+      .eq('is_active', true)
+      .maybeSingle();
 
-  if (error) {
-    const product = DEMO_PRODUCTS.find((item) => item.id === id) ?? null;
-    return { product, error: product ? null : error.message };
-  }
+    if (error) {
+      const product = DEMO_PRODUCTS.find((item) => item.id === id) ?? null;
+      return { product, error: product ? null : error.message };
+    }
 
-  if (!data) {
+    if (!data) {
+      const product = DEMO_PRODUCTS.find((item) => item.id === id) ?? null;
+      return { product, error: product ? null : 'ไม่พบสินค้า' };
+    }
+
+    return { product: data as Product, error: null };
+  } catch {
     const product = DEMO_PRODUCTS.find((item) => item.id === id) ?? null;
     return { product, error: product ? null : 'ไม่พบสินค้า' };
   }
-
-  return { product: data as Product, error: null };
 }
 
 export function getCategories(products: Product[]) {
