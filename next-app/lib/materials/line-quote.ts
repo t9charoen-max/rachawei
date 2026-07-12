@@ -94,6 +94,7 @@ export function formatQuickOrderText(product: MaterialProduct, quantity = 1) {
     `ราคา: ฿${product.price.toLocaleString('th-TH')}/${product.unit}`,
     `รวมประมาณ: ฿${total.toLocaleString('th-TH')}`,
     '',
+    '🚚 ส่งถึงหน้างาน — สุรินทร์และใกล้เคียง',
     'โปรดติดต่อกลับเพื่อยืนยันออเดอร์และจัดส่ง ขอบคุณครับ 🙏',
   ]
     .filter(Boolean)

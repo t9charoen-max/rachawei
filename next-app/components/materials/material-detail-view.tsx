@@ -5,11 +5,14 @@ import Link from 'next/link';
 import { useState } from 'react';
 import { BRAND } from '@/lib/materials/brand';
 import { getLineDisplayId, getLineProfileUrl, openLineQuickOrder } from '@/lib/materials/line-quote';
+import { addLoyaltyPoints } from '@/lib/materials/loyalty';
 import { assetUrl } from '@/lib/materials/asset-url';
 import { getCategoryStyle } from '@/lib/materials/theme';
 import type { MaterialProduct } from '@/types/material';
 import { QuoteModal } from '@/components/materials/quote-modal';
 import { useQuoteList } from '@/components/materials/use-quote-list';
+import { LoyaltyBadge, notifyLoyaltyUpdate } from '@/components/materials/loyalty-badge';
+import { StockIndicator } from '@/components/materials/stock-indicator';
 
 type Props = {
   product: MaterialProduct;
@@ -27,6 +30,8 @@ export function MaterialDetailView({ product, demo }: Props) {
     setIsOrdering(true);
     try {
       await openLineQuickOrder(product, quantity);
+      addLoyaltyPoints(1, product.price * quantity);
+      notifyLoyaltyUpdate();
     } finally {
       setIsOrdering(false);
     }
@@ -43,7 +48,9 @@ export function MaterialDetailView({ product, demo }: Props) {
             <span className="text-lg">←</span>
             กลับแคตตาล็อก
           </Link>
-          <a
+          <div className="flex items-center gap-2">
+            <LoyaltyBadge />
+            <a
             href={getLineProfileUrl()}
             target="_blank"
             rel="noreferrer"
@@ -51,6 +58,7 @@ export function MaterialDetailView({ product, demo }: Props) {
           >
             💬 Line
           </a>
+          </div>
         </div>
       </header>
 
@@ -99,6 +107,12 @@ export function MaterialDetailView({ product, demo }: Props) {
 
             <p className="leading-relaxed text-gray-700">{product.description}</p>
 
+            <StockIndicator product={product} />
+
+            <div className="rounded-2xl border border-teal-100 bg-teal-50 px-4 py-3 text-sm text-teal-800">
+              🚚 <strong>ส่งถึงหน้างาน</strong> — สุรินทร์และพื้นที่ใกล้เคียง • ปรึกษาค่าส่งฟรีผ่าน Line
+            </div>
+
             <div className="rounded-2xl bg-gradient-to-r from-orange-50 to-amber-50 p-5">
               <div className="flex flex-wrap items-baseline gap-2">
                 <span className="text-4xl font-extrabold text-[var(--brand-primary)]">
@@ -106,9 +120,6 @@ export function MaterialDetailView({ product, demo }: Props) {
                 </span>
                 <span className="text-lg text-gray-500">/ {product.unit}</span>
               </div>
-              <p className="mt-1 text-sm text-gray-500">
-                คงเหลือ {product.stock.toLocaleString('th-TH')} {product.unit}
-              </p>
             </div>
 
             <div className="flex items-center gap-3">
