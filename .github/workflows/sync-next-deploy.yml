@@ -27,12 +27,17 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Build flat deploy tree
+      - name: Build deploy tree (root + next-app)
         run: |
           rm -rf /tmp/next-deploy
-          mkdir -p /tmp/next-deploy
+          mkdir -p /tmp/next-deploy/next-app
           cp -a next-app/. /tmp/next-deploy/
-          printf '%s\n' "Deploy branch — สร้างอัตโนมัติจาก next-app/ บน main" > /tmp/next-deploy/DEPLOY_BRANCH.txt
+          cp -a next-app/. /tmp/next-deploy/next-app/
+          cat > /tmp/next-deploy/DEPLOY_BRANCH.txt <<'EOF'
+          Branch สำหรับ Vercel deploy โดยตรง
+          - Root Directory ว่าง (./) หรือ next-app ใช้ได้ทั้งคู่
+          - Production Branch ตั้งเป็น next-deploy
+          EOF
 
       - name: Push to next-deploy branch
         run: |
