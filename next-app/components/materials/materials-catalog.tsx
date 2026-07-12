@@ -89,9 +89,13 @@ export function MaterialsCatalog({ products, demo }: Props) {
           </p>
           {demo ? (
             <p className="mt-4 inline-block rounded-full bg-white/15 px-4 py-1 text-xs">
-              โหมดตัวอย่าง — เชื่อม Supabase / Line OA ได้เมื่อตั้ง env
+              โหมดตัวอย่าง — ตั้ง Supabase env บน Vercel แล้ว Redeploy (ดู next-app/supabase/SETUP.md)
             </p>
-          ) : null}
+          ) : (
+            <p className="mt-4 inline-block rounded-full bg-white/15 px-4 py-1 text-xs">
+              เชื่อม Supabase แล้ว • ขอราคาบันทึกลงระบบ
+            </p>
+          )}
         </div>
       </section>
 

@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useState } from 'react';
+import { submitQuoteRequest } from '@/lib/materials/submit-quote';
 import type { MaterialProduct, QuoteItemInput, QuoteRequestPayload } from '@/types/material';
 
 export type PendingQuoteItem = QuoteItemInput & {
@@ -71,14 +72,9 @@ export function useQuoteList() {
       };
 
       try {
-        const response = await fetch('/api/quotes', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-        });
-        const data = (await response.json()) as { message?: string; ok?: boolean };
-        alert(data.message ?? (data.ok ? 'ส่งคำขอราคาเรียบร้อย' : 'ส่งไม่สำเร็จ'));
-        if (data.ok) {
+        const result = await submitQuoteRequest(payload);
+        alert(result.message);
+        if (result.ok) {
           setQuoteList([]);
           sessionStorage.removeItem(STORAGE_KEY);
         }
