@@ -2,6 +2,8 @@
 
 import { useCallback, useState } from 'react';
 import { submitQuoteRequest } from '@/lib/materials/submit-quote';
+import { addLoyaltyPoints } from '@/lib/materials/loyalty';
+import { notifyLoyaltyUpdate } from '@/components/materials/loyalty-badge';
 import type { MaterialProduct, QuoteItemInput, QuoteRequestPayload } from '@/types/material';
 
 export type PendingQuoteItem = QuoteItemInput & {
@@ -77,6 +79,12 @@ export function useQuoteList() {
           alert(result.message);
         }
         if (result.ok) {
+          const total = quoteList.reduce(
+            (sum, item) => sum + item.quantity * item.unit_price,
+            0,
+          );
+          addLoyaltyPoints(quoteList.length, total);
+          notifyLoyaltyUpdate();
           setQuoteList([]);
           sessionStorage.removeItem(STORAGE_KEY);
         }
@@ -89,9 +97,44 @@ export function useQuoteList() {
     [customer, quoteList],
   );
 
+  const loadItems = useCallback(
+    (items: { product: MaterialProduct; quantity: number }[]) => {
+      setQuoteList(
+        items.map(({ product, quantity }) => ({
+          product_id: product.id,
+          product_name: product.name,
+          quantity,
+          unit: product.unit,
+          unit_price: product.price,
+          product,
+        })),
+      );
+    },
+    [],
+  );
+
+  const addMany = useCallback(
+    (items: { product: MaterialProduct; quantity: number }[]) => {
+      setQuoteList((prev) => [
+        ...prev,
+        ...items.map(({ product, quantity }) => ({
+          product_id: product.id,
+          product_name: product.name,
+          quantity,
+          unit: product.unit,
+          unit_price: product.price,
+          product,
+        })),
+      ]);
+    },
+    [],
+  );
+
   return {
     quoteList,
     addItem,
+    addMany,
+    loadItems,
     submitAll,
     count: quoteList.length,
     isSubmitting,

@@ -6,11 +6,17 @@ import { useMemo, useState } from 'react';
 import { BRAND } from '@/lib/materials/brand';
 import { assetUrl } from '@/lib/materials/asset-url';
 import { getLineDisplayId, getLineProfileUrl, openLineQuickOrder } from '@/lib/materials/line-quote';
+import { addLoyaltyPoints } from '@/lib/materials/loyalty';
 import { MATERIAL_CATEGORIES } from '@/lib/materials/demo-data';
 import { getCategoryStyle } from '@/lib/materials/theme';
 import type { MaterialProduct } from '@/types/material';
 import { QuoteModal } from '@/components/materials/quote-modal';
 import { useQuoteList } from '@/components/materials/use-quote-list';
+import { DeliveryBanner } from '@/components/materials/delivery-banner';
+import { ImageSearchPanel } from '@/components/materials/image-search-panel';
+import { LoyaltyBadge, notifyLoyaltyUpdate } from '@/components/materials/loyalty-badge';
+import { ProjectLists } from '@/components/materials/project-lists';
+import { StockIndicator } from '@/components/materials/stock-indicator';
 
 type Props = {
   products: MaterialProduct[];
@@ -34,20 +40,29 @@ export function MaterialsCatalog({ products, demo }: Props) {
   const [searchTerm, setSearchTerm] = useState('');
   const [modalProduct, setModalProduct] = useState<MaterialProduct | null>(null);
   const [orderingId, setOrderingId] = useState<string | null>(null);
-  const { quoteList, addItem, submitAll, count, isSubmitting } = useQuoteList();
+  const [aiMatches, setAiMatches] = useState<MaterialProduct[] | null>(null);
+  const { quoteList, addItem, addMany, submitAll, count, isSubmitting } = useQuoteList();
 
   const filteredProducts = useMemo(() => {
-    return products.filter((product) => {
+    const base = products.filter((product) => {
       const matchCategory =
         selectedCategory === 'ทั้งหมด' || product.category === selectedCategory;
       const q = searchTerm.toLowerCase();
       const matchSearch =
+        !q ||
         product.name.toLowerCase().includes(q) ||
         product.spec.toLowerCase().includes(q) ||
         product.category.toLowerCase().includes(q);
       return matchCategory && matchSearch;
     });
-  }, [products, selectedCategory, searchTerm]);
+
+    if (aiMatches?.length) {
+      const ids = new Set(aiMatches.map((p) => p.id));
+      const matched = base.filter((p) => ids.has(p.id));
+      return matched.length ? matched : base;
+    }
+    return base;
+  }, [products, selectedCategory, searchTerm, aiMatches]);
 
   const readyPercent = useMemo(() => {
     if (!products.length) return 0;
@@ -59,6 +74,8 @@ export function MaterialsCatalog({ products, demo }: Props) {
     setOrderingId(product.id);
     try {
       await openLineQuickOrder(product);
+      addLoyaltyPoints(1, product.price);
+      notifyLoyaltyUpdate();
     } finally {
       setOrderingId(null);
     }
@@ -88,6 +105,7 @@ export function MaterialsCatalog({ products, demo }: Props) {
             </div>
           </Link>
           <div className="flex shrink-0 items-center gap-2">
+            <LoyaltyBadge />
             <a
               href={getLineProfileUrl()}
               target="_blank"
@@ -185,8 +203,38 @@ export function MaterialsCatalog({ products, demo }: Props) {
         </div>
       </div>
 
+      {/* 7 หลักการ */}
+      <div className="mx-auto max-w-7xl px-4 py-4">
+        <div className="flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {[
+            { icon: '🚚', label: 'ส่งถึงหน้างาน' },
+            { icon: '⚡', label: 'ขอราคาเร็ว' },
+            { icon: '📦', label: 'สต็อกชัดเจน' },
+            { icon: '📁', label: 'รายการโปรเจกต์' },
+            { icon: '✨', label: 'UI อ่านง่าย' },
+            { icon: '🎁', label: 'สะสมแต้ม' },
+            { icon: '🤖', label: 'ค้นหาด้วยภาพ' },
+          ].map((f) => (
+            <span
+              key={f.label}
+              className="flex shrink-0 items-center gap-1.5 rounded-full bg-white px-3 py-2 text-xs font-medium text-gray-700 shadow-sm ring-1 ring-orange-100"
+            >
+              {f.icon} {f.label}
+            </span>
+          ))}
+        </div>
+      </div>
+
+      <DeliveryBanner />
+
       {/* Products */}
-      <div id="products" className="mx-auto mt-10 max-w-7xl px-4 pb-32">
+      <div id="products" className="mx-auto mt-6 max-w-7xl px-4 pb-32">
+        <ImageSearchPanel
+          products={products}
+          onResults={setAiMatches}
+          onClear={() => setAiMatches(null)}
+        />
+
         <div className="relative mb-6">
           <span className="pointer-events-none absolute top-1/2 left-4 -translate-y-1/2 text-lg text-gray-400">
             🔍
@@ -220,6 +268,14 @@ export function MaterialsCatalog({ products, demo }: Props) {
             );
           })}
         </div>
+
+        <ProjectLists
+          products={products}
+          quoteItems={quoteList.map(({ product_id, quantity }) => ({ product_id, quantity }))}
+          onAddItems={addMany}
+        />
+
+        <h2 className="mb-4 text-lg font-bold text-gray-900">สินค้าทั้งหมด</h2>
 
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {filteredProducts.map((product) => {
@@ -269,6 +325,10 @@ export function MaterialsCatalog({ products, demo }: Props) {
                   </Link>
                   <p className="mt-1 text-sm text-gray-500">{product.spec}</p>
 
+                  <div className="mt-3">
+                    <StockIndicator product={product} compact />
+                  </div>
+
                   <div className="mt-3 flex items-end justify-between">
                     <div>
                       <span className="text-2xl font-extrabold text-[var(--brand-primary)]">
@@ -276,12 +336,11 @@ export function MaterialsCatalog({ products, demo }: Props) {
                       </span>
                       <span className="ml-1 text-sm text-gray-500">/ {product.unit}</span>
                     </div>
-                    <span className="text-xs text-gray-400">
-                      คงเหลือ {product.stock.toLocaleString('th-TH')}
-                    </span>
                   </div>
 
-                  <div className="mt-4 grid grid-cols-[1fr_auto] gap-2">
+                  <p className="mt-2 text-xs font-medium text-teal-600">🚚 ส่งถึงหน้างาน</p>
+
+                  <div className="mt-3 grid grid-cols-[1fr_auto] gap-2">
                     <button
                       type="button"
                       onClick={() => handleQuickOrder(product)}
