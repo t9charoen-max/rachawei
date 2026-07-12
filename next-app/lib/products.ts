@@ -38,6 +38,33 @@ export async function getProducts(): Promise<{
   };
 }
 
+export async function getProductById(id: string): Promise<{
+  product: Product | null;
+  error: string | null;
+}> {
+  if (!isSupabaseConfigured()) {
+    return { product: null, error: 'ยังไม่ได้ตั้งค่า Supabase' };
+  }
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('products')
+    .select('*')
+    .eq('id', id)
+    .eq('is_active', true)
+    .maybeSingle();
+
+  if (error) {
+    return { product: null, error: error.message };
+  }
+
+  if (!data) {
+    return { product: null, error: 'ไม่พบสินค้า' };
+  }
+
+  return { product: data as Product, error: null };
+}
+
 export function getCategories(products: Product[]) {
   const categories = [...new Set(products.map((product) => product.category))].sort((a, b) =>
     a.localeCompare(b, 'th'),

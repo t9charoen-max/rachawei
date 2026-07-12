@@ -3,11 +3,11 @@ import { ProductCatalog } from '@/components/products/product-catalog';
 import { getCategories, getProducts } from '@/lib/products';
 
 export const metadata: Metadata = {
-  title: 'แคตตาล็อกสินค้า | ราชาหวาย Next',
-  description: 'แคตตาล็อกสินค้าหวายสานมือจาก Supabase',
+  title: 'ราชาหวาย | แคตตาล็อกสินค้าหวายสานมือ',
+  description: 'แคตตาล็อกสินค้าหวายสานมือจากสุรินทร์',
 };
 
-export default async function ProductsPage() {
+export default async function HomePage() {
   const { products, error } = await getProducts();
   const categories = getCategories(products);
 
@@ -15,9 +15,9 @@ export default async function ProductsPage() {
     <div className="flex-1 bg-muted/30">
       <div className="mx-auto w-full max-w-6xl space-y-6 px-4 py-8 sm:px-6">
         <div className="space-y-2">
-          <h1 className="text-3xl font-semibold tracking-tight">แคตตาล็อกสินค้า</h1>
+          <h1 className="text-3xl font-semibold tracking-tight">ราชาหวายสุรินทร์</h1>
           <p className="text-muted-foreground">
-            ค้นหาและกรองสินค้าหวายสานมือ — ดึงข้อมูลจาก Supabase บน Server Component
+            แคตตาล็อกงานหัตถกรรมหวายสานมือ — ค้นหา กรอง และสั่งซื้อออนไลน์
           </p>
         </div>
 

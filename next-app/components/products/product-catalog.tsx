@@ -1,5 +1,7 @@
 'use client';
 
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
 import { Search } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
@@ -13,6 +15,7 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { addToCart, readCartFromStorage, writeCartToStorage } from '@/lib/cart';
 import {
   formatPrice,
   formatStock,
@@ -51,8 +54,15 @@ function ProductImage({ product }: { product: Product }) {
 }
 
 export function ProductCatalog({ products, categories, error }: ProductCatalogProps) {
+  const router = useRouter();
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState<string>(ALL_CATEGORY);
+
+  function handleAddToCart(productId: string) {
+    const next = addToCart(readCartFromStorage(), productId, 1);
+    writeCartToStorage(next);
+    router.push('/cart');
+  }
 
   const filtered = useMemo(() => {
     const normalizedQuery = normalize(query);
@@ -151,7 +161,11 @@ export function ProductCatalog({ products, categories, error }: ProductCatalogPr
 
               <CardHeader className="gap-2">
                 <div className="flex items-start justify-between gap-2">
-                  <CardTitle className="line-clamp-2 text-base leading-snug">{product.name}</CardTitle>
+                  <CardTitle className="line-clamp-2 text-base leading-snug">
+                    <Link href={`/products/${product.id}`} className="hover:underline">
+                      {product.name}
+                    </Link>
+                  </CardTitle>
                   <Badge variant="outline" className="shrink-0">
                     {product.category}
                   </Badge>
@@ -176,25 +190,18 @@ export function ProductCatalog({ products, categories, error }: ProductCatalogPr
               <CardFooter className="flex-col gap-2">
                 <Button
                   className="w-full"
+                  variant="outline"
                   disabled={product.stock === 0}
-                  render={
-                    <a
-                      href={`/checkout?product=${product.id}&qty=1`}
-                      aria-label={`สั่งซื้อ ${product.name}`}
-                    />
-                  }
+                  render={<Link href={`/products/${product.id}`} />}
                 >
-                  {product.stock === 0 ? 'สินค้าหมด' : 'สั่งซื้อเลย'}
+                  ดูรายละเอียด
                 </Button>
                 <Button
                   className="w-full"
-                  variant="outline"
                   disabled={product.stock === 0}
-                  render={
-                    <a href="tel:0814707089" aria-label={`โทรสั่งซื้อ ${product.name}`} />
-                  }
+                  onClick={() => handleAddToCart(product.id)}
                 >
-                  โทรสั่งซื้อ
+                  {product.stock === 0 ? 'สินค้าหมด' : 'เพิ่มลงตะกร้า'}
                 </Button>
               </CardFooter>
             </Card>

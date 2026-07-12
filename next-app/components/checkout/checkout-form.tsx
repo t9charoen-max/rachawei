@@ -2,7 +2,8 @@
 
 import { useMemo, useState, useTransition } from 'react';
 import { Minus, Plus, ShoppingBag } from 'lucide-react';
-import { createOrder } from '@/app/checkout/actions';
+import { createOrder } from '@/app/(customer)/checkout/actions';
+import { PromptPayQr } from '@/components/checkout/promptpay-qr';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -28,6 +29,7 @@ import {
   calculateOrderSummary,
   mergeCartItems,
 } from '@/lib/checkout';
+import { writeCartToStorage } from '@/lib/cart';
 import { formatPrice } from '@/lib/format';
 import type { CartItem, CreateOrderResult, DeliveryZone } from '@/types/checkout';
 import type { Product } from '@/types/product';
@@ -124,6 +126,7 @@ export function CheckoutForm({ products, zones, initialItems, error }: CheckoutF
       setResult(response);
       setCartItems([]);
       setForm(EMPTY_FORM);
+      writeCartToStorage([]);
     });
   }
 
@@ -176,9 +179,10 @@ export function CheckoutForm({ products, zones, initialItems, error }: CheckoutF
               </li>
             ))}
           </ul>
+          <PromptPayQr amount={result.summary.total} />
         </CardContent>
         <CardFooter>
-          <Button render={<a href="/products" />}>กลับไปเลือกสินค้า</Button>
+          <Button render={<a href="/" />}>กลับแคตตาล็อก</Button>
         </CardFooter>
       </Card>
     );
@@ -413,7 +417,7 @@ export function CheckoutForm({ products, zones, initialItems, error }: CheckoutF
             >
               {isPending ? 'กำลังบันทึกออเดอร์...' : 'ยืนยันออเดอร์'}
             </Button>
-            <Button className="w-full" variant="outline" render={<a href="/products" />}>
+            <Button className="w-full" variant="outline" render={<a href="/" />}>
               เลือกสินค้าเพิ่ม
             </Button>
           </CardFooter>

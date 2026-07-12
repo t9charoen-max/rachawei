@@ -5,15 +5,15 @@ import { getDeliveryZones } from '@/lib/delivery';
 import { getProducts } from '@/lib/products';
 
 export const metadata: Metadata = {
-  title: 'ชำระเงิน | ราชาหวาย Next',
+  title: 'ชำระเงิน | ราชาหวาย',
   description: 'ฟอร์มสั่งซื้อพร้อมคำนวณค่าจัดส่งอัตโนมัติ',
 };
 
-type ProductsPageProps = {
+type CheckoutPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
 
-export default async function CheckoutPage({ searchParams }: ProductsPageProps) {
+export default async function CheckoutPage({ searchParams }: CheckoutPageProps) {
   const params = await searchParams;
   const initialItems = parseCartFromSearchParams(params);
 
@@ -30,7 +30,7 @@ export default async function CheckoutPage({ searchParams }: ProductsPageProps) 
         <div className="space-y-2">
           <h1 className="text-3xl font-semibold tracking-tight">ชำระเงิน</h1>
           <p className="text-muted-foreground">
-            เลือกโซนจัดส่งจากตาราง delivery_zones — ระบบคำนวณค่าส่งและยอดรวมให้อัตโนมัติ
+            เลือกโซนจัดส่ง — ระบบคำนวณค่าส่งและยอดรวมให้อัตโนมัติ
           </p>
         </div>
 
