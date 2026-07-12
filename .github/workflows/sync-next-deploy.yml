@@ -31,8 +31,9 @@ jobs:
         run: |
           rm -rf /tmp/next-deploy
           mkdir -p /tmp/next-deploy/next-app
-          cp -a next-app/. /tmp/next-deploy/
-          cp -a next-app/. /tmp/next-deploy/next-app/
+          # ไม่ copy .github — GITHUB_TOKEN ไม่มีสิทธิ์ push workflow ไป branch อื่น
+          rsync -a --exclude='.github' next-app/ /tmp/next-deploy/
+          rsync -a --exclude='.github' next-app/ /tmp/next-deploy/next-app/
           cat > /tmp/next-deploy/DEPLOY_BRANCH.txt <<'EOF'
           Branch สำหรับ Vercel deploy โดยตรง
           - Root Directory ว่าง (./) หรือ next-app ใช้ได้ทั้งคู่
