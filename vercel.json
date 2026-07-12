@@ -1,8 +1,12 @@
 {
   "buildCommand": "npm run build",
+  "installCommand": "npm ci && npm ci --prefix next-app",
   "outputDirectory": "dist",
   "framework": "vite",
-  "ignoreCommand": "if [ \"$VERCEL_GIT_COMMIT_REF\" = \"next-deploy\" ]; then exit 0; fi; git diff HEAD^ HEAD --quiet -- . ':(exclude)next-app'",
+  "ignoreCommand": "if [ \"$VERCEL_GIT_COMMIT_REF\" = \"next-deploy\" ]; then exit 0; fi; git diff HEAD^ HEAD --quiet -- . && exit 0 || exit 1",
+  "rewrites": [
+    { "source": "/rajawasu", "destination": "/rajawasu/index.html" }
+  ],
   "headers": [
     {
       "source": "/index.html",
@@ -12,6 +16,12 @@
     },
     {
       "source": "/products/(.*)",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" }
+      ]
+    },
+    {
+      "source": "/rajawasu/(.*)",
       "headers": [
         { "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" }
       ]
