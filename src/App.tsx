@@ -99,6 +99,9 @@ export function App() {
         {tab === 'contact' && (
           <section className="screen contact-screen py-4">
             <h2 className="section-title">ติดต่อสั่งซื้อ</h2>
+            <p className="contact-note contact-note--top">
+              กรอกฟอร์มสั่งซื้อสั้น ๆ แล้วส่งเข้า LINE ได้ทันที หรือโทรคุยกับร้านโดยตรง
+            </p>
             <OrderActions layout="stack" size="lg" />
             <div className="contact-card">
               <div className="contact-row">
@@ -123,7 +126,7 @@ export function App() {
                 </div>
               </div>
             </div>
-            <p className="contact-note">สนใจสินค้าใด กรุณาโทรสอบถามหรือสั่งซื้อได้โดยตรง</p>
+            <p className="contact-note">สนใจสินค้าใด กรอกฟอร์มหรือโทรสอบถามได้เลย</p>
             <ShopMap />
             <ErrorBoundary
               fallback={

@@ -1,7 +1,7 @@
 const STEPS = [
   { step: '1', title: 'เลือกสินค้า', desc: 'แตะดูรูปและรายละเอียด' },
-  { step: '2', title: 'โทร / LINE', desc: 'สแกนเพิ่มเพื่อนสอบถาม' },
-  { step: '3', title: 'รับสินค้า', desc: 'แพ็กอย่างดี ส่งถึงมือ' },
+  { step: '2', title: 'กรอกฟอร์ม', desc: 'ชื่อ เบอร์ จำนวน ที่อยู่' },
+  { step: '3', title: 'ส่งทาง LINE', desc: 'ร้านยืนยันราคาและจัดส่ง' },
 ] as const;
 
 export function HowToOrder() {
