@@ -19,6 +19,7 @@ import {
   type SiteSettings,
 } from '../../data/catalog';
 import { ADMIN_PIN, PRODUCT_CATEGORY_OPTIONS, type Product } from '../../data/products';
+import { compressImageFile } from '../../utils/imageUpload';
 
 interface ProductAdminPageProps {
   products: Product[];
@@ -45,15 +46,6 @@ const emptyForm = (id: string): FormState => ({
   images: [],
 });
 
-async function fileToDataUrl(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result));
-    reader.onerror = () => reject(new Error('อ่านไฟล์ไม่สำเร็จ'));
-    reader.readAsDataURL(file);
-  });
-}
-
 function previewSrc(src: string): string {
   if (src.startsWith('data:') || src.startsWith('blob:') || src.startsWith('http')) return src;
   if (src.startsWith('/')) return src.split('?')[0];
@@ -73,6 +65,9 @@ export function ProductAdminPage({
   const [form, setForm] = useState<FormState>(() => emptyForm('13'));
   const [coverSrc, setCoverSrc] = useState('');
   const [coverAlt, setCoverAlt] = useState(DEFAULT_SITE_SETTINGS.heroCoverAlt);
+  const [coverFileName, setCoverFileName] = useState('');
+  const [coverBusy, setCoverBusy] = useState(false);
+  const [coverDirty, setCoverDirty] = useState(false);
   const [message, setMessage] = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
   const coverRef = useRef<HTMLInputElement>(null);
@@ -84,10 +79,11 @@ export function ProductAdminPage({
   const hasCoverDraft = Boolean(loadSiteDraft());
 
   useEffect(() => {
+    if (coverDirty) return;
     const current = site ?? DEFAULT_SITE_SETTINGS;
     setCoverSrc(current.heroCover);
     setCoverAlt(current.heroCoverAlt);
-  }, [site]);
+  }, [site, coverDirty]);
 
   const startCreate = () => {
     const id = nextProductId(baseItems);
@@ -125,20 +121,42 @@ export function ProductAdminPage({
     const files = [...(event.target.files ?? [])];
     if (!files.length) return;
 
-    const dataUrls = await Promise.all(files.map(fileToDataUrl));
-    setForm((current) => ({
-      ...current,
-      images: [...current.images, ...dataUrls],
-    }));
-    event.target.value = '';
+    setMessage('กำลังเตรียมรูปสินค้า…');
+    try {
+      const compressed = await Promise.all(files.map((file) => compressImageFile(file)));
+      setForm((current) => ({
+        ...current,
+        images: [...current.images, ...compressed.map((item) => item.dataUrl)],
+      }));
+      setMessage(`เพิ่มรูปสินค้าแล้ว ${compressed.length} รูป`);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'เพิ่มรูปไม่สำเร็จ');
+    } finally {
+      event.target.value = '';
+    }
   };
 
   const handleCoverFile = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (!file) return;
-    const dataUrl = await fileToDataUrl(file);
-    setCoverSrc(dataUrl);
-    event.target.value = '';
+    if (!file) {
+      setMessage('ยังไม่ได้เลือกไฟล์ — ลองใหม่อีกครั้ง');
+      return;
+    }
+
+    setCoverBusy(true);
+    setMessage('กำลังเตรียมภาพหน้าปก…');
+    try {
+      const { dataUrl, fileName } = await compressImageFile(file);
+      setCoverSrc(dataUrl);
+      setCoverFileName(fileName);
+      setCoverDirty(true);
+      setMessage(`เลือกภาพแล้ว: ${fileName} — กด “บันทึกภาพหน้าปก” เพื่อยืนยัน`);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'เลือกภาพไม่สำเร็จ ลองใหม่');
+    } finally {
+      setCoverBusy(false);
+      event.target.value = '';
+    }
   };
 
   const handleSaveCover = () => {
@@ -146,12 +164,17 @@ export function ProductAdminPage({
       setMessage('กรุณาเลือกภาพหน้าปก');
       return;
     }
-    saveSiteDraft({
-      heroCover: coverSrc,
-      heroCoverAlt: coverAlt.trim() || DEFAULT_SITE_SETTINGS.heroCoverAlt,
-    });
-    onCatalogChange();
-    setMessage('บันทึกภาพหน้าปกแล้ว — เห็นบนหน้าแรกทันที กด “ส่งขึ้นเว็บจริง” เพื่ออัปเดตเว็บลูกค้า');
+    try {
+      saveSiteDraft({
+        heroCover: coverSrc,
+        heroCoverAlt: coverAlt.trim() || DEFAULT_SITE_SETTINGS.heroCoverAlt,
+      });
+      setCoverDirty(false);
+      onCatalogChange();
+      setMessage('บันทึกภาพหน้าปกแล้ว — เห็นบนหน้าแรกทันที กด “ส่งขึ้นเว็บจริง” เพื่ออัปเดตเว็บลูกค้า');
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'บันทึกไม่สำเร็จ');
+    }
   };
 
   const removeImage = (index: number) => {
@@ -198,9 +221,13 @@ export function ProductAdminPage({
       images: form.images,
     };
 
-    persistDraft(item);
-    setEditingId(item.id);
-    setMessage('บันทึกแล้ว — แสดงบนเครื่องนี้ทันที กด “ส่งขึ้นเว็บจริง” เพื่ออัปเดตเว็บลูกค้า');
+    try {
+      persistDraft(item);
+      setEditingId(item.id);
+      setMessage('บันทึกแล้ว — แสดงบนเครื่องนี้ทันที กด “ส่งขึ้นเว็บจริง” เพื่ออัปเดตเว็บลูกค้า');
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'บันทึกไม่สำเร็จ');
+    }
   };
 
   const handleDeleteDraft = (id: string) => {
@@ -342,26 +369,50 @@ export function ProductAdminPage({
           ) : (
             <span>ยังไม่มีภาพ</span>
           )}
+          {coverBusy && <span className="admin-cover__busy">กำลังโหลดรูป…</span>}
         </div>
-        <label className="admin-form__field">
-          <span>เลือกรูปหน้าปกใหม่</span>
-          <input
-            ref={coverRef}
-            type="file"
-            accept="image/*"
-            capture="environment"
-            onChange={handleCoverFile}
-          />
-        </label>
+
+        <input
+          ref={coverRef}
+          type="file"
+          accept="image/*,.jpg,.jpeg,.png,.webp"
+          className="admin-file-input"
+          onChange={handleCoverFile}
+        />
+
+        <button
+          type="button"
+          className="admin-file-btn"
+          disabled={coverBusy}
+          onClick={() => coverRef.current?.click()}
+        >
+          {coverBusy ? 'กำลังเตรียมรูป…' : 'เลือกภาพจากเครื่อง / ถ่ายรูป'}
+        </button>
+        <p className="admin-file-status">
+          {coverFileName
+            ? `เลือกแล้ว: ${coverFileName}`
+            : coverDirty
+              ? 'เลือกภาพใหม่แล้ว รอบันทึก'
+              : 'ยังไม่ได้เลือกไฟล์ใหม่'}
+        </p>
+
         <label className="admin-form__field">
           <span>คำอธิบายภาพ</span>
           <input
             value={coverAlt}
-            onChange={(e) => setCoverAlt(e.target.value)}
+            onChange={(e) => {
+              setCoverAlt(e.target.value);
+              setCoverDirty(true);
+            }}
             placeholder="เช่น ตะกร้าหวายภายในร้าน"
           />
         </label>
-        <button type="button" className="admin-form__save" onClick={handleSaveCover}>
+        <button
+          type="button"
+          className="admin-form__save"
+          onClick={handleSaveCover}
+          disabled={coverBusy || !coverSrc}
+        >
           บันทึกภาพหน้าปก
         </button>
       </div>
@@ -426,11 +477,18 @@ export function ProductAdminPage({
           <input
             ref={fileRef}
             type="file"
-            accept="image/*"
+            accept="image/*,.jpg,.jpeg,.png,.webp"
             multiple
-            capture="environment"
+            className="admin-file-input"
             onChange={handleFiles}
           />
+          <button
+            type="button"
+            className="admin-file-btn"
+            onClick={() => fileRef.current?.click()}
+          >
+            เลือกภาพสินค้าจากเครื่อง / ถ่ายรูป
+          </button>
           <div className="admin-thumbs">
             {form.images.map((src, index) => (
               <div key={`${index}-${src.slice(0, 24)}`} className="admin-thumbs__item">

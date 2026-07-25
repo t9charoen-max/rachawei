@@ -3011,3 +3011,59 @@
 .admin-cover .admin-form__save {
   width: 100%;
 }
+
+.admin-file-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.admin-file-btn {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+  margin: 0.25rem 0 0.35rem;
+  padding: 0.9rem 1rem;
+  border: 1px solid rgba(212, 168, 83, 0.35);
+  border-radius: 0.85rem;
+  background: rgba(212, 168, 83, 0.12);
+  color: var(--gold-light);
+  font-size: 0.95rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.admin-file-btn:disabled {
+  opacity: 0.65;
+  cursor: wait;
+}
+
+.admin-file-status {
+  margin: 0 0 0.65rem;
+  font-size: 0.8rem;
+  line-height: 1.45;
+  color: var(--cream-muted);
+}
+
+.admin-cover__busy {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(10, 8, 6, 0.55);
+  color: #fff;
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.admin-cover__preview {
+  position: relative;
+}

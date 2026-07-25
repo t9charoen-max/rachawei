@@ -2,6 +2,7 @@ import {
   PRODUCT_IMAGE_VERSION,
   type Product,
 } from './products';
+import { safeLocalStorageSet } from '../utils/imageUpload';
 
 export interface CatalogItem {
   id: string;
@@ -91,7 +92,7 @@ export function loadDraftItems(): CatalogItem[] {
 }
 
 export function saveDraftItems(items: CatalogItem[]) {
-  localStorage.setItem(DRAFT_KEY, JSON.stringify(items));
+  safeLocalStorageSet(DRAFT_KEY, JSON.stringify(items));
 }
 
 export function clearDraftItems() {
@@ -142,7 +143,7 @@ export function loadSiteDraft(): SiteSettings | null {
 }
 
 export function saveSiteDraft(settings: SiteSettings) {
-  localStorage.setItem(SITE_DRAFT_KEY, JSON.stringify(settings));
+  safeLocalStorageSet(SITE_DRAFT_KEY, JSON.stringify(settings));
 }
 
 export function clearSiteDraft() {
