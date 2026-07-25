@@ -3,17 +3,26 @@ import { HOME_CONTENT } from '../../data/home';
 interface HeroSectionProps {
   onViewProducts: () => void;
   onContact: () => void;
+  coverImage?: string;
+  coverImageAlt?: string;
 }
 
-export function HeroSection({ onViewProducts, onContact }: HeroSectionProps) {
+export function HeroSection({
+  onViewProducts,
+  onContact,
+  coverImage,
+  coverImageAlt,
+}: HeroSectionProps) {
   const { hero } = HOME_CONTENT;
+  const image = coverImage || hero.image;
+  const imageAlt = coverImageAlt || hero.imageAlt;
 
   return (
     <section className="relative -mx-4 -mt-4 overflow-hidden">
       <div className="relative min-h-[58vh] sm:min-h-[62vh]">
         <img
-          src={hero.image}
-          alt={hero.imageAlt}
+          src={image}
+          alt={imageAlt}
           className="absolute inset-0 h-full w-full object-cover [animation:hero-zoom_8s_ease-out_forwards]"
         />
 

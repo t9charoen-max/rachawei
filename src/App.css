@@ -2971,3 +2971,43 @@
   font-size: 0.8rem;
   cursor: pointer;
 }
+
+.admin-cover {
+  margin-bottom: 1rem;
+}
+
+.admin-cover__title,
+.admin-section-title {
+  margin: 0 0 0.65rem;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--gold-light);
+}
+
+.admin-section-title {
+  margin-top: 0.25rem;
+}
+
+.admin-cover__preview {
+  margin-bottom: 0.75rem;
+  overflow: hidden;
+  border-radius: 0.9rem;
+  border: 1px solid rgba(212, 168, 83, 0.2);
+  background: rgba(26, 18, 12, 0.7);
+  aspect-ratio: 16 / 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--cream-muted);
+  font-size: 0.85rem;
+}
+
+.admin-cover__preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.admin-cover .admin-form__save {
+  width: 100%;
+}

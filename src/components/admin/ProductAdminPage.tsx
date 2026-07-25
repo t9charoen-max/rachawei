@@ -1,20 +1,28 @@
-import { useMemo, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
 import {
   clearDraftItems,
+  clearSiteDraft,
+  DEFAULT_SITE_SETTINGS,
   downloadDataUrl,
   downloadTextFile,
   loadDraftItems,
+  loadSiteDraft,
   mergeCatalog,
   nextProductId,
   productToCatalogItem,
+  resolveSiteImage,
   saveDraftItems,
+  saveSiteDraft,
+  suggestCoverFilename,
   suggestImageFilename,
   type CatalogItem,
+  type SiteSettings,
 } from '../../data/catalog';
 import { ADMIN_PIN, PRODUCT_CATEGORY_OPTIONS, type Product } from '../../data/products';
 
 interface ProductAdminPageProps {
   products: Product[];
+  site: SiteSettings | null;
   onCatalogChange: () => void;
   onClose: () => void;
 }
@@ -52,19 +60,34 @@ function previewSrc(src: string): string {
   return `/products/${src}`;
 }
 
-export function ProductAdminPage({ products, onCatalogChange, onClose }: ProductAdminPageProps) {
+export function ProductAdminPage({
+  products,
+  site,
+  onCatalogChange,
+  onClose,
+}: ProductAdminPageProps) {
   const [unlocked, setUnlocked] = useState(false);
   const [pin, setPin] = useState('');
   const [pinError, setPinError] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<FormState>(() => emptyForm('13'));
+  const [coverSrc, setCoverSrc] = useState('');
+  const [coverAlt, setCoverAlt] = useState(DEFAULT_SITE_SETTINGS.heroCoverAlt);
   const [message, setMessage] = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
+  const coverRef = useRef<HTMLInputElement>(null);
 
   const baseItems = useMemo(() => products.map(productToCatalogItem), [products]);
   const draftItems = loadDraftItems();
   const draftIds = new Set(draftItems.map((item) => item.id));
   const draftCount = draftItems.length;
+  const hasCoverDraft = Boolean(loadSiteDraft());
+
+  useEffect(() => {
+    const current = site ?? DEFAULT_SITE_SETTINGS;
+    setCoverSrc(current.heroCover);
+    setCoverAlt(current.heroCoverAlt);
+  }, [site]);
 
   const startCreate = () => {
     const id = nextProductId(baseItems);
@@ -108,6 +131,27 @@ export function ProductAdminPage({ products, onCatalogChange, onClose }: Product
       images: [...current.images, ...dataUrls],
     }));
     event.target.value = '';
+  };
+
+  const handleCoverFile = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    const dataUrl = await fileToDataUrl(file);
+    setCoverSrc(dataUrl);
+    event.target.value = '';
+  };
+
+  const handleSaveCover = () => {
+    if (!coverSrc) {
+      setMessage('กรุณาเลือกภาพหน้าปก');
+      return;
+    }
+    saveSiteDraft({
+      heroCover: coverSrc,
+      heroCoverAlt: coverAlt.trim() || DEFAULT_SITE_SETTINGS.heroCoverAlt,
+    });
+    onCatalogChange();
+    setMessage('บันทึกภาพหน้าปกแล้ว — เห็นบนหน้าแรกทันที กด “ส่งขึ้นเว็บจริง” เพื่ออัปเดตเว็บลูกค้า');
   };
 
   const removeImage = (index: number) => {
@@ -169,8 +213,9 @@ export function ProductAdminPage({ products, onCatalogChange, onClose }: Product
 
   const handlePublishPackage = () => {
     const drafts = loadDraftItems();
-    if (!drafts.length) {
-      setMessage('ยังไม่มีแบบร่าง — บันทึกสินค้าก่อน');
+    const siteDraft = loadSiteDraft();
+    if (!drafts.length && !siteDraft) {
+      setMessage('ยังไม่มีแบบร่าง — บันทึกสินค้าหรือภาพหน้าปกก่อน');
       return;
     }
 
@@ -186,26 +231,60 @@ export function ProductAdminPage({ products, onCatalogChange, onClose }: Product
       return { ...draft, images };
     });
 
-    const published = mergeCatalog(baseItems, namedDrafts);
-    downloadTextFile('products.json', `${JSON.stringify(published, null, 2)}\n`);
+    if (namedDrafts.length) {
+      const published = mergeCatalog(baseItems, namedDrafts);
+      downloadTextFile('products.json', `${JSON.stringify(published, null, 2)}\n`);
+    }
+
+    let coverPath = site?.heroCover ?? DEFAULT_SITE_SETTINGS.heroCover;
+    if (siteDraft) {
+      if (siteDraft.heroCover.startsWith('data:')) {
+        const filename = suggestCoverFilename('cover.jpg');
+        downloadDataUrl(filename, siteDraft.heroCover);
+        coverPath = `/images/shop/${filename}`;
+      } else {
+        coverPath = siteDraft.heroCover;
+      }
+      downloadTextFile(
+        'site.json',
+        `${JSON.stringify(
+          {
+            heroCover: coverPath,
+            heroCoverAlt: siteDraft.heroCoverAlt,
+          },
+          null,
+          2,
+        )}\n`,
+      );
+    }
 
     const prompt = [
-      'อัปเดตแคตตาล็อกสินค้าตะกร้าหวาย',
-      '1) วางไฟล์ products.json ที่ดาวน์โหลดไว้ไปที่ public/catalog/products.json',
-      '2) วางรูปที่ดาวน์โหลดไว้ไปที่ public/products/',
-      '3) commit + deploy',
+      'อัปเดตแคตตาล็อก / ภาพหน้าปก ราชาหวาย',
+      namedDrafts.length
+        ? '1) วาง products.json → public/catalog/products.json และรูปสินค้า → public/products/'
+        : null,
+      siteDraft
+        ? `${namedDrafts.length ? '2' : '1'}) วาง site.json → public/catalog/site.json และรูปหน้าปก → public/images/shop/`
+        : null,
+      'สุดท้าย: commit + deploy',
       '',
-      `แบบร่างที่เพิ่ม/แก้: ${namedDrafts.map((d) => `${d.id} ${d.name}`).join(', ')}`,
-    ].join('\n');
+      namedDrafts.length
+        ? `สินค้าที่แก้: ${namedDrafts.map((d) => `${d.id} ${d.name}`).join(', ')}`
+        : null,
+      siteDraft ? `ภาพหน้าปก: ${coverPath}` : null,
+    ]
+      .filter(Boolean)
+      .join('\n');
 
     void navigator.clipboard?.writeText(prompt);
     setMessage(
-      'ดาวน์โหลด products.json + รูปแล้ว และคัดลอกคำสั่งไว้แล้ว — ส่งไฟล์ในแชท Cursor หรือวางในโฟลเดอร์โปรเจกต์ได้เลย',
+      'ดาวน์โหลดไฟล์แล้ว และคัดลอกคำสั่งไว้แล้ว — ส่งไฟล์ในแชท Cursor หรือวางในโฟลเดอร์โปรเจกต์ได้เลย',
     );
   };
 
   const handleClearDrafts = () => {
     clearDraftItems();
+    clearSiteDraft();
     onCatalogChange();
     startCreate();
     setMessage('ล้างแบบร่างทั้งหมดแล้ว');
@@ -249,10 +328,45 @@ export function ProductAdminPage({ products, onCatalogChange, onClose }: Product
         </button>
       </div>
 
-      <h2 className="section-title">จัดการสินค้า</h2>
+      <h2 className="section-title">จัดการหลังบ้าน</h2>
       <p className="admin-screen__hint">
-        กรอกชื่อ รายละเอียด แล้วแนบรูป — บันทึกแล้วเห็นบนเครื่องทันที · แบบร่าง {draftCount} รายการ
+        แก้ภาพหน้าปก หรือเพิ่มสินค้า — บันทึกแล้วเห็นบนเครื่องทันที · แบบร่างสินค้า {draftCount}
+        รายการ{hasCoverDraft ? ' · มีแบบร่างหน้าปก' : ''}
       </p>
+
+      <div className="admin-form admin-cover">
+        <h3 className="admin-cover__title">ภาพหน้าปก (หน้าแรก)</h3>
+        <div className="admin-cover__preview">
+          {coverSrc ? (
+            <img src={resolveSiteImage(coverSrc)} alt="ตัวอย่างหน้าปก" />
+          ) : (
+            <span>ยังไม่มีภาพ</span>
+          )}
+        </div>
+        <label className="admin-form__field">
+          <span>เลือกรูปหน้าปกใหม่</span>
+          <input
+            ref={coverRef}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            onChange={handleCoverFile}
+          />
+        </label>
+        <label className="admin-form__field">
+          <span>คำอธิบายภาพ</span>
+          <input
+            value={coverAlt}
+            onChange={(e) => setCoverAlt(e.target.value)}
+            placeholder="เช่น ตะกร้าหวายภายในร้าน"
+          />
+        </label>
+        <button type="button" className="admin-form__save" onClick={handleSaveCover}>
+          บันทึกภาพหน้าปก
+        </button>
+      </div>
+
+      <h3 className="admin-section-title">สินค้า</h3>
 
       <form className="admin-form" onSubmit={handleSave}>
         <label className="admin-form__field">

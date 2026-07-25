@@ -1,15 +1,20 @@
 import { SHOP_INFO } from '../../data/products';
 import { BanthomKnowledgeSection } from './BanthomKnowledgeSection';
 
-export function AboutPage() {
+interface AboutPageProps {
+  coverImage?: string;
+  coverImageAlt?: string;
+}
+
+export function AboutPage({ coverImage, coverImageAlt }: AboutPageProps) {
   return (
     <section className="screen about-screen py-4">
       <h2 className="section-title">เกี่ยวกับเรา</h2>
 
       <div className="about-card">
         <img
-          src={SHOP_INFO.heroImage}
-          alt="ช่างสานหวายราชาหวายสุรินทร์"
+          src={coverImage || SHOP_INFO.heroImage}
+          alt={coverImageAlt || 'ช่างสานหวายราชาหวายสุรินทร์'}
           className="about-card__image"
         />
         <p>{SHOP_INFO.story}</p>

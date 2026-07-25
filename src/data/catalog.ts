@@ -15,6 +15,18 @@ export interface CatalogItem {
 }
 
 const DRAFT_KEY = 'rachawei-catalog-drafts-v1';
+const SITE_DRAFT_KEY = 'rachawei-site-draft-v1';
+
+export interface SiteSettings {
+  /** ภาพหน้าปก (path หรือ data URL) */
+  heroCover: string;
+  heroCoverAlt: string;
+}
+
+export const DEFAULT_SITE_SETTINGS: SiteSettings = {
+  heroCover: '/images/shop/shop-interior-1.jpg',
+  heroCoverAlt: 'ตะกร้าหวายสานมือภายในร้านราชาหวายสุรินทร์',
+};
 
 function withVersion(pathOrData: string): string {
   if (pathOrData.startsWith('data:') || pathOrData.startsWith('blob:')) {
@@ -25,6 +37,10 @@ function withVersion(pathOrData: string): string {
     return `${base}?v=${PRODUCT_IMAGE_VERSION}`;
   }
   return `/products/${pathOrData}?v=${PRODUCT_IMAGE_VERSION}`;
+}
+
+export function resolveSiteImage(pathOrData: string): string {
+  return withVersion(pathOrData);
 }
 
 export function catalogItemToProduct(item: CatalogItem): Product {
@@ -111,6 +127,54 @@ export async function loadProducts(): Promise<Product[]> {
   const base = await fetchBaseCatalog();
   const drafts = typeof localStorage !== 'undefined' ? loadDraftItems() : [];
   return mergeCatalog(base, drafts).map(catalogItemToProduct);
+}
+
+export function loadSiteDraft(): SiteSettings | null {
+  try {
+    const raw = localStorage.getItem(SITE_DRAFT_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as SiteSettings;
+    if (!parsed?.heroCover) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+export function saveSiteDraft(settings: SiteSettings) {
+  localStorage.setItem(SITE_DRAFT_KEY, JSON.stringify(settings));
+}
+
+export function clearSiteDraft() {
+  localStorage.removeItem(SITE_DRAFT_KEY);
+}
+
+export async function fetchBaseSite(): Promise<SiteSettings> {
+  try {
+    const response = await fetch(`/catalog/site.json?v=${PRODUCT_IMAGE_VERSION}`, {
+      cache: 'no-cache',
+    });
+    if (!response.ok) return DEFAULT_SITE_SETTINGS;
+    const data = (await response.json()) as Partial<SiteSettings>;
+    return {
+      heroCover: data.heroCover || DEFAULT_SITE_SETTINGS.heroCover,
+      heroCoverAlt: data.heroCoverAlt || DEFAULT_SITE_SETTINGS.heroCoverAlt,
+    };
+  } catch {
+    return DEFAULT_SITE_SETTINGS;
+  }
+}
+
+export async function loadSiteSettings(): Promise<SiteSettings> {
+  const base = await fetchBaseSite();
+  const draft = typeof localStorage !== 'undefined' ? loadSiteDraft() : null;
+  return draft ?? base;
+}
+
+export function suggestCoverFilename(fileName: string): string {
+  const ext = fileName.includes('.') ? fileName.split('.').pop()?.toLowerCase() : 'jpg';
+  const safeExt = ext && ['jpg', 'jpeg', 'png', 'webp'].includes(ext) ? ext.replace('jpeg', 'jpg') : 'jpg';
+  return `hero-cover.${safeExt}`;
 }
 
 export function nextProductId(items: CatalogItem[]): string {

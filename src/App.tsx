@@ -1,6 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { SHOP_INFO, type Category, type Product } from './data/products';
-import { loadProducts } from './data/catalog';
+import {
+  loadProducts,
+  loadSiteSettings,
+  resolveSiteImage,
+  type SiteSettings,
+} from './data/catalog';
 import { ProductsPage } from './components/products/ProductsPage';
 import { ProductDetail } from './components/ProductDetail';
 import { ErrorBoundary } from './components/ErrorBoundary';
@@ -32,17 +37,19 @@ export function App() {
   const [category, setCategory] = useState<Category>('ทั้งหมด');
   const [selected, setSelected] = useState<Product | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
+  const [site, setSite] = useState<SiteSettings | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
 
   const refreshCatalog = useCallback(async () => {
     try {
-      const next = await loadProducts();
-      setProducts(next);
+      const [nextProducts, nextSite] = await Promise.all([loadProducts(), loadSiteSettings()]);
+      setProducts(nextProducts);
+      setSite(nextSite);
       setLoadError('');
       setSelected((current) => {
         if (!current) return null;
-        return next.find((item) => item.id === current.id) ?? null;
+        return nextProducts.find((item) => item.id === current.id) ?? null;
       });
     } catch {
       setLoadError('โหลดรายการสินค้าไม่สำเร็จ');
@@ -54,6 +61,9 @@ export function App() {
   useEffect(() => {
     void refreshCatalog();
   }, [refreshCatalog]);
+
+  const coverImage = site ? resolveSiteImage(site.heroCover) : undefined;
+  const coverImageAlt = site?.heroCoverAlt;
 
   const filtered = useMemo(
     () =>
@@ -109,6 +119,7 @@ export function App() {
         {tab === 'admin' && (
           <ProductAdminPage
             products={products}
+            site={site}
             onCatalogChange={() => void refreshCatalog()}
             onClose={() => goTo('home')}
           />
@@ -117,6 +128,8 @@ export function App() {
         {tab === 'home' && !loading && (
           <HomePage
             products={products}
+            coverImage={coverImage}
+            coverImageAlt={coverImageAlt}
             onViewProducts={() => goTo('products')}
             onContact={() => goTo('contact')}
             onSelectProduct={selectProduct}
@@ -140,7 +153,9 @@ export function App() {
           />
         )}
 
-        {tab === 'about' && <AboutPage />}
+        {tab === 'about' && (
+          <AboutPage coverImage={coverImage} coverImageAlt={coverImageAlt} />
+        )}
 
         {tab === 'contact' && (
           <section className="screen contact-screen py-4">
@@ -174,7 +189,7 @@ export function App() {
             </div>
             <p className="contact-note">สนใจสินค้าใด กรอกฟอร์มหรือโทรสอบถามได้เลย</p>
             <button type="button" className="admin-entry-link" onClick={() => goTo('admin')}>
-              สำหรับร้าน · จัดการสินค้า / เพิ่มรูป
+              สำหรับร้าน · จัดการสินค้า / ภาพหน้าปก
             </button>
             <ShopMap />
             <ErrorBoundary
