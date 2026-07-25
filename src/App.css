@@ -1769,6 +1769,37 @@
   box-shadow: 0 4px 14px rgba(6, 199, 85, 0.32);
 }
 
+.order-actions__btn--order,
+.order-form-btn.order-actions__btn--order {
+  background: linear-gradient(135deg, #12d66d, #06c755);
+  color: #fff;
+  box-shadow: 0 4px 14px rgba(6, 199, 85, 0.32);
+  border: none;
+  cursor: pointer;
+  font: inherit;
+}
+
+.order-form-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+}
+
+.floating-order__btn--order {
+  background: linear-gradient(135deg, #12d66d, #06c755);
+  border: none;
+  color: #fff;
+  cursor: pointer;
+  font-size: 1.2rem;
+}
+
+.contact-note--top {
+  margin-top: 0;
+  margin-bottom: 0.25rem;
+  text-align: left;
+}
+
 .sticky-order-bar {
   position: fixed;
   left: 50%;
@@ -2513,5 +2544,169 @@
 }
 
 .line-modal__open:active {
+  transform: scale(0.98);
+}
+
+/* ——— ฟอร์มสั่งซื้อ ——— */
+.order-form-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 55;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 0.75rem;
+}
+
+@media (min-width: 480px) {
+  .order-form-modal {
+    align-items: center;
+  }
+}
+
+.order-form-modal__backdrop {
+  position: absolute;
+  inset: 0;
+  border: none;
+  background: rgba(10, 8, 6, 0.72);
+  backdrop-filter: blur(4px);
+}
+
+.order-form-modal__panel {
+  position: relative;
+  z-index: 1;
+  width: min(100%, 24rem);
+  max-height: min(90dvh, 40rem);
+  overflow-y: auto;
+  padding: 1.25rem 1.15rem 1.2rem;
+  border-radius: 1.25rem 1.25rem 1rem 1rem;
+  background: linear-gradient(180deg, #faf8f4 0%, #f2ebe2 100%);
+  color: #2a1f16;
+  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.45);
+  animation: order-form-in 0.22s ease;
+}
+
+@keyframes order-form-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.order-form-modal__close {
+  position: absolute;
+  top: 0.65rem;
+  right: 0.65rem;
+  display: flex;
+  width: 2rem;
+  height: 2rem;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 999px;
+  background: rgba(42, 31, 22, 0.08);
+  color: #5a4a3c;
+  font-size: 0.9rem;
+}
+
+.order-form-modal__title {
+  margin: 0 1.75rem 0 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #1f1712;
+}
+
+.order-form-modal__subtitle {
+  margin: 0.4rem 0 0;
+  font-size: 0.84rem;
+  line-height: 1.5;
+  color: #6b5340;
+}
+
+.order-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+  margin-top: 1rem;
+}
+
+.order-form__field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #5a4a3c;
+}
+
+.order-form__field input,
+.order-form__field select,
+.order-form__field textarea {
+  width: 100%;
+  padding: 0.7rem 0.8rem;
+  border: 1px solid rgba(42, 31, 22, 0.14);
+  border-radius: 0.75rem;
+  background: #fff;
+  color: #1f1712;
+  font: inherit;
+  font-size: 0.92rem;
+  font-weight: 500;
+}
+
+.order-form__field textarea {
+  resize: vertical;
+  min-height: 2.75rem;
+}
+
+.order-form__field input:focus,
+.order-form__field select:focus,
+.order-form__field textarea:focus {
+  outline: 2px solid rgba(6, 199, 85, 0.35);
+  border-color: rgba(6, 199, 85, 0.55);
+}
+
+.order-form__error {
+  margin: 0;
+  padding: 0.55rem 0.7rem;
+  border-radius: 0.65rem;
+  background: rgba(196, 104, 64, 0.12);
+  border: 1px solid rgba(196, 104, 64, 0.28);
+  font-size: 0.8rem;
+  color: #8a3d1f;
+}
+
+.order-form__copied {
+  margin: 0;
+  padding: 0.55rem 0.7rem;
+  border-radius: 0.65rem;
+  background: rgba(6, 199, 85, 0.1);
+  border: 1px solid rgba(6, 199, 85, 0.22);
+  font-size: 0.78rem;
+  color: #1f6b3a;
+}
+
+.order-form__submit {
+  margin-top: 0.25rem;
+  padding: 0.95rem 1rem;
+  border: none;
+  border-radius: 0.9rem;
+  background: linear-gradient(135deg, #12d66d, #06c755);
+  color: #fff;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 8px 18px rgba(6, 199, 85, 0.28);
+}
+
+.order-form__submit:disabled {
+  opacity: 0.7;
+  cursor: wait;
+}
+
+.order-form__submit:not(:disabled):active {
   transform: scale(0.98);
 }

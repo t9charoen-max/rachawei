@@ -1,6 +1,6 @@
 import type { Product } from '../data/products';
 import { telLink } from '../utils/contact';
-import { LineAddButton } from './LineAddButton';
+import { OrderFormButton } from './OrderFormButton';
 
 interface OrderActionsProps {
   product?: Product;
@@ -13,16 +13,16 @@ export function OrderActions({ product, layout = 'row', size = 'md' }: OrderActi
 
   return (
     <div className={`order-actions order-actions--${layout} ${sizeClass}`.trim()}>
-      <a href={telLink()} className="order-actions__btn order-actions__btn--call">
-        <span aria-hidden>📞</span>
-        โทรสั่งซื้อ
-      </a>
-      <LineAddButton
+      <OrderFormButton
         product={product}
-        className="order-actions__btn order-actions__btn--line"
-        label="สแกนเพิ่ม LINE"
+        className="order-actions__btn order-actions__btn--order"
+        label={size === 'lg' ? 'กรอกฟอร์มสั่งซื้อ' : 'สั่งซื้อ'}
         size={size === 'lg' ? 'lg' : 'md'}
       />
+      <a href={telLink()} className="order-actions__btn order-actions__btn--call">
+        <span aria-hidden>📞</span>
+        โทร
+      </a>
     </div>
   );
 }
