@@ -1,8 +1,13 @@
 import { useState } from 'react';
+import type { Product } from '../data/products';
 import { telLink } from '../utils/contact';
 import { OrderFormModal } from './OrderFormModal';
 
-export function FloatingCallButton() {
+interface FloatingCallButtonProps {
+  products?: Product[];
+}
+
+export function FloatingCallButton({ products = [] }: FloatingCallButtonProps) {
   const [open, setOpen] = useState(false);
 
   return (
@@ -18,7 +23,7 @@ export function FloatingCallButton() {
       <a href={telLink()} className="floating-order__btn floating-order__btn--call" aria-label="โทรสั่งซื้อ">
         📞
       </a>
-      {open && <OrderFormModal onClose={() => setOpen(false)} />}
+      {open && <OrderFormModal products={products} onClose={() => setOpen(false)} />}
     </div>
   );
 }

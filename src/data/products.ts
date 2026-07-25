@@ -16,7 +16,7 @@ export interface Product {
 }
 
 /** เปลี่ยนเมื่ออัปเดตรูปสินค้า เพื่อให้เบราว์เซอร์โหลดรูปใหม่ */
-export const PRODUCT_IMAGE_VERSION = 'rachawei-real-v21';
+export const PRODUCT_IMAGE_VERSION = 'rachawei-real-v22';
 
 export const CATEGORIES = [
   'ทั้งหมด',
@@ -28,134 +28,14 @@ export const CATEGORIES = [
   'หูจับสูง',
 ] as const;
 
+export type Category = (typeof CATEGORIES)[number];
+
+export const PRODUCT_CATEGORY_OPTIONS = CATEGORIES.filter((c) => c !== 'ทั้งหมด');
+
 export function getProductImages(product: Product): string[] {
   if (product.images?.length) return product.images;
   return [product.image];
 }
-
-export type Category = (typeof CATEGORIES)[number];
-
-export const PRODUCTS: Product[] = [
-  {
-    id: '12',
-    name: 'ตะกร้าหวายสี่เหลี่ยมจัตุรัส 2 ชั้น',
-    description:
-      'ตะกร้าหวายทรงสี่เหลี่ยมจัตุรัส 2 ชั้น หูจับสูง ลายสานโปร่ง งานพิเศษสานมือจากช่างฝีมือบ้านบุทม เหมาะใส่ของใช้ ผลไม้ และตกแต่งบ้าน',
-    category: 'พิเศษ',
-    special: true,
-    image: `/products/basket-12-square-lifestyle.jpg?v=${PRODUCT_IMAGE_VERSION}`,
-    images: [
-      `/products/basket-12-square-lifestyle.jpg?v=${PRODUCT_IMAGE_VERSION}`,
-      `/products/basket-12-square-usage.jpg?v=${PRODUCT_IMAGE_VERSION}`,
-      `/products/basket-12-square-topdown.jpg?v=${PRODUCT_IMAGE_VERSION}`,
-    ],
-  },
-  {
-    id: '11',
-    name: 'เก้าอี้หวาย ทรงกลม',
-    description:
-      'เก้าอี้หวายทรงกลมสานมือ ชุดคู่พร้อมโต๊ะหวาย ดีไซน์หลังมน นั่งสบาย เหมาะมุมระเบียง มุมนั่งเล่น และพื้นที่พักผ่อน งานช่างฝีมือบ้านบุทม',
-    category: 'เก้าอี้',
-    image: `/products/chair-11-patio-set.jpg?v=${PRODUCT_IMAGE_VERSION}`,
-  },
-  {
-    id: '10',
-    name: 'เก้าอี้หวาย',
-    description:
-      'เก้าอี้หวายสานมือ พร้อมโต๊ะหวาย ดีไซน์โค้งมน นั่งสบาย เหมาะมุมนั่งเล่น มุมสวน และพื้นที่พักผ่อน งานช่างฝีมือบ้านบุทม',
-    category: 'เก้าอี้',
-    image: `/products/chair-10-garden-set-1.jpg?v=${PRODUCT_IMAGE_VERSION}`,
-    images: [
-      `/products/chair-10-garden-set-1.jpg?v=${PRODUCT_IMAGE_VERSION}`,
-      `/products/chair-10-garden-set-2.jpg?v=${PRODUCT_IMAGE_VERSION}`,
-    ],
-  },
-  {
-    id: '9',
-    name: 'ตะกร้าหวายรีเหลี่ยม 2 ชั้น พิเศษ',
-    description:
-      'ตะกร้าหวายทรงรีเหลี่ยม 2 ชั้น ปากหยัก หูจับสูง ลายสานโปร่ง งานพิเศษสานมือจากช่างฝีมือบ้านบุทม เหมาะใส่ผลไม้ ของใช้ และตกแต่งบ้าน',
-    category: 'พิเศษ',
-    special: true,
-    image: `/products/basket-09-oval-community.jpg?v=${PRODUCT_IMAGE_VERSION}`,
-    images: [
-      `/products/basket-09-oval-community.jpg?v=${PRODUCT_IMAGE_VERSION}`,
-      `/products/basket-09-oval-lifestyle.jpg?v=${PRODUCT_IMAGE_VERSION}`,
-      `/products/basket-09-oval-topdown.jpg?v=${PRODUCT_IMAGE_VERSION}`,
-    ],
-  },
-  {
-    id: '8',
-    name: 'ตะกร้ากลม 2 ชั้น ถักปาก',
-    description:
-      'ตะกร้าหวายทรงกลม 2 ชั้น ปากถักตกแต่ง หูจับสูง งานสานมือจากช่างฝีมือบ้านบุทม เหมาะถวายทำบุญและใช้งานทั่วไป',
-    category: 'ทรงกลม',
-    image: `/products/basket-08-round-studio.jpg?v=${PRODUCT_IMAGE_VERSION}`,
-    images: [
-      `/products/basket-08-round-studio.jpg?v=${PRODUCT_IMAGE_VERSION}`,
-      `/products/basket-08-round-temple.jpg?v=${PRODUCT_IMAGE_VERSION}`,
-      `/products/basket-08-round-grass.jpg?v=${PRODUCT_IMAGE_VERSION}`,
-    ],
-  },
-  {
-    id: '7',
-    name: 'ตะกร้าหวาย 8 เหลี่ยม 2 ชั้น',
-    description:
-      'ตะกร้าหวายทรงแปดเหลี่ยม 2 ชั้น หูจับสูง ลายสานโปร่ง งานพิเศษจากช่างฝีมือบ้านบุทม เหมาะใช้งานและตกแต่งบ้าน',
-    category: 'พิเศษ',
-    special: true,
-    image: `/products/basket-07-octagonal-lifestyle.jpg?v=${PRODUCT_IMAGE_VERSION}`,
-  },
-  {
-    id: '6',
-    name: 'ตะกร้าหวาย 8 เหลี่ยม ชั้นเดียว',
-    description:
-      'ตะกร้าหวายทรงแปดเหลี่ยม ชั้นเดียว หูจับสูง ลายสานเนี้ยบ งานพิเศษจากช่างฝีมือบ้านบุทม สวยงามทนทาน ใช้ได้หลากหลาย',
-    category: 'พิเศษ',
-    special: true,
-    image: `/products/basket-06-octagonal-single.jpg?v=${PRODUCT_IMAGE_VERSION}`,
-  },
-  {
-    id: '1',
-    name: 'ตะกร้าหวายทรงกลมปากหยัก',
-    description: 'ตะกร้าหวายทรงกลมปากหยัก หูจับสูง ลายสานถี่ งานประณีตจากช่างบ้านบุทม',
-    category: 'หูจับสูง',
-    image: `/products/basket-01-round-scalloped.jpg?v=${PRODUCT_IMAGE_VERSION}`,
-    panorama360: `/products/basket-01-360.jpg?v=${PRODUCT_IMAGE_VERSION}`,
-  },
-  {
-    id: '2',
-    name: 'ตะกร้าหวายทรงกลมฐาน 11 นิ้ว',
-    description: 'ตะกร้าหวายทรงกลม ฐาน 11 นิ้ว หูจับมั่นคง สานมือ 100%',
-    category: 'ทรงกลม',
-    image: `/products/basket-02-round-11inch.jpg?v=${PRODUCT_IMAGE_VERSION}`,
-    panorama360: `/products/basket-02-360.jpg?v=${PRODUCT_IMAGE_VERSION}`,
-  },
-  {
-    id: '3',
-    name: 'ตะกร้าหวายมีฝา ชุดคู่',
-    description: 'ตะกร้าหวายมีฝาปิด ชุดคู่ ลายสานละเอียด เหมาะเป็นของฝาก',
-    category: 'มีฝา',
-    image: `/products/basket-03-lidded-pair.jpg?v=${PRODUCT_IMAGE_VERSION}`,
-    panorama360: `/products/basket-03-360.jpg?v=${PRODUCT_IMAGE_VERSION}`,
-  },
-  {
-    id: '4',
-    name: 'ตะกร้าหวายทรงเหลี่ยมมีฝา',
-    description: 'ตะกร้าหวายทรงเหลี่ยมมีฝา หูจับมั่นคง ลายสานโปร่งตรงกลาง วางซ้อนได้สะดวก',
-    category: 'ทรงเหลี่ยม',
-    image: `/products/basket-04-rectangular-lid.jpg?v=${PRODUCT_IMAGE_VERSION}`,
-    panorama360: `/products/basket-04-360.jpg?v=${PRODUCT_IMAGE_VERSION}`,
-  },
-  {
-    id: '5',
-    name: 'ตะกร้าหวายหลายแบบ',
-    description: 'ตะกร้าหวายหลากหลายทรง ทั้งกลม เหลี่ยม และปากหยัก จากราชาหวายสุรินทร์',
-    category: 'ทรงกลม',
-    image: `/products/basket-05-collection.jpg?v=${PRODUCT_IMAGE_VERSION}`,
-    panorama360: `/products/basket-05-360.jpg?v=${PRODUCT_IMAGE_VERSION}`,
-  },
-];
 
 export const SHOP_INFO = {
   name: 'ราชาหวายสุรินทร์',
@@ -167,3 +47,6 @@ export const SHOP_INFO = {
   story:
     'ราชาหวายสุรินทร์ ตั้งอยู่หมู่บ้านจักสานบ้านบุทม ตำบลเมืองที จังหวัดสุรินทร์ เราเชี่ยวชาญงานตะกร้าหวายหลากหลายทรง สานมือ 100% โดยช่างฝีมือท้องถิ่น มาตรฐานผลิตภัณฑ์ชุมชน OTOP',
 };
+
+/** PIN เข้าหน้าจัดการสินค้า — 4 ตัวท้ายเบอร์ร้าน */
+export const ADMIN_PIN = SHOP_INFO.phone.replace(/\D/g, '').slice(-4);

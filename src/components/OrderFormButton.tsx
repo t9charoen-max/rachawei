@@ -4,6 +4,7 @@ import { OrderFormModal } from './OrderFormModal';
 
 interface OrderFormButtonProps {
   product?: Product;
+  products?: Product[];
   className?: string;
   label?: string;
   size?: 'md' | 'lg';
@@ -11,6 +12,7 @@ interface OrderFormButtonProps {
 
 export function OrderFormButton({
   product,
+  products = [],
   className = '',
   label = 'สั่งซื้อ',
   size = 'md',
@@ -27,7 +29,13 @@ export function OrderFormButton({
         <span aria-hidden>🛒</span>
         <span>{label}</span>
       </button>
-      {open && <OrderFormModal product={product} onClose={() => setOpen(false)} />}
+      {open && (
+        <OrderFormModal
+          product={product}
+          products={products}
+          onClose={() => setOpen(false)}
+        />
+      )}
     </>
   );
 }

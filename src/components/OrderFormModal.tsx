@@ -1,13 +1,14 @@
 import { useEffect, useId, useState, type FormEvent } from 'react';
-import { PRODUCTS, type Product } from '../data/products';
+import type { Product } from '../data/products';
 import { emptyOrderForm, submitOrderViaLine, type OrderFormValues } from '../utils/order';
 
 interface OrderFormModalProps {
   product?: Product;
+  products?: Product[];
   onClose: () => void;
 }
 
-export function OrderFormModal({ product, onClose }: OrderFormModalProps) {
+export function OrderFormModal({ product, products = [], onClose }: OrderFormModalProps) {
   const formId = useId();
   const [values, setValues] = useState<OrderFormValues>(() => emptyOrderForm(product));
   const [error, setError] = useState('');
@@ -110,7 +111,7 @@ export function OrderFormModal({ product, onClose }: OrderFormModalProps) {
               required
             >
               <option value="">เลือกสินค้า</option>
-              {PRODUCTS.map((item) => (
+              {products.map((item) => (
                 <option key={item.id} value={item.name}>
                   {item.name}
                 </option>
