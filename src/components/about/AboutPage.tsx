@@ -1,38 +1,52 @@
-import { SHOP_INFO } from '../../data/products';
 import { BanthomKnowledgeSection } from './BanthomKnowledgeSection';
 
 interface AboutPageProps {
-  coverImage?: string;
-  coverImageAlt?: string;
+  image?: string;
+  imageAlt?: string;
+  story?: string;
+  location?: string;
+  hours?: string;
+  phone?: string;
 }
 
-export function AboutPage({ coverImage, coverImageAlt }: AboutPageProps) {
+export function AboutPage({
+  image,
+  imageAlt,
+  story,
+  location,
+  hours,
+  phone,
+}: AboutPageProps) {
   return (
     <section className="screen about-screen py-4">
       <h2 className="section-title">เกี่ยวกับเรา</h2>
 
       <div className="about-card">
-        <img
-          src={coverImage || SHOP_INFO.heroImage}
-          alt={coverImageAlt || 'ช่างสานหวายราชาหวายสุรินทร์'}
-          className="about-card__image"
-        />
-        <p>{SHOP_INFO.story}</p>
+        {image ? (
+          <img src={image} alt={imageAlt || 'เกี่ยวกับร้าน'} className="about-card__image" />
+        ) : null}
+        {story ? <p>{story}</p> : null}
       </div>
 
       <ul className="about-list">
-        <li>
-          <strong>ที่ตั้ง</strong>
-          <span>{SHOP_INFO.location}</span>
-        </li>
-        <li>
-          <strong>เวลาทำการ</strong>
-          <span>{SHOP_INFO.hours}</span>
-        </li>
-        <li>
-          <strong>โทรศัพท์</strong>
-          <span>{SHOP_INFO.phone}</span>
-        </li>
+        {location ? (
+          <li>
+            <strong>ที่ตั้ง</strong>
+            <span>{location}</span>
+          </li>
+        ) : null}
+        {hours ? (
+          <li>
+            <strong>เวลาทำการ</strong>
+            <span>{hours}</span>
+          </li>
+        ) : null}
+        {phone ? (
+          <li>
+            <strong>โทรศัพท์</strong>
+            <span>{phone}</span>
+          </li>
+        ) : null}
       </ul>
 
       <BanthomKnowledgeSection />
