@@ -94,6 +94,8 @@ export function ProductAdminPage({
   const [message, setMessage] = useState('');
   const [publishStep, setPublishStep] = useState<'idle' | 'confirm' | 'done'>('idle');
   const [publishSummary, setPublishSummary] = useState('');
+  const [handoffText, setHandoffText] = useState('');
+  const [copyStatus, setCopyStatus] = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
   const coverRef = useRef<HTMLInputElement>(null);
 
@@ -374,38 +376,84 @@ export function ProductAdminPage({
       );
     }
 
-    const fileList = [
+    const attachedFiles = [
       namedDrafts.length ? 'products.json' : null,
       siteDraft ? 'site.json' : null,
-      'และไฟล์รูปที่ดาวน์โหลด',
+      namedDrafts.length ? 'รูปสินค้าที่ดาวน์โหลดมาด้วย (basket-…)' : null,
+      siteDraft ? 'รูปหน้าปกที่ดาวน์โหลดมาด้วย (hero-cover-…)' : null,
+      'ส่งให้คนอัปเดตเว็บ.txt',
     ]
       .filter(Boolean)
-      .join(' · ');
+      .join('\n- ');
 
-    const prompt = [
-      'อัปเดตแคตตาล็อก / ภาพหน้าปก ราชาหวาย',
-      namedDrafts.length
-        ? '1) วาง products.json → public/catalog/products.json และรูปสินค้า → public/products/'
-        : null,
-      siteDraft
-        ? `${namedDrafts.length ? '2' : '1'}) วาง site.json → public/catalog/site.json และรูปหน้าปก → public/images/shop/`
-        : null,
-      'สุดท้าย: commit + deploy',
+    const handoff = [
+      'ช่วยอัปเดตเว็บราชาหวายสุรินทร์ให้หน่อยครับ/ค่ะ',
+      '',
+      'เว็บจริง: https://rachawei.vercel.app',
+      'โปรเจกต์: https://github.com/t9charoen-max/rachawei',
+      '',
+      'ฉันแก้ในหลังบ้านแล้ว ส่งไฟล์มาด้วย กรุณาทำตามนี้:',
       '',
       namedDrafts.length
-        ? `สินค้าที่แก้: ${namedDrafts.map((d) => `${d.id} ${d.name}`).join(', ')}`
+        ? [
+            '【สินค้า】',
+            '- วางไฟล์ products.json → public/catalog/products.json',
+            '- วางรูปสินค้าที่ส่งมา → public/products/',
+            `- สินค้าที่แก้: ${namedDrafts.map((d) => `#${d.id} ${d.name}`).join(', ')}`,
+            '',
+          ].join('\n')
         : null,
-      siteDraft ? `ภาพหน้าปก (${publishedCovers.length} รูป): ${publishedCovers.join(', ')}` : null,
+      siteDraft
+        ? [
+            '【ภาพหน้าปก】',
+            '- วางไฟล์ site.json → public/catalog/site.json',
+            '- วางรูปหน้าปกที่ส่งมา → public/images/shop/',
+            `- ภาพหน้าปก ${publishedCovers.length} รูป: ${publishedCovers.join(', ')}`,
+            '',
+          ].join('\n')
+        : null,
+      '【ขั้นตอนปิดงาน】',
+      '1) ตรวจว่าไฟล์อยู่ในโฟลเดอร์ถูก',
+      '2) commit + push ไป branch main',
+      '3) รอ Vercel deploy โปรเจกต์ rachawei เสร็จ',
+      '4) เปิด https://rachawei.vercel.app ตรวจว่าขึ้นถูกต้อง',
+      '',
+      'หมายเหตุ: อย่าเปิดไฟล์ .json แก้ด้วยมือถ้าไม่จำเป็น — ใช้ไฟล์ที่ส่งมาวางทับได้เลย',
+      '',
+      'ไฟล์ที่แนบมา:',
+      `- ${attachedFiles}`,
     ]
       .filter(Boolean)
       .join('\n');
 
-    void navigator.clipboard?.writeText(prompt);
-    setPublishSummary(fileList);
+    downloadTextFile('ส่งให้คนอัปเดตเว็บ.txt', `${handoff}\n`, 'text/plain');
+    void navigator.clipboard?.writeText(handoff);
+    setHandoffText(handoff);
+    setCopyStatus('คัดลอกข้อความไว้แล้ว');
+    setPublishSummary(
+      [
+        namedDrafts.length ? 'products.json' : null,
+        siteDraft ? 'site.json' : null,
+        'ส่งให้คนอัปเดตเว็บ.txt',
+        'และไฟล์รูป',
+      ]
+        .filter(Boolean)
+        .join(' · '),
+    );
     setPublishStep('done');
     setMessage(
-      'เตรียมไฟล์แล้ว — อย่าเปิดไฟล์ JSON · ส่งไฟล์ในแชท Cursor ให้ช่วยอัปเดตเว็บ',
+      'เตรียมไฟล์แล้ว — ส่งไฟล์ทั้งหมด + ข้อความ “ส่งให้คนอัปเดตเว็บ.txt” ให้คนอื่นหรือ Cursor ทำต่อได้',
     );
+  };
+
+  const copyHandoffText = async () => {
+    if (!handoffText) return;
+    try {
+      await navigator.clipboard.writeText(handoffText);
+      setCopyStatus('คัดลอกแล้ว — วางส่งแชทได้เลย');
+    } catch {
+      setCopyStatus('คัดลอกไม่สำเร็จ — เปิดไฟล์ ส่งให้คนอัปเดตเว็บ.txt แล้วคัดลอกเอง');
+    }
   };
 
   const handlePublishClick = () => {
@@ -711,10 +759,10 @@ export function ProductAdminPage({
           <div className="admin-publish-modal__panel">
             {publishStep === 'confirm' ? (
               <>
-                <h3>เตรียมไฟล์อัปเดตเว็บ</h3>
+                <h3>เตรียมไฟล์ส่งให้คนอื่นทำ</h3>
                 <p>
-                  ปุ่มนี้<strong>ไม่ได้อัปเว็บเอง</strong> — จะดาวน์โหลดไฟล์ให้ส่งในแชท Cursor
-                  เพื่อให้ช่วยอัปขึ้นเว็บลูกค้า
+                  จะดาวน์โหลดไฟล์อัปเดต + ข้อความอธิบายงาน
+                  ให้คุณส่งต่อให้คนอื่นหรือ Cursor ทำให้ขึ้นเว็บจริงได้
                 </p>
                 <p className="admin-publish-modal__warn">
                   ถ้าโทรศัพท์ถาม “ดู / ดาวน์โหลด” ให้กด <strong>ดาวน์โหลด</strong> เท่านั้น
@@ -732,16 +780,25 @@ export function ProductAdminPage({
               </>
             ) : (
               <>
-                <h3>ไฟล์พร้อมแล้ว</h3>
+                <h3>พร้อมส่งให้คนอื่นแล้ว</h3>
                 <p>
                   ได้ไฟล์: {publishSummary}
                   <br />
-                  <strong>อย่าเปิดไฟล์ JSON</strong> — ส่งไฟล์ในแชท Cursor ให้ช่วยอัปเดตเว็บ
+                  ส่งไฟล์ทั้งหมดในแชท พร้อมข้อความด้านล่าง (หรือไฟล์{' '}
+                  <strong>ส่งให้คนอัปเดตเว็บ.txt</strong>)
                 </p>
-                <p className="admin-publish-modal__hint">คำสั่งสั้น ๆ คัดลอกไว้ในคลิปบอร์ดแล้ว</p>
-                <button type="button" className="admin-form__save" onClick={() => setPublishStep('idle')}>
-                  เข้าใจแล้ว
-                </button>
+                <p className="admin-publish-modal__warn">
+                  อย่าเปิดไฟล์ JSON — ส่งทั้งชุดให้คนที่ทำเว็บ/Cursor พอ
+                </p>
+                {copyStatus && <p className="admin-publish-modal__hint">{copyStatus}</p>}
+                <div className="admin-publish-modal__actions">
+                  <button type="button" className="admin-form__save" onClick={() => void copyHandoffText()}>
+                    คัดลอกข้อความส่งคนอื่น
+                  </button>
+                  <button type="button" className="admin-form__preview" onClick={() => setPublishStep('idle')}>
+                    ปิด
+                  </button>
+                </div>
               </>
             )}
           </div>
