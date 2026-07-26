@@ -1,30 +1,95 @@
+import { useEffect, useRef, useState } from 'react';
 import { HOME_CONTENT } from '../../data/home';
 
 interface HeroSectionProps {
   onViewProducts: () => void;
   onContact: () => void;
-  coverImage?: string;
+  coverImages?: string[];
   coverImageAlt?: string;
 }
+
+const AUTO_MS = 5200;
+const SWIPE_THRESHOLD = 48;
 
 export function HeroSection({
   onViewProducts,
   onContact,
-  coverImage,
+  coverImages,
   coverImageAlt,
 }: HeroSectionProps) {
   const { hero } = HOME_CONTENT;
-  const image = coverImage || hero.image;
+  const slides =
+    coverImages?.length ? coverImages : [hero.image];
   const imageAlt = coverImageAlt || hero.imageAlt;
+  const [index, setIndex] = useState(0);
+  const [paused, setPaused] = useState(false);
+  const touchStartX = useRef<number | null>(null);
+  const multi = slides.length > 1;
+
+  const slideKey = `${slides.length}:${slides[0] ?? ''}:${slides[slides.length - 1] ?? ''}`;
+
+  useEffect(() => {
+    setIndex(0);
+  }, [slideKey]);
+
+  useEffect(() => {
+    if (!multi || paused) return;
+    const timer = window.setInterval(() => {
+      setIndex((current) => (current + 1) % slides.length);
+    }, AUTO_MS);
+    return () => window.clearInterval(timer);
+  }, [multi, paused, slides.length]);
+
+  const goTo = (next: number) => {
+    if (!slides.length) return;
+    setIndex((next + slides.length) % slides.length);
+  };
+
+  const handleTouchStart = (event: React.TouchEvent) => {
+    touchStartX.current = event.changedTouches[0]?.clientX ?? null;
+    setPaused(true);
+  };
+
+  const handleTouchEnd = (event: React.TouchEvent) => {
+    if (touchStartX.current == null || !multi) {
+      setPaused(false);
+      return;
+    }
+    const endX = event.changedTouches[0]?.clientX ?? touchStartX.current;
+    const delta = endX - touchStartX.current;
+    touchStartX.current = null;
+    if (Math.abs(delta) >= SWIPE_THRESHOLD) {
+      goTo(index + (delta < 0 ? 1 : -1));
+    }
+    window.setTimeout(() => setPaused(false), 1800);
+  };
 
   return (
     <section className="relative -mx-4 -mt-4 overflow-hidden">
-      <div className="relative min-h-[58vh] sm:min-h-[62vh]">
-        <img
-          src={image}
-          alt={imageAlt}
-          className="absolute inset-0 h-full w-full object-cover [animation:hero-zoom_8s_ease-out_forwards]"
-        />
+      <div
+        className="relative min-h-[58vh] sm:min-h-[62vh]"
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
+        onMouseEnter={() => setPaused(true)}
+        onMouseLeave={() => setPaused(false)}
+      >
+        <div className="absolute inset-0 overflow-hidden">
+          <div
+            className="hero-carousel__track"
+            style={{ transform: `translate3d(-${index * 100}%, 0)` }}
+          >
+            {slides.map((src, slideIndex) => (
+              <div key={`${slideIndex}-${src.slice(0, 48)}`} className="hero-carousel__slide">
+                <img
+                  src={src}
+                  alt={slideIndex === index ? imageAlt : ''}
+                  aria-hidden={slideIndex !== index}
+                  className={`hero-carousel__image ${slideIndex === index ? 'hero-carousel__image--active' : ''}`}
+                />
+              </div>
+            ))}
+          </div>
+        </div>
 
         <div className="absolute inset-0 bg-woven-pattern opacity-40" />
         <div className="absolute inset-0 bg-gradient-to-t from-earth-950 via-earth-950/70 to-earth-900/30" />
@@ -48,9 +113,9 @@ export function HeroSection({
             </span>
 
             <h1 className="font-display max-w-[16ch] text-[2rem] leading-[1.15] font-bold text-cream-50 sm:text-[2.35rem]">
-            <span className="text-gradient-gold">ตะกร้าหวาย</span>
-            <br />
-            <span className="text-cream-50">คุณภาพจากชุมชนสุรินทร์</span>
+              <span className="text-gradient-gold">ตะกร้าหวาย</span>
+              <br />
+              <span className="text-cream-50">คุณภาพจากชุมชนสุรินทร์</span>
             </h1>
 
             <p className="mt-5 max-w-[28ch] text-[0.95rem] leading-relaxed text-cream-200/85 sm:text-base">
@@ -75,13 +140,25 @@ export function HeroSection({
               </button>
             </div>
 
-            <p className="mt-5 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-xs font-medium text-cream-300/75">
-              <span>🌿 สานมือ 100%</span>
-              <span className="text-gold-400/40">·</span>
-              <span>🏅 OTOP</span>
-              <span className="text-gold-400/40">·</span>
-              <span>📞 โทรสั่งได้ทันที</span>
-            </p>
+            {multi && (
+              <div className="hero-carousel__dots" role="tablist" aria-label="ภาพหน้าปก">
+                {slides.map((_, dotIndex) => (
+                  <button
+                    key={dotIndex}
+                    type="button"
+                    role="tab"
+                    aria-selected={dotIndex === index}
+                    aria-label={`ภาพที่ ${dotIndex + 1}`}
+                    className={`hero-carousel__dot ${dotIndex === index ? 'hero-carousel__dot--active' : ''}`}
+                    onClick={() => {
+                      goTo(dotIndex);
+                      setPaused(true);
+                      window.setTimeout(() => setPaused(false), 1800);
+                    }}
+                  />
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </div>

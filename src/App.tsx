@@ -63,7 +63,8 @@ export function App() {
     void refreshCatalog();
   }, [refreshCatalog]);
 
-  const coverImage = site ? resolveSiteImage(site.heroCover) : undefined;
+  const coverImages = site?.heroCovers.map(resolveSiteImage);
+  const coverImage = coverImages?.[0];
   const coverImageAlt = site?.heroCoverAlt;
 
   const filtered = useMemo(
@@ -138,7 +139,7 @@ export function App() {
         {tab === 'home' && !loading && (
           <HomePage
             products={products}
-            coverImage={coverImage}
+            coverImages={coverImages}
             coverImageAlt={coverImageAlt}
             onViewProducts={() => goTo('products')}
             onContact={() => goTo('contact')}
