@@ -1,4 +1,4 @@
-import { useEffect, useId, useState, type FormEvent } from 'react';
+import { useEffect, useId, useMemo, useState, type FormEvent } from 'react';
 import type { Product } from '../data/products';
 import { emptyOrderForm, submitOrderViaLine, type OrderFormValues } from '../utils/order';
 
@@ -8,17 +8,27 @@ interface OrderFormModalProps {
   onClose: () => void;
 }
 
+function resolveProductImage(
+  productName: string,
+  product: Product | undefined,
+  products: Product[],
+): string | undefined {
+  if (product && product.name === productName && product.image) return product.image;
+  const matched = products.find((item) => item.name === productName);
+  return matched?.image || product?.image;
+}
+
 export function OrderFormModal({ product, products = [], onClose }: OrderFormModalProps) {
   const formId = useId();
   const [values, setValues] = useState<OrderFormValues>(() => emptyOrderForm(product));
   const [error, setError] = useState('');
   const [sending, setSending] = useState(false);
-  const [copiedHint, setCopiedHint] = useState(false);
+  const [statusHint, setStatusHint] = useState('');
 
   useEffect(() => {
     setValues(emptyOrderForm(product));
     setError('');
-    setCopiedHint(false);
+    setStatusHint('');
   }, [product]);
 
   useEffect(() => {
@@ -29,6 +39,11 @@ export function OrderFormModal({ product, products = [], onClose }: OrderFormMod
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose]);
 
+  const selectedImage = useMemo(
+    () => resolveProductImage(values.productName, product, products),
+    [values.productName, product, products],
+  );
+
   const update = <K extends keyof OrderFormValues>(key: K, value: OrderFormValues[K]) => {
     setValues((current) => ({ ...current, [key]: value }));
   };
@@ -36,6 +51,7 @@ export function OrderFormModal({ product, products = [], onClose }: OrderFormMod
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
     setError('');
+    setStatusHint('');
 
     if (!values.customerName.trim()) {
       setError('กรุณากรอกชื่อผู้สั่งซื้อ');
@@ -52,8 +68,14 @@ export function OrderFormModal({ product, products = [], onClose }: OrderFormMod
 
     setSending(true);
     try {
-      const result = await submitOrderViaLine(values);
-      setCopiedHint(result.copied);
+      const result = await submitOrderViaLine(values, { imageUrl: selectedImage });
+      if (result.cancelled) {
+        setStatusHint('ยกเลิกการแชร์แล้ว — ข้อความยังคัดลอกไว้ วางใน LINE ได้');
+      } else if (result.sharedWithImage) {
+        setStatusHint('เปิดแชร์พร้อมรูปสินค้าแล้ว — เลือก LINE เพื่อส่งทั้งรูปและข้อความ');
+      } else if (result.copied) {
+        setStatusHint('คัดลอกข้อความไว้แล้ว — วางในแชท LINE ได้ถ้ายังไม่ขึ้นอัตโนมัติ');
+      }
     } finally {
       setSending(false);
     }
@@ -71,8 +93,15 @@ export function OrderFormModal({ product, products = [], onClose }: OrderFormMod
           ฟอร์มสั่งซื้อ
         </h2>
         <p className="order-form-modal__subtitle">
-          กรอกข้อมูลสั้น ๆ แล้วกดส่ง — ระบบจะเปิด LINE พร้อมข้อความสรุปให้อัตโนมัติ
+          กรอกข้อมูลสั้น ๆ แล้วกดส่ง — ระบบจะแชร์ข้อความพร้อมแนบรูปสินค้าไป LINE ให้
         </p>
+
+        {selectedImage ? (
+          <div className="order-form__preview" aria-hidden>
+            <img src={selectedImage} alt="" />
+            <span>จะแนบรูปนี้ไปกับคำสั่งซื้อ</span>
+          </div>
+        ) : null}
 
         <form className="order-form" onSubmit={handleSubmit}>
           <label className="order-form__field">
@@ -155,12 +184,10 @@ export function OrderFormModal({ product, products = [], onClose }: OrderFormMod
           </label>
 
           {error && <p className="order-form__error">{error}</p>}
-          {copiedHint && (
-            <p className="order-form__copied">คัดลอกข้อความไว้แล้ว — วางในแชท LINE ได้ถ้ายังไม่ขึ้นอัตโนมัติ</p>
-          )}
+          {statusHint && <p className="order-form__copied">{statusHint}</p>}
 
           <button type="submit" className="order-form__submit" disabled={sending}>
-            {sending ? 'กำลังเปิด LINE…' : 'ส่งคำสั่งซื้อทาง LINE'}
+            {sending ? 'กำลังแชร์ไป LINE…' : 'ส่งคำสั่งซื้อทาง LINE'}
           </button>
         </form>
       </div>
