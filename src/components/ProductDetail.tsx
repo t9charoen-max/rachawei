@@ -4,6 +4,7 @@ import { getProductImages } from '../data/products';
 import { HowToOrder } from './HowToOrder';
 import { Product360Viewer } from './Product360Viewer';
 import { ProductImage } from './ProductImage';
+import { ProductImageBadges } from './ProductImageBadges';
 import { StickyOrderBar } from './StickyOrderBar';
 import { TrustBadges } from './TrustBadges';
 
@@ -98,6 +99,7 @@ export function ProductDetail({ product, products = [], onBack }: ProductDetailP
                 </button>
               )}
               <ProductImage src={activePhoto} alt={`${product.name} รูปที่ ${photoIndex + 1}`} variant="detail" />
+              <ProductImageBadges />
               {hasGallery && (
                 <>
                   <span className="detail-hero__counter">
@@ -153,7 +155,7 @@ export function ProductDetail({ product, products = [], onBack }: ProductDetailP
         <div className="detail-body detail-body--card">
           <div className="detail-body__meta">
             <span className="detail-body__category">{product.category}</span>
-            {product.special && <span className="detail-body__special">สินค้าพิเศษ</span>}
+            <span className="detail-body__special">พิเศษ · สานมือ 100%</span>
           </div>
           <h2 className="detail-body__name">{product.name}</h2>
           <p className="detail-body__desc">{product.description}</p>

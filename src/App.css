@@ -331,6 +331,16 @@
   padding: 0.9rem 1rem 1.1rem;
 }
 
+.featured-card__category {
+  display: inline-block;
+  margin-bottom: 0.3rem;
+  font-size: 0.68rem;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  color: var(--gold-light);
+  opacity: 0.85;
+}
+
 .featured-card__name {
   margin: 0;
   font-size: 0.95rem;
@@ -545,20 +555,49 @@
   left: 0.55rem;
   z-index: 1;
   border-radius: 999px;
-  background: linear-gradient(135deg, #c9a227, #e8c547);
-  border: 1px solid rgba(255, 248, 235, 0.35);
+  background: rgba(36, 36, 36, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.12);
   padding: 0.2rem 0.55rem;
   font-size: 0.62rem;
   font-weight: 800;
   letter-spacing: 0.04em;
-  color: var(--bg-deep);
+  color: #fff;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+}
+
+.product-image-badges {
+  pointer-events: none;
+}
+
+.product-image-badges__special {
+  position: absolute;
+  top: 0.55rem;
+  left: 0.55rem;
+  z-index: 2;
+  border-radius: 999px;
+  background: rgba(36, 36, 36, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  padding: 0.22rem 0.6rem;
+  font-size: 0.64rem;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.22);
+}
+
+.product-image-badges__eco.eco-badge--featured,
+.product-image-badges .eco-badge--featured {
+  top: 0.55rem !important;
+  right: 0.55rem !important;
+  bottom: auto !important;
+  left: auto !important;
+  z-index: 2;
 }
 
 .product-card__360 {
   position: absolute;
-  top: 0.55rem;
-  right: 0.55rem;
+  bottom: 0.55rem;
+  left: 0.55rem;
   z-index: 1;
   border-radius: 999px;
   background: rgba(26, 18, 12, 0.78);
@@ -598,11 +637,11 @@
 
 .eco-badge--featured {
   position: absolute;
-  top: 0.65rem;
-  right: 0.65rem;
-  z-index: 1;
-  padding: 0.2rem 0.5rem 0.2rem 0.38rem;
-  font-size: 0.56rem;
+  top: 0.55rem;
+  right: 0.55rem;
+  z-index: 2;
+  padding: 0.22rem 0.55rem 0.22rem 0.4rem;
+  font-size: 0.62rem;
 }
 
 .eco-badge__icon {
@@ -1546,20 +1585,26 @@
 .products-showcase__badge {
   position: absolute;
   top: 0.5rem;
-  right: 0.5rem;
+  left: 0.5rem;
   z-index: 2;
   padding: 0.25rem 0.55rem;
   border-radius: 999px;
-  background: linear-gradient(135deg, #c46840, #a04e2a);
+  background: rgba(36, 36, 36, 0.92);
   font-size: 0.68rem;
   font-weight: 700;
   color: #fff;
 }
 
-.products-showcase__stage .eco-badge--featured {
-  top: auto;
-  bottom: 0.35rem;
-  left: 0.35rem;
+.products-showcase__stage .product-image-badges__special {
+  top: 0.5rem;
+  left: 0.5rem;
+}
+
+.products-showcase__stage .product-image-badges__eco.eco-badge--featured {
+  top: 0.5rem !important;
+  right: 0.5rem !important;
+  bottom: auto !important;
+  left: auto !important;
 }
 
 .products-showcase__picker {
