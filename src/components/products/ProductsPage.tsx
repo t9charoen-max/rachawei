@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { CATEGORIES, type Category, type Product } from '../../data/products';
 import { SHOP_INFO } from '../../data/products';
 import { EcoHandmadeBadge } from '../EcoHandmadeBadge';
+import { SafeImage } from '../SafeImage';
 
 interface ProductsPageProps {
   products: Product[];
@@ -21,7 +22,7 @@ export function ProductsPage({
 
   useEffect(() => {
     setActiveIndex(0);
-  }, [category, products]);
+  }, [category, products.length, products[0]?.id]);
 
   return (
     <section className="products-page">
@@ -57,7 +58,7 @@ export function ProductsPage({
 
               <div className="products-showcase__stage" key={active.id}>
                 <div className="products-showcase__glow" aria-hidden />
-                <img
+                <SafeImage
                   src={active.image}
                   alt={active.name}
                   className="products-showcase__hero"
@@ -71,6 +72,7 @@ export function ProductsPage({
               <div className="products-showcase__picker" role="listbox" aria-label="เลือกสินค้า">
                 {products.map((product, index) => {
                   const selected = index === activeIndex;
+                  const nearActive = Math.abs(index - activeIndex) <= 2;
                   return (
                     <button
                       key={product.id}
@@ -80,7 +82,12 @@ export function ProductsPage({
                       className={`products-showcase__thumb ${selected ? 'products-showcase__thumb--active' : ''}`}
                       onClick={() => setActiveIndex(index)}
                     >
-                      <img src={product.image} alt={product.name} loading="lazy" decoding="async" />
+                      <SafeImage
+                        src={product.image}
+                        alt={product.name}
+                        loading={nearActive ? 'eager' : 'lazy'}
+                        decoding="async"
+                      />
                     </button>
                   );
                 })}

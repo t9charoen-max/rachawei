@@ -50,6 +50,10 @@ export async function compressImageFile(file: File): Promise<{ dataUrl: string; 
     const base = file.name.replace(/\.[^.]+$/, '') || 'photo';
     return { dataUrl, fileName: `${base}.jpg` };
   } catch {
+    // Don't keep a multi‑MB original — it freezes mobile when saved as a draft.
+    if (original.length > 1_400_000) {
+      throw new Error('รูปใหญ่เกินไปหรืออ่านไม่ได้ — ลองถ่ายใหม่หรือเลือกรูป JPEG/PNG');
+    }
     return { dataUrl: original, fileName: file.name || 'photo.jpg' };
   }
 }
