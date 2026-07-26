@@ -2989,6 +2989,7 @@
 }
 
 .admin-cover__preview {
+  position: relative;
   margin-bottom: 0.75rem;
   overflow: hidden;
   border-radius: 0.9rem;
@@ -3062,8 +3063,4 @@
   color: #fff;
   font-size: 0.9rem;
   font-weight: 700;
-}
-
-.admin-cover__preview {
-  position: relative;
 }
