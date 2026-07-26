@@ -24,6 +24,7 @@ const NAV_ITEMS = [
   { id: 'products' as const, icon: '🛍️', label: 'สินค้า' },
   { id: 'about' as const, icon: '📖', label: 'เกี่ยวกับ' },
   { id: 'contact' as const, icon: '📞', label: 'ติดต่อ' },
+  { id: 'admin' as const, icon: '⚙️', label: 'ร้าน' },
 ];
 
 function wantsAdmin(): boolean {
@@ -102,6 +103,15 @@ export function App() {
               <p className="truncate text-[0.7rem] text-cream-300/60">งานหัตถกรรมหวาย · สุรินทร์</p>
             </div>
           </button>
+          <button
+            type="button"
+            className="header-admin-btn"
+            onClick={() => goTo('admin')}
+            aria-label="จัดการหลังร้าน"
+            title="จัดการหลังร้าน"
+          >
+            ⚙️
+          </button>
           <a
             href={`tel:${SHOP_INFO.phone.replace(/-/g, '')}`}
             className="header-call-btn"
@@ -154,7 +164,11 @@ export function App() {
         )}
 
         {tab === 'about' && (
-          <AboutPage coverImage={coverImage} coverImageAlt={coverImageAlt} />
+          <AboutPage
+            coverImage={coverImage}
+            coverImageAlt={coverImageAlt}
+            onOpenAdmin={() => goTo('admin')}
+          />
         )}
 
         {tab === 'contact' && (
@@ -188,8 +202,14 @@ export function App() {
               </div>
             </div>
             <p className="contact-note">สนใจสินค้าใด กรอกฟอร์มหรือโทรสอบถามได้เลย</p>
-            <button type="button" className="admin-entry-link" onClick={() => goTo('admin')}>
-              สำหรับร้าน · จัดการสินค้า / ภาพหน้าปก
+            <button type="button" className="admin-entry-card" onClick={() => goTo('admin')}>
+              <span className="admin-entry-card__icon" aria-hidden>
+                ⚙️
+              </span>
+              <span>
+                <strong>จัดการหลังร้าน</strong>
+                <span>แก้ภาพหน้าปก · เพิ่มสินค้า · แก้รูป</span>
+              </span>
             </button>
             <ShopMap />
             <ErrorBoundary
@@ -207,30 +227,28 @@ export function App() {
 
       {tab === 'products' && !selected && <FloatingCallButton products={products} />}
 
-      {tab !== 'admin' && (
-        <nav className="sticky bottom-0 z-20 mx-3 mb-3 rounded-2xl border border-gold-400/10 bg-earth-900/90 p-1 shadow-2xl shadow-black/40 backdrop-blur-xl">
-          <div className="grid grid-cols-4">
-            {NAV_ITEMS.map(({ id, icon, label }) => {
-              const active = tab === id;
-              return (
-                <button
-                  key={id}
-                  type="button"
-                  onClick={() => goTo(id)}
-                  className={`flex flex-col items-center gap-0.5 rounded-xl py-2 text-[0.65rem] font-medium transition-all duration-200 ${
-                    active
-                      ? 'bg-gold-500/15 text-gold-400'
-                      : 'text-cream-300/50 hover:text-cream-200/80'
-                  }`}
-                >
-                  <span className={`text-lg transition-transform ${active ? 'scale-110' : ''}`}>{icon}</span>
-                  <span>{label}</span>
-                </button>
-              );
-            })}
-          </div>
-        </nav>
-      )}
+      <nav className="sticky bottom-0 z-20 mx-3 mb-3 rounded-2xl border border-gold-400/10 bg-earth-900/90 p-1 shadow-2xl shadow-black/40 backdrop-blur-xl">
+        <div className="grid grid-cols-5">
+          {NAV_ITEMS.map(({ id, icon, label }) => {
+            const active = tab === id;
+            return (
+              <button
+                key={id}
+                type="button"
+                onClick={() => goTo(id)}
+                className={`flex flex-col items-center gap-0.5 rounded-xl py-2 text-[0.62rem] font-medium transition-all duration-200 ${
+                  active
+                    ? 'bg-gold-500/15 text-gold-400'
+                    : 'text-cream-300/50 hover:text-cream-200/80'
+                }`}
+              >
+                <span className={`text-lg transition-transform ${active ? 'scale-110' : ''}`}>{icon}</span>
+                <span>{label}</span>
+              </button>
+            );
+          })}
+        </div>
+      </nav>
     </div>
   );
 }

@@ -4,9 +4,10 @@ import { BanthomKnowledgeSection } from './BanthomKnowledgeSection';
 interface AboutPageProps {
   coverImage?: string;
   coverImageAlt?: string;
+  onOpenAdmin?: () => void;
 }
 
-export function AboutPage({ coverImage, coverImageAlt }: AboutPageProps) {
+export function AboutPage({ coverImage, coverImageAlt, onOpenAdmin }: AboutPageProps) {
   return (
     <section className="screen about-screen py-4">
       <h2 className="section-title">เกี่ยวกับเรา</h2>
@@ -19,6 +20,18 @@ export function AboutPage({ coverImage, coverImageAlt }: AboutPageProps) {
         />
         <p>{SHOP_INFO.story}</p>
       </div>
+
+      {onOpenAdmin && (
+        <button type="button" className="admin-entry-card" onClick={onOpenAdmin}>
+          <span className="admin-entry-card__icon" aria-hidden>
+            ⚙️
+          </span>
+          <span>
+            <strong>จัดการหลังร้าน</strong>
+            <span>แก้ภาพหน้าปก · เพิ่มสินค้า · แก้รูป</span>
+          </span>
+        </button>
+      )}
 
       <ul className="about-list">
         <li>

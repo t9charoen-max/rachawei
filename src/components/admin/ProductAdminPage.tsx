@@ -18,7 +18,12 @@ import {
   type CatalogItem,
   type SiteSettings,
 } from '../../data/catalog';
-import { ADMIN_PIN, PRODUCT_CATEGORY_OPTIONS, type Product } from '../../data/products';
+import {
+  ADMIN_PIN,
+  PRODUCT_CATEGORY_OPTIONS,
+  SHOP_INFO,
+  type Product,
+} from '../../data/products';
 import { compressImageFile } from '../../utils/imageUpload';
 
 interface ProductAdminPageProps {
@@ -52,13 +57,32 @@ function previewSrc(src: string): string {
   return `/products/${src}`;
 }
 
+const UNLOCK_KEY = 'rachawei-admin-unlocked';
+
+function readUnlocked(): boolean {
+  try {
+    return sessionStorage.getItem(UNLOCK_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+function writeUnlocked(value: boolean) {
+  try {
+    if (value) sessionStorage.setItem(UNLOCK_KEY, '1');
+    else sessionStorage.removeItem(UNLOCK_KEY);
+  } catch {
+    // private mode may block storage — keep in memory only
+  }
+}
+
 export function ProductAdminPage({
   products,
   site,
   onCatalogChange,
   onClose,
 }: ProductAdminPageProps) {
-  const [unlocked, setUnlocked] = useState(false);
+  const [unlocked, setUnlocked] = useState(() => readUnlocked());
   const [pin, setPin] = useState('');
   const [pinError, setPinError] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -104,16 +128,36 @@ export function ProductAdminPage({
       images: item.images,
     });
     setMessage('');
+    requestAnimationFrame(() => {
+      document.getElementById('admin-product-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  };
+
+  const unlock = (value: string) => {
+    if (value.trim() === ADMIN_PIN) {
+      setUnlocked(true);
+      writeUnlocked(true);
+      setPinError('');
+      setPin('');
+      startCreate();
+      setMessage('เข้าสู่ระบบแล้ว — เลื่อนลงเพื่อแก้ภาพหน้าปกหรือสินค้า');
+      return true;
+    }
+    setPinError(`รหัสไม่ถูกต้อง — ใช้ 4 ตัวท้ายเบอร์ร้าน (${ADMIN_PIN})`);
+    return false;
   };
 
   const handleUnlock = (event: FormEvent) => {
     event.preventDefault();
-    if (pin.trim() === ADMIN_PIN) {
-      setUnlocked(true);
-      setPinError('');
-      startCreate();
-    } else {
-      setPinError('รหัสไม่ถูกต้อง');
+    unlock(pin);
+  };
+
+  const handlePinChange = (value: string) => {
+    const digits = value.replace(/\D/g, '').slice(0, 4);
+    setPin(digits);
+    setPinError('');
+    if (digits.length === 4) {
+      unlock(digits);
     }
   };
 
@@ -323,23 +367,32 @@ export function ProductAdminPage({
         <button type="button" className="btn btn--ghost back-btn" onClick={onClose}>
           ← กลับ
         </button>
-        <h2 className="section-title">จัดการสินค้า</h2>
-        <p className="admin-screen__hint">สำหรับเจ้าของร้าน — กรอกรหัส 4 ตัวท้ายเบอร์โทรร้าน</p>
+        <h2 className="section-title">จัดการหลังร้าน</h2>
+        <p className="admin-screen__hint">
+          สำหรับเจ้าของร้าน — กรอกรหัส 4 ตัวท้ายเบอร์โทรร้าน
+          <br />
+          เบอร์ร้าน {SHOP_INFO.phone} → รหัส <strong>{ADMIN_PIN}</strong>
+        </p>
         <form className="admin-pin" onSubmit={handleUnlock}>
           <input
-            type="password"
+            type="tel"
             inputMode="numeric"
+            pattern="[0-9]*"
             maxLength={4}
-            placeholder="••••"
+            placeholder="ใส่ 4 ตัวเลข"
             value={pin}
-            onChange={(e) => setPin(e.target.value)}
+            onChange={(e) => handlePinChange(e.target.value)}
             autoFocus
+            autoComplete="one-time-code"
           />
           <button type="submit" className="admin-pin__btn">
             เข้าสู่ระบบ
           </button>
           {pinError && <p className="admin-pin__error">{pinError}</p>}
         </form>
+        <p className="admin-screen__hint">
+          แนะนำ: อย่าใช้โหมดส่วนตัว/Incognito เพราะอาจบันทึกรูปไม่ได้
+        </p>
       </section>
     );
   }
@@ -355,14 +408,14 @@ export function ProductAdminPage({
         </button>
       </div>
 
-      <h2 className="section-title">จัดการหลังบ้าน</h2>
+      <h2 className="section-title">จัดการหลังร้าน</h2>
       <p className="admin-screen__hint">
-        แก้ภาพหน้าปก หรือเพิ่มสินค้า — บันทึกแล้วเห็นบนเครื่องทันที · แบบร่างสินค้า {draftCount}
-        รายการ{hasCoverDraft ? ' · มีแบบร่างหน้าปก' : ''}
+        1) แก้ภาพหน้าปกด้านบน · 2) เพิ่ม/แก้สินค้าด้านล่าง · แบบร่าง {draftCount} รายการ
+        {hasCoverDraft ? ' · มีแบบร่างหน้าปก' : ''}
       </p>
 
-      <div className="admin-form admin-cover">
-        <h3 className="admin-cover__title">ภาพหน้าปก (หน้าแรก)</h3>
+      <div id="admin-cover" className="admin-form admin-cover">
+        <h3 className="admin-cover__title">① ภาพหน้าปก (หน้าแรก)</h3>
         <div className="admin-cover__preview">
           {coverSrc ? (
             <img src={resolveSiteImage(coverSrc)} alt="ตัวอย่างหน้าปก" />
@@ -417,9 +470,9 @@ export function ProductAdminPage({
         </button>
       </div>
 
-      <h3 className="admin-section-title">สินค้า</h3>
+      <h3 className="admin-section-title">② สินค้า</h3>
 
-      <form className="admin-form" onSubmit={handleSave}>
+      <form id="admin-product-form" className="admin-form" onSubmit={handleSave}>
         <label className="admin-form__field">
           <span>รหัสสินค้า</span>
           <input
