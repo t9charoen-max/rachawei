@@ -149,32 +149,39 @@
   display: block;
 }
 
-.hero-carousel__track {
-  display: flex;
-  width: 100%;
-  height: 100%;
-  transition: transform 0.75s cubic-bezier(0.22, 1, 0.36, 1);
-  will-change: transform;
+.hero-carousel {
+  background: #1a120c;
 }
 
 .hero-carousel__slide {
-  position: relative;
-  flex: 0 0 100%;
-  width: 100%;
-  height: 100%;
-  overflow: hidden;
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity 0.85s ease,
+    visibility 0.85s ease,
+    transform 4s ease-out;
+  transform: scale(1.06);
+  will-change: opacity, transform;
+}
+
+.hero-carousel__slide--active {
+  opacity: 1;
+  visibility: visible;
+  transform: scale(1);
+  z-index: 1;
 }
 
 .hero-carousel__image {
+  display: block;
   width: 100%;
   height: 100%;
   object-fit: cover;
-  transform: scale(1.04);
-  transition: transform 5.2s ease-out;
-}
-
-.hero-carousel__image--active {
-  transform: scale(1);
+  object-position: center;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-drag: none;
 }
 
 .hero-carousel__dots {
