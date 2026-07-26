@@ -247,8 +247,8 @@ export function ProductAdminPage({
       onCatalogChange();
       setMessage(
         coverImages.length > 1
-          ? `บันทึกภาพหน้าปก ${coverImages.length} รูปแล้ว — หน้าแรกจะเลื่อนไหล · กด “เตรียมไฟล์อัปเดตเว็บ” เมื่อพร้อม`
-          : 'บันทึกภาพหน้าปกแล้ว — เห็นบนเครื่องนี้ทันที · กด “เตรียมไฟล์อัปเดตเว็บ” เมื่อพร้อมส่งให้ Cursor',
+          ? `บันทึกภาพหน้าปก ${coverImages.length} รูปแล้ว — หน้าแรกจะเลื่อนไหล · กด “เตรียมไฟล์ส่งคนอื่น” เมื่อพร้อม`
+          : 'บันทึกภาพหน้าปกแล้ว — เห็นบนเครื่องนี้ทันที · กด “เตรียมไฟล์ส่งคนอื่น” เมื่อพร้อม',
       );
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'บันทึกไม่สำเร็จ');
@@ -312,7 +312,7 @@ export function ProductAdminPage({
     try {
       persistDraft(item);
       setEditingId(item.id);
-      setMessage('บันทึกแล้ว — แสดงบนเครื่องนี้ทันที · กด “เตรียมไฟล์อัปเดตเว็บ” เมื่อพร้อมส่งให้ Cursor');
+      setMessage('บันทึกแล้ว — แสดงบนเครื่องนี้ทันที · กด “เตรียมไฟล์ส่งคนอื่น” เมื่อพร้อม');
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'บันทึกไม่สำเร็จ');
     }
@@ -523,7 +523,7 @@ export function ProductAdminPage({
 
       <h2 className="section-title">จัดการหลังร้าน</h2>
       <p className="admin-screen__hint">
-        บันทึก = เห็นบนเครื่องนี้ทันที · “เตรียมไฟล์อัปเดตเว็บ” = ส่งไฟล์ให้ Cursor อัปขึ้นเว็บลูกค้า
+        บันทึก = เห็นบนเครื่องนี้ทันที · “เตรียมไฟล์ส่งคนอื่น” = ได้ไฟล์+ข้อความส่งให้คนอื่น/Cursor อัปเว็บจริง
         <br />
         แบบร่าง {draftCount} รายการ{hasCoverDraft ? ' · มีแบบร่างหน้าปก' : ''}
       </p>
@@ -741,7 +741,7 @@ export function ProductAdminPage({
             บันทึกสินค้า
           </button>
           <button type="button" className="admin-form__publish" onClick={handlePublishClick}>
-            เตรียมไฟล์อัปเดตเว็บ
+            เตรียมไฟล์ส่งคนอื่น
           </button>
         </div>
       </form>
