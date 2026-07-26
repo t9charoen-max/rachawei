@@ -1,5 +1,6 @@
-import { useMemo, useState } from 'react';
-import { PRODUCTS, SHOP_INFO, type Category, type Product } from './data/products';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { SHOP_INFO, type Category, type Product } from './data/products';
+import { loadProducts } from './data/catalog';
 import { ProductsPage } from './components/products/ProductsPage';
 import { ProductDetail } from './components/ProductDetail';
 import { ErrorBoundary } from './components/ErrorBoundary';
@@ -9,8 +10,9 @@ import { ShopMap } from './components/ShopMap';
 import { VirtualTour } from './components/VirtualTour';
 import { AboutPage } from './components/about/AboutPage';
 import { HomePage } from './components/home/HomePage';
+import { ProductAdminPage } from './components/admin/ProductAdminPage';
 
-type Tab = 'home' | 'products' | 'about' | 'contact';
+type Tab = 'home' | 'products' | 'about' | 'contact' | 'admin';
 
 const NAV_ITEMS = [
   { id: 'home' as const, icon: '🏠', label: 'หน้าแรก' },
@@ -19,17 +21,46 @@ const NAV_ITEMS = [
   { id: 'contact' as const, icon: '📞', label: 'ติดต่อ' },
 ];
 
+function wantsAdmin(): boolean {
+  if (typeof window === 'undefined') return false;
+  const params = new URLSearchParams(window.location.search);
+  return params.get('admin') === '1' || window.location.hash === '#admin';
+}
+
 export function App() {
-  const [tab, setTab] = useState<Tab>('home');
+  const [tab, setTab] = useState<Tab>(() => (wantsAdmin() ? 'admin' : 'home'));
   const [category, setCategory] = useState<Category>('ทั้งหมด');
   const [selected, setSelected] = useState<Product | null>(null);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
+
+  const refreshCatalog = useCallback(async () => {
+    try {
+      const next = await loadProducts();
+      setProducts(next);
+      setLoadError('');
+      setSelected((current) => {
+        if (!current) return null;
+        return next.find((item) => item.id === current.id) ?? null;
+      });
+    } catch {
+      setLoadError('โหลดรายการสินค้าไม่สำเร็จ');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void refreshCatalog();
+  }, [refreshCatalog]);
 
   const filtered = useMemo(
     () =>
       category === 'ทั้งหมด'
-        ? PRODUCTS
-        : PRODUCTS.filter((p) => p.category === category),
-    [category],
+        ? products
+        : products.filter((p) => p.category === category),
+    [category, products],
   );
 
   const goTo = (next: Tab) => {
@@ -71,17 +102,28 @@ export function App() {
         </div>
       </header>
 
-      <main className={`flex-1 overflow-y-auto px-4 ${selected ? 'main--detail' : 'pb-4'}`}>
-        {tab === 'home' && (
+      <main className={`flex-1 overflow-y-auto px-4 ${selected && tab === 'products' ? 'main--detail' : 'pb-4'}`}>
+        {loading && <p className="contact-note">กำลังโหลดสินค้า…</p>}
+        {loadError && <p className="contact-note">{loadError}</p>}
+
+        {tab === 'admin' && (
+          <ProductAdminPage
+            products={products}
+            onCatalogChange={() => void refreshCatalog()}
+            onClose={() => goTo('home')}
+          />
+        )}
+
+        {tab === 'home' && !loading && (
           <HomePage
-            products={PRODUCTS}
+            products={products}
             onViewProducts={() => goTo('products')}
             onContact={() => goTo('contact')}
             onSelectProduct={selectProduct}
           />
         )}
 
-        {tab === 'products' && !selected && (
+        {tab === 'products' && !selected && !loading && (
           <ProductsPage
             products={filtered}
             category={category}
@@ -91,7 +133,11 @@ export function App() {
         )}
 
         {tab === 'products' && selected && (
-          <ProductDetail product={selected} onBack={() => setSelected(null)} />
+          <ProductDetail
+            product={selected}
+            products={products}
+            onBack={() => setSelected(null)}
+          />
         )}
 
         {tab === 'about' && <AboutPage />}
@@ -102,7 +148,7 @@ export function App() {
             <p className="contact-note contact-note--top">
               กรอกฟอร์มสั่งซื้อสั้น ๆ แล้วส่งเข้า LINE ได้ทันที หรือโทรคุยกับร้านโดยตรง
             </p>
-            <OrderActions layout="stack" size="lg" />
+            <OrderActions products={products} layout="stack" size="lg" />
             <div className="contact-card">
               <div className="contact-row">
                 <span className="contact-row__icon">📍</span>
@@ -127,6 +173,9 @@ export function App() {
               </div>
             </div>
             <p className="contact-note">สนใจสินค้าใด กรอกฟอร์มหรือโทรสอบถามได้เลย</p>
+            <button type="button" className="admin-entry-link" onClick={() => goTo('admin')}>
+              สำหรับร้าน · จัดการสินค้า / เพิ่มรูป
+            </button>
             <ShopMap />
             <ErrorBoundary
               fallback={
@@ -141,30 +190,32 @@ export function App() {
         )}
       </main>
 
-      {tab === 'products' && !selected && <FloatingCallButton />}
+      {tab === 'products' && !selected && <FloatingCallButton products={products} />}
 
-      <nav className="sticky bottom-0 z-20 mx-3 mb-3 rounded-2xl border border-gold-400/10 bg-earth-900/90 p-1 shadow-2xl shadow-black/40 backdrop-blur-xl">
-        <div className="grid grid-cols-4">
-          {NAV_ITEMS.map(({ id, icon, label }) => {
-            const active = tab === id;
-            return (
-              <button
-                key={id}
-                type="button"
-                onClick={() => goTo(id)}
-                className={`flex flex-col items-center gap-0.5 rounded-xl py-2 text-[0.65rem] font-medium transition-all duration-200 ${
-                  active
-                    ? 'bg-gold-500/15 text-gold-400'
-                    : 'text-cream-300/50 hover:text-cream-200/80'
-                }`}
-              >
-                <span className={`text-lg transition-transform ${active ? 'scale-110' : ''}`}>{icon}</span>
-                <span>{label}</span>
-              </button>
-            );
-          })}
-        </div>
-      </nav>
+      {tab !== 'admin' && (
+        <nav className="sticky bottom-0 z-20 mx-3 mb-3 rounded-2xl border border-gold-400/10 bg-earth-900/90 p-1 shadow-2xl shadow-black/40 backdrop-blur-xl">
+          <div className="grid grid-cols-4">
+            {NAV_ITEMS.map(({ id, icon, label }) => {
+              const active = tab === id;
+              return (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => goTo(id)}
+                  className={`flex flex-col items-center gap-0.5 rounded-xl py-2 text-[0.65rem] font-medium transition-all duration-200 ${
+                    active
+                      ? 'bg-gold-500/15 text-gold-400'
+                      : 'text-cream-300/50 hover:text-cream-200/80'
+                  }`}
+                >
+                  <span className={`text-lg transition-transform ${active ? 'scale-110' : ''}`}>{icon}</span>
+                  <span>{label}</span>
+                </button>
+              );
+            })}
+          </div>
+        </nav>
+      )}
     </div>
   );
 }

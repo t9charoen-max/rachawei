@@ -9,6 +9,7 @@ import { TrustBadges } from './TrustBadges';
 
 interface ProductDetailProps {
   product: Product;
+  products?: Product[];
   onBack: () => void;
 }
 
@@ -16,7 +17,7 @@ type ViewMode = 'photo' | '360';
 
 const SWIPE_THRESHOLD = 48;
 
-export function ProductDetail({ product, onBack }: ProductDetailProps) {
+export function ProductDetail({ product, products = [], onBack }: ProductDetailProps) {
   const has360 = Boolean(product.panorama360);
   const photos = getProductImages(product);
   const hasGallery = photos.length > 1;
@@ -162,7 +163,7 @@ export function ProductDetail({ product, onBack }: ProductDetailProps) {
         <HowToOrder />
       </section>
 
-      <StickyOrderBar product={product} />
+      <StickyOrderBar product={product} products={products} />
     </>
   );
 }
