@@ -20,7 +20,7 @@ export const HOME_CONTENT = {
     subheadline:
       'ตะกร้าหวายหลากหลายทรง สานมือจากหมู่บ้านจักสานบ้านบุทม — สืบสานภูมิปัญญาอีสาน สร้างรายได้ให้ช่างฝีมือท้องถิ่น',
     badge: 'OTOP สุรินทร์ · หมู่บ้านจักสานบ้านบุทม',
-    image: '/images/shop/shop-interior-1.jpg',
+    image: '/images/shop/hero-slide-01.jpg',
     imageAlt: 'ตะกร้าหวายสานมือภายในร้านราชาหวายสุรินทร์',
   },
   story: {

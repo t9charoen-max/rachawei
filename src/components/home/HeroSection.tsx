@@ -8,8 +8,8 @@ interface HeroSectionProps {
   coverImageAlt?: string;
 }
 
-const AUTO_MS = 5200;
-const SWIPE_THRESHOLD = 48;
+const AUTO_MS = 4000;
+const SWIPE_THRESHOLD = 40;
 
 export function HeroSection({
   onViewProducts,
@@ -18,18 +18,26 @@ export function HeroSection({
   coverImageAlt,
 }: HeroSectionProps) {
   const { hero } = HOME_CONTENT;
-  const slides =
-    coverImages?.length ? coverImages : [hero.image];
+  const slides = coverImages?.length ? coverImages : [hero.image];
   const imageAlt = coverImageAlt || hero.imageAlt;
   const [index, setIndex] = useState(0);
   const [paused, setPaused] = useState(false);
   const touchStartX = useRef<number | null>(null);
+  const resumeTimer = useRef<number | null>(null);
   const multi = slides.length > 1;
-
-  const slideKey = `${slides.length}:${slides[0] ?? ''}:${slides[slides.length - 1] ?? ''}`;
+  const slideKey = `${slides.length}:${slides.map((src) => src.slice(0, 64)).join('|')}`;
 
   useEffect(() => {
     setIndex(0);
+  }, [slideKey]);
+
+  // Preload so slides actually appear when the index changes
+  useEffect(() => {
+    slides.forEach((src) => {
+      const img = new Image();
+      img.src = src;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed by slideKey
   }, [slideKey]);
 
   useEffect(() => {
@@ -40,28 +48,35 @@ export function HeroSection({
     return () => window.clearInterval(timer);
   }, [multi, paused, slides.length]);
 
+  useEffect(() => {
+    return () => {
+      if (resumeTimer.current != null) window.clearTimeout(resumeTimer.current);
+    };
+  }, []);
+
   const goTo = (next: number) => {
     if (!slides.length) return;
-    setIndex((next + slides.length) % slides.length);
+    setIndex(((next % slides.length) + slides.length) % slides.length);
+  };
+
+  const pauseBriefly = () => {
+    setPaused(true);
+    if (resumeTimer.current != null) window.clearTimeout(resumeTimer.current);
+    resumeTimer.current = window.setTimeout(() => setPaused(false), 2200);
   };
 
   const handleTouchStart = (event: React.TouchEvent) => {
     touchStartX.current = event.changedTouches[0]?.clientX ?? null;
-    setPaused(true);
   };
 
   const handleTouchEnd = (event: React.TouchEvent) => {
-    if (touchStartX.current == null || !multi) {
-      setPaused(false);
-      return;
-    }
+    if (touchStartX.current == null || !multi) return;
     const endX = event.changedTouches[0]?.clientX ?? touchStartX.current;
     const delta = endX - touchStartX.current;
     touchStartX.current = null;
-    if (Math.abs(delta) >= SWIPE_THRESHOLD) {
-      goTo(index + (delta < 0 ? 1 : -1));
-    }
-    window.setTimeout(() => setPaused(false), 1800);
+    if (Math.abs(delta) < SWIPE_THRESHOLD) return;
+    goTo(index + (delta < 0 ? 1 : -1));
+    pauseBriefly();
   };
 
   return (
@@ -70,35 +85,34 @@ export function HeroSection({
         className="relative min-h-[58vh] sm:min-h-[62vh]"
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
-        onMouseEnter={() => setPaused(true)}
-        onMouseLeave={() => setPaused(false)}
       >
-        <div className="absolute inset-0 overflow-hidden">
-          <div
-            className="hero-carousel__track"
-            style={{ transform: `translate3d(-${index * 100}%, 0)` }}
-          >
-            {slides.map((src, slideIndex) => (
-              <div key={`${slideIndex}-${src.slice(0, 48)}`} className="hero-carousel__slide">
+        <div className="hero-carousel absolute inset-0 overflow-hidden" aria-hidden={false}>
+          {slides.map((src, slideIndex) => {
+            const active = slideIndex === index;
+            return (
+              <div
+                key={`${slideIndex}-${src.slice(0, 48)}`}
+                className={`hero-carousel__slide ${active ? 'hero-carousel__slide--active' : ''}`}
+                aria-hidden={!active}
+              >
                 <img
                   src={src}
-                  alt={slideIndex === index ? imageAlt : ''}
-                  aria-hidden={slideIndex !== index}
-                  className={`hero-carousel__image ${slideIndex === index ? 'hero-carousel__image--active' : ''}`}
+                  alt={active ? imageAlt : ''}
+                  className="hero-carousel__image"
+                  loading={slideIndex === 0 ? 'eager' : 'eager'}
+                  decoding="async"
+                  draggable={false}
                 />
               </div>
-            ))}
-          </div>
+            );
+          })}
         </div>
 
-        <div className="absolute inset-0 bg-woven-pattern opacity-40" />
-        <div className="absolute inset-0 bg-gradient-to-t from-earth-950 via-earth-950/70 to-earth-900/30" />
-        <div className="absolute inset-0 bg-gradient-to-br from-earth-950/50 via-transparent to-transparent" />
+        <div className="pointer-events-none absolute inset-0 bg-woven-pattern opacity-40" />
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-earth-950 via-earth-950/55 to-earth-900/25" />
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-earth-950/40 via-transparent to-transparent" />
 
-        <div className="absolute top-0 right-0 h-64 w-64 rounded-full bg-gold-500/5 blur-3xl" />
-        <div className="absolute bottom-20 left-0 h-48 w-48 rounded-full bg-terracotta/5 blur-3xl" />
-
-        <div className="relative flex min-h-[58vh] flex-col justify-between px-5 pt-8 pb-10 sm:min-h-[62vh] sm:px-8 sm:pb-14">
+        <div className="relative z-10 flex min-h-[58vh] flex-col justify-between px-5 pt-8 pb-10 sm:min-h-[62vh] sm:px-8 sm:pb-14">
           <div className="animate-fade-in flex items-center gap-2">
             <span className="flex h-9 w-9 items-center justify-center rounded-full border border-gold-400/20 bg-earth-900/60 text-lg backdrop-blur-sm">
               👑
@@ -152,8 +166,7 @@ export function HeroSection({
                     className={`hero-carousel__dot ${dotIndex === index ? 'hero-carousel__dot--active' : ''}`}
                     onClick={() => {
                       goTo(dotIndex);
-                      setPaused(true);
-                      window.setTimeout(() => setPaused(false), 1800);
+                      pauseBriefly();
                     }}
                   />
                 ))}
