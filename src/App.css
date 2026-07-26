@@ -1476,6 +1476,10 @@
   color: #6b5340;
 }
 
+.products-showcase__brand-mark {
+  margin: 0 auto;
+}
+
 .products-showcase__category {
   margin: 0.35rem 0 0;
   font-size: 0.72rem;
@@ -3477,4 +3481,147 @@
   color: #fff;
   font-size: 0.9rem;
   font-weight: 700;
+}
+
+/* ——— Brand wordmark ——— */
+.brand-mark {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.65rem;
+  text-align: left;
+}
+
+.brand-mark__seal {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  border-radius: 0.9rem;
+  background:
+    radial-gradient(circle at 30% 25%, rgba(247, 231, 176, 0.22), transparent 55%),
+    linear-gradient(145deg, #3a2a1c 0%, #1c140e 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(247, 231, 176, 0.22),
+    0 6px 14px rgba(0, 0, 0, 0.28);
+}
+
+.brand-mark__seal--header {
+  width: 2.55rem;
+  height: 2.55rem;
+  border: 1px solid rgba(212, 168, 83, 0.35);
+}
+
+.brand-mark__seal--hero {
+  width: 2.35rem;
+  height: 2.35rem;
+  border-radius: 999px;
+  border: 1px solid rgba(212, 168, 83, 0.4);
+}
+
+.brand-mark__seal--showcase,
+.brand-mark__seal--inline {
+  width: 1.85rem;
+  height: 1.85rem;
+  border-radius: 999px;
+  border: 1px solid rgba(139, 105, 20, 0.35);
+  background:
+    radial-gradient(circle at 30% 25%, rgba(212, 168, 83, 0.2), transparent 55%),
+    linear-gradient(145deg, #f3ebe0, #e4d5c2);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55);
+}
+
+.brand-mark__text {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 0.05rem;
+  line-height: 1.15;
+}
+
+.brand-mark__primary {
+  font-family: var(--font-brand), 'Fahkwang', 'Sarabun', sans-serif;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  background: linear-gradient(
+    180deg,
+    #fff4c8 0%,
+    #f0d78c 28%,
+    #d4a853 58%,
+    #a67c32 86%,
+    #7a5620 100%
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  filter:
+    drop-shadow(0 1px 0 rgba(255, 244, 200, 0.28))
+    drop-shadow(0 2px 3px rgba(0, 0, 0, 0.45));
+}
+
+.brand-mark__secondary {
+  font-family: var(--font-brand), 'Fahkwang', 'Sarabun', sans-serif;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: none;
+  color: rgba(232, 217, 200, 0.78);
+}
+
+.brand-mark__tagline {
+  margin-top: 0.12rem;
+  font-size: 0.68rem;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  color: rgba(201, 184, 168, 0.72);
+}
+
+.brand-mark--header .brand-mark__primary {
+  font-size: 1.05rem;
+}
+
+.brand-mark--header .brand-mark__secondary {
+  font-size: 0.68rem;
+}
+
+.brand-mark--hero .brand-mark__primary {
+  font-size: 1rem;
+  filter:
+    drop-shadow(0 1px 0 rgba(255, 244, 200, 0.35))
+    drop-shadow(0 2px 8px rgba(0, 0, 0, 0.45));
+}
+
+.brand-mark--hero .brand-mark__secondary {
+  font-size: 0.66rem;
+  color: rgba(247, 240, 230, 0.82);
+}
+
+.brand-mark--showcase {
+  justify-content: center;
+  gap: 0.45rem;
+}
+
+.brand-mark--showcase .brand-mark__text {
+  align-items: flex-start;
+}
+
+.brand-mark--showcase .brand-mark__primary {
+  font-size: 0.95rem;
+  background: linear-gradient(180deg, #8b6914 0%, #6b4f1a 55%, #4a3520 100%);
+  filter:
+    drop-shadow(0 1px 0 rgba(255, 255, 255, 0.35))
+    drop-shadow(0 1px 2px rgba(74, 53, 32, 0.2));
+}
+
+.brand-mark--showcase .brand-mark__secondary {
+  font-size: 0.62rem;
+  letter-spacing: 0.16em;
+  color: #7a624c;
+}
+
+.brand-mark--inline .brand-mark__primary {
+  font-size: 0.88rem;
+}
+
+.brand-mark--inline .brand-mark__secondary {
+  font-size: 0.62rem;
 }
