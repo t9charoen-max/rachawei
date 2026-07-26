@@ -164,11 +164,7 @@ export function App() {
         )}
 
         {tab === 'about' && (
-          <AboutPage
-            coverImage={coverImage}
-            coverImageAlt={coverImageAlt}
-            onOpenAdmin={() => goTo('admin')}
-          />
+          <AboutPage coverImage={coverImage} coverImageAlt={coverImageAlt} />
         )}
 
         {tab === 'contact' && (
@@ -202,15 +198,6 @@ export function App() {
               </div>
             </div>
             <p className="contact-note">สนใจสินค้าใด กรอกฟอร์มหรือโทรสอบถามได้เลย</p>
-            <button type="button" className="admin-entry-card" onClick={() => goTo('admin')}>
-              <span className="admin-entry-card__icon" aria-hidden>
-                ⚙️
-              </span>
-              <span>
-                <strong>จัดการหลังร้าน</strong>
-                <span>แก้ภาพหน้าปก · เพิ่มสินค้า · แก้รูป</span>
-              </span>
-            </button>
             <ShopMap />
             <ErrorBoundary
               fallback={
