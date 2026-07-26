@@ -1,5 +1,6 @@
 import {
   PRODUCT_IMAGE_VERSION,
+  SHOP_INFO,
   type Product,
 } from './products';
 import { safeLocalStorageSet } from '../utils/imageUpload';
@@ -24,6 +25,15 @@ export interface SiteSettings {
   heroCoverAlt: string;
   /** ภาพหน้าปกเลื่อนได้หลายรูป */
   heroCovers: string[];
+  /** ภาพในหน้าเกี่ยวกับเรา */
+  aboutImage: string;
+  aboutImageAlt: string;
+  /** ข้อความ/ข้อมูลร้าน */
+  shopName: string;
+  story: string;
+  location: string;
+  hours: string;
+  phone: string;
 }
 
 export const DEFAULT_SITE_SETTINGS: SiteSettings = {
@@ -35,6 +45,13 @@ export const DEFAULT_SITE_SETTINGS: SiteSettings = {
     '/images/shop/hero-slide-03.jpg',
     '/images/shop/hero-slide-04.jpg',
   ],
+  aboutImage: '/images/shop/hero-slide-01.jpg',
+  aboutImageAlt: 'ช่างสานหวายราชาหวายสุรินทร์',
+  shopName: SHOP_INFO.name,
+  story: SHOP_INFO.story,
+  location: SHOP_INFO.location,
+  hours: SHOP_INFO.hours,
+  phone: SHOP_INFO.phone,
 };
 
 export function normalizeSiteSettings(
@@ -49,11 +66,21 @@ export function normalizeSiteSettings(
   ).filter((src): src is string => typeof src === 'string' && src.length > 0);
 
   const heroCovers = covers.length ? covers : [...DEFAULT_SITE_SETTINGS.heroCovers];
+  const aboutImage =
+    (typeof data?.aboutImage === 'string' && data.aboutImage) ||
+    DEFAULT_SITE_SETTINGS.aboutImage;
 
   return {
     heroCovers,
     heroCover: heroCovers[0],
     heroCoverAlt: data?.heroCoverAlt?.trim() || DEFAULT_SITE_SETTINGS.heroCoverAlt,
+    aboutImage,
+    aboutImageAlt: data?.aboutImageAlt?.trim() || DEFAULT_SITE_SETTINGS.aboutImageAlt,
+    shopName: data?.shopName?.trim() || DEFAULT_SITE_SETTINGS.shopName,
+    story: data?.story?.trim() || DEFAULT_SITE_SETTINGS.story,
+    location: data?.location?.trim() || DEFAULT_SITE_SETTINGS.location,
+    hours: data?.hours?.trim() || DEFAULT_SITE_SETTINGS.hours,
+    phone: data?.phone?.trim() || DEFAULT_SITE_SETTINGS.phone,
   };
 }
 
@@ -219,6 +246,12 @@ export function suggestCoverFilename(fileName: string, index = 0): string {
   const ext = fileName.includes('.') ? fileName.split('.').pop()?.toLowerCase() : 'jpg';
   const safeExt = ext && ['jpg', 'jpeg', 'png', 'webp'].includes(ext) ? ext.replace('jpeg', 'jpg') : 'jpg';
   return `hero-cover-${String(index + 1).padStart(2, '0')}.${safeExt}`;
+}
+
+export function suggestAboutFilename(fileName: string): string {
+  const ext = fileName.includes('.') ? fileName.split('.').pop()?.toLowerCase() : 'jpg';
+  const safeExt = ext && ['jpg', 'jpeg', 'png', 'webp'].includes(ext) ? ext.replace('jpeg', 'jpg') : 'jpg';
+  return `about-cover.${safeExt}`;
 }
 
 export function nextProductId(items: CatalogItem[]): string {

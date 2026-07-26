@@ -64,8 +64,14 @@ export function App() {
   }, [refreshCatalog]);
 
   const coverImages = site?.heroCovers.map(resolveSiteImage);
-  const coverImage = coverImages?.[0];
   const coverImageAlt = site?.heroCoverAlt;
+  const shopName = site?.shopName || SHOP_INFO.name;
+  const shopPhone = site?.phone || SHOP_INFO.phone;
+  const shopLocation = site?.location || SHOP_INFO.location;
+  const shopHours = site?.hours || SHOP_INFO.hours;
+  const aboutImage = site ? resolveSiteImage(site.aboutImage) : undefined;
+  const aboutImageAlt = site?.aboutImageAlt;
+  const aboutStory = site?.story || SHOP_INFO.story;
 
   const filtered = useMemo(
     () =>
@@ -100,7 +106,7 @@ export function App() {
               👑
             </span>
             <div className="min-w-0 flex-1">
-              <p className="font-display truncate text-base font-bold text-gold-400">{SHOP_INFO.name}</p>
+              <p className="font-display truncate text-base font-bold text-gold-400">{shopName}</p>
               <p className="truncate text-[0.7rem] text-cream-300/60">งานหัตถกรรมหวาย · สุรินทร์</p>
             </div>
           </button>
@@ -114,7 +120,7 @@ export function App() {
             ⚙️
           </button>
           <a
-            href={`tel:${SHOP_INFO.phone.replace(/-/g, '')}`}
+            href={`tel:${shopPhone.replace(/-/g, '')}`}
             className="header-call-btn"
             aria-label="โทรสั่งซื้อ"
           >
@@ -133,6 +139,7 @@ export function App() {
             site={site}
             onCatalogChange={() => void refreshCatalog()}
             onClose={() => goTo('home')}
+            onViewAbout={() => goTo('about')}
           />
         )}
 
@@ -165,7 +172,14 @@ export function App() {
         )}
 
         {tab === 'about' && (
-          <AboutPage coverImage={coverImage} coverImageAlt={coverImageAlt} />
+          <AboutPage
+            image={aboutImage}
+            imageAlt={aboutImageAlt}
+            story={aboutStory}
+            location={shopLocation}
+            hours={shopHours}
+            phone={shopPhone}
+          />
         )}
 
         {tab === 'contact' && (
@@ -180,21 +194,21 @@ export function App() {
                 <span className="contact-row__icon">📍</span>
                 <div>
                   <strong>ที่อยู่</strong>
-                  <p>{SHOP_INFO.location}</p>
+                  <p>{shopLocation}</p>
                 </div>
               </div>
               <div className="contact-row">
                 <span className="contact-row__icon">📞</span>
                 <div>
                   <strong>โทรศัพท์</strong>
-                  <p>{SHOP_INFO.phone}</p>
+                  <p>{shopPhone}</p>
                 </div>
               </div>
               <div className="contact-row">
                 <span className="contact-row__icon">🕐</span>
                 <div>
                   <strong>เวลาทำการ</strong>
-                  <p>{SHOP_INFO.hours}</p>
+                  <p>{shopHours}</p>
                 </div>
               </div>
             </div>

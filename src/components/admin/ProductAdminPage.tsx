@@ -13,6 +13,7 @@ import {
   resolveSiteImage,
   saveDraftItems,
   saveSiteDraft,
+  suggestAboutFilename,
   suggestCoverFilename,
   suggestImageFilename,
   type CatalogItem,
@@ -31,6 +32,7 @@ interface ProductAdminPageProps {
   site: SiteSettings | null;
   onCatalogChange: () => void;
   onClose: () => void;
+  onViewAbout?: () => void;
 }
 
 interface FormState {
@@ -81,6 +83,7 @@ export function ProductAdminPage({
   site,
   onCatalogChange,
   onClose,
+  onViewAbout,
 }: ProductAdminPageProps) {
   const [unlocked, setUnlocked] = useState(() => readUnlocked());
   const [pin, setPin] = useState('');
@@ -91,6 +94,15 @@ export function ProductAdminPage({
   const [coverAlt, setCoverAlt] = useState(DEFAULT_SITE_SETTINGS.heroCoverAlt);
   const [coverBusy, setCoverBusy] = useState(false);
   const [coverDirty, setCoverDirty] = useState(false);
+  const [aboutImage, setAboutImage] = useState(DEFAULT_SITE_SETTINGS.aboutImage);
+  const [aboutImageAlt, setAboutImageAlt] = useState(DEFAULT_SITE_SETTINGS.aboutImageAlt);
+  const [shopName, setShopName] = useState(DEFAULT_SITE_SETTINGS.shopName);
+  const [story, setStory] = useState(DEFAULT_SITE_SETTINGS.story);
+  const [location, setLocation] = useState(DEFAULT_SITE_SETTINGS.location);
+  const [hours, setHours] = useState(DEFAULT_SITE_SETTINGS.hours);
+  const [phone, setPhone] = useState(DEFAULT_SITE_SETTINGS.phone);
+  const [aboutBusy, setAboutBusy] = useState(false);
+  const [aboutDirty, setAboutDirty] = useState(false);
   const [message, setMessage] = useState('');
   const [publishStep, setPublishStep] = useState<'idle' | 'confirm' | 'done'>('idle');
   const [publishSummary, setPublishSummary] = useState('');
@@ -98,19 +110,40 @@ export function ProductAdminPage({
   const [copyStatus, setCopyStatus] = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
   const coverRef = useRef<HTMLInputElement>(null);
+  const aboutRef = useRef<HTMLInputElement>(null);
 
   const baseItems = useMemo(() => products.map(productToCatalogItem), [products]);
   const draftItems = loadDraftItems();
   const draftIds = new Set(draftItems.map((item) => item.id));
   const draftCount = draftItems.length;
-  const hasCoverDraft = Boolean(loadSiteDraft());
+  const hasSiteDraft = Boolean(loadSiteDraft());
+
+  const buildSiteSettings = (): SiteSettings => ({
+    heroCover: coverImages[0] || DEFAULT_SITE_SETTINGS.heroCover,
+    heroCoverAlt: coverAlt.trim() || DEFAULT_SITE_SETTINGS.heroCoverAlt,
+    heroCovers: coverImages.length ? coverImages : DEFAULT_SITE_SETTINGS.heroCovers,
+    aboutImage: aboutImage || DEFAULT_SITE_SETTINGS.aboutImage,
+    aboutImageAlt: aboutImageAlt.trim() || DEFAULT_SITE_SETTINGS.aboutImageAlt,
+    shopName: shopName.trim() || DEFAULT_SITE_SETTINGS.shopName,
+    story: story.trim() || DEFAULT_SITE_SETTINGS.story,
+    location: location.trim() || DEFAULT_SITE_SETTINGS.location,
+    hours: hours.trim() || DEFAULT_SITE_SETTINGS.hours,
+    phone: phone.trim() || DEFAULT_SITE_SETTINGS.phone,
+  });
 
   useEffect(() => {
-    if (coverDirty) return;
+    if (coverDirty || aboutDirty) return;
     const current = site ?? DEFAULT_SITE_SETTINGS;
     setCoverImages(current.heroCovers);
     setCoverAlt(current.heroCoverAlt);
-  }, [site, coverDirty]);
+    setAboutImage(current.aboutImage);
+    setAboutImageAlt(current.aboutImageAlt);
+    setShopName(current.shopName);
+    setStory(current.story);
+    setLocation(current.location);
+    setHours(current.hours);
+    setPhone(current.phone);
+  }, [site, coverDirty, aboutDirty]);
 
   const startCreate = () => {
     const id = nextProductId(baseItems);
@@ -238,18 +271,56 @@ export function ProductAdminPage({
       return;
     }
     try {
-      saveSiteDraft({
-        heroCover: coverImages[0],
-        heroCoverAlt: coverAlt.trim() || DEFAULT_SITE_SETTINGS.heroCoverAlt,
-        heroCovers: coverImages,
-      });
+      saveSiteDraft(buildSiteSettings());
       setCoverDirty(false);
+      setAboutDirty(false);
       onCatalogChange();
       setMessage(
         coverImages.length > 1
           ? `บันทึกภาพหน้าปก ${coverImages.length} รูปแล้ว — หน้าแรกจะเลื่อนไหล · กด “เตรียมไฟล์ส่งคนอื่น” เมื่อพร้อม`
           : 'บันทึกภาพหน้าปกแล้ว — เห็นบนเครื่องนี้ทันที · กด “เตรียมไฟล์ส่งคนอื่น” เมื่อพร้อม',
       );
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'บันทึกไม่สำเร็จ');
+    }
+  };
+
+  const handleAboutFile = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) {
+      setMessage('ยังไม่ได้เลือกไฟล์ — ลองใหม่อีกครั้ง');
+      return;
+    }
+    setAboutBusy(true);
+    setMessage('กำลังเตรียมภาพเกี่ยวกับเรา…');
+    try {
+      const { dataUrl } = await compressImageFile(file);
+      setAboutImage(dataUrl);
+      setAboutDirty(true);
+      setMessage('เลือกภาพเกี่ยวกับเราแล้ว — กด “บันทึกเกี่ยวกับเรา” เพื่อยืนยัน');
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'เลือกภาพไม่สำเร็จ ลองใหม่');
+    } finally {
+      setAboutBusy(false);
+      event.target.value = '';
+    }
+  };
+
+  const handleSaveAbout = () => {
+    if (!aboutImage) {
+      setMessage('กรุณาเลือกภาพเกี่ยวกับเรา');
+      return;
+    }
+    if (!story.trim()) {
+      setMessage('กรุณาใส่ข้อความเกี่ยวกับเรา');
+      return;
+    }
+    try {
+      saveSiteDraft(buildSiteSettings());
+      setCoverDirty(false);
+      setAboutDirty(false);
+      onCatalogChange();
+      setMessage('บันทึกเกี่ยวกับเราและข้อมูลร้านแล้ว — เห็นบนเครื่องนี้ทันที');
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'บันทึกไม่สำเร็จ');
     }
@@ -353,6 +424,7 @@ export function ProductAdminPage({
     }
 
     let publishedCovers = site?.heroCovers ?? DEFAULT_SITE_SETTINGS.heroCovers;
+    let publishedAboutImage = site?.aboutImage ?? DEFAULT_SITE_SETTINGS.aboutImage;
     if (siteDraft) {
       publishedCovers = siteDraft.heroCovers.map((src, index) => {
         if (src.startsWith('data:')) {
@@ -362,6 +434,13 @@ export function ProductAdminPage({
         }
         return src;
       });
+      if (siteDraft.aboutImage.startsWith('data:')) {
+        const filename = suggestAboutFilename('about.jpg');
+        downloadDataUrl(filename, siteDraft.aboutImage);
+        publishedAboutImage = `/images/shop/${filename}`;
+      } else {
+        publishedAboutImage = siteDraft.aboutImage;
+      }
       downloadTextFile(
         'site.json',
         `${JSON.stringify(
@@ -369,6 +448,13 @@ export function ProductAdminPage({
             heroCover: publishedCovers[0],
             heroCoverAlt: siteDraft.heroCoverAlt,
             heroCovers: publishedCovers,
+            aboutImage: publishedAboutImage,
+            aboutImageAlt: siteDraft.aboutImageAlt,
+            shopName: siteDraft.shopName,
+            story: siteDraft.story,
+            location: siteDraft.location,
+            hours: siteDraft.hours,
+            phone: siteDraft.phone,
           },
           null,
           2,
@@ -380,7 +466,7 @@ export function ProductAdminPage({
       namedDrafts.length ? 'products.json' : null,
       siteDraft ? 'site.json' : null,
       namedDrafts.length ? 'รูปสินค้าที่ดาวน์โหลดมาด้วย (basket-…)' : null,
-      siteDraft ? 'รูปหน้าปกที่ดาวน์โหลดมาด้วย (hero-cover-…)' : null,
+      siteDraft ? 'รูปหน้าปก/เกี่ยวกับเราที่ดาวน์โหลดมาด้วย (hero-cover-… / about-cover…)' : null,
       'ส่งให้คนอัปเดตเว็บ.txt',
     ]
       .filter(Boolean)
@@ -405,10 +491,13 @@ export function ProductAdminPage({
         : null,
       siteDraft
         ? [
-            '【ภาพหน้าปก】',
+            '【หน้าปก / เกี่ยวกับเรา / ข้อมูลร้าน】',
             '- วางไฟล์ site.json → public/catalog/site.json',
-            '- วางรูปหน้าปกที่ส่งมา → public/images/shop/',
+            '- วางรูปที่ส่งมา → public/images/shop/',
             `- ภาพหน้าปก ${publishedCovers.length} รูป: ${publishedCovers.join(', ')}`,
+            `- ภาพเกี่ยวกับเรา: ${publishedAboutImage}`,
+            `- ชื่อร้าน: ${siteDraft.shopName}`,
+            `- ที่อยู่: ${siteDraft.location}`,
             '',
           ].join('\n')
         : null,
@@ -525,7 +614,7 @@ export function ProductAdminPage({
       <p className="admin-screen__hint">
         บันทึก = เห็นบนเครื่องนี้ทันที · “เตรียมไฟล์ส่งคนอื่น” = ได้ไฟล์+ข้อความส่งให้คนอื่น/Cursor อัปเว็บจริง
         <br />
-        แบบร่าง {draftCount} รายการ{hasCoverDraft ? ' · มีแบบร่างหน้าปก' : ''}
+        แบบร่างสินค้า {draftCount} รายการ{hasSiteDraft ? ' · มีแบบร่างข้อมูลร้าน' : ''}
       </p>
 
       <div id="admin-cover" className="admin-form admin-cover">
@@ -627,7 +716,136 @@ export function ProductAdminPage({
         </div>
       </div>
 
-      <h3 className="admin-section-title">② สินค้า</h3>
+      <div id="admin-about" className="admin-form admin-cover">
+        <h3 className="admin-cover__title">② เกี่ยวกับเรา / ข้อมูลร้าน</h3>
+        <p className="admin-file-status">แก้ภาพและข้อความในหน้าเกี่ยวกับ + ที่อยู่/เวลา/โทร ที่หน้าติดต่อ</p>
+
+        <div className="admin-cover__preview">
+          {aboutImage ? (
+            <img src={resolveSiteImage(aboutImage)} alt="ตัวอย่างเกี่ยวกับเรา" />
+          ) : (
+            <span>ยังไม่มีภาพ</span>
+          )}
+          {aboutBusy && <span className="admin-cover__busy">กำลังโหลดรูป…</span>}
+        </div>
+
+        <input
+          ref={aboutRef}
+          type="file"
+          accept="image/*,.jpg,.jpeg,.png,.webp"
+          className="admin-file-input"
+          onChange={handleAboutFile}
+        />
+        <button
+          type="button"
+          className="admin-file-btn"
+          disabled={aboutBusy}
+          onClick={() => aboutRef.current?.click()}
+        >
+          {aboutBusy ? 'กำลังเตรียมรูป…' : 'เลือกภาพเกี่ยวกับเรา / ถ่ายรูป'}
+        </button>
+
+        <label className="admin-form__field">
+          <span>ชื่อร้าน</span>
+          <input
+            value={shopName}
+            onChange={(e) => {
+              setShopName(e.target.value);
+              setAboutDirty(true);
+            }}
+            placeholder="ราชาหวายสุรินทร์"
+          />
+        </label>
+
+        <label className="admin-form__field">
+          <span>ข้อความเกี่ยวกับเรา *</span>
+          <textarea
+            rows={4}
+            value={story}
+            onChange={(e) => {
+              setStory(e.target.value);
+              setAboutDirty(true);
+            }}
+            placeholder="เล่าเรื่องร้านสั้น ๆ"
+          />
+        </label>
+
+        <label className="admin-form__field">
+          <span>คำอธิบายภาพ</span>
+          <input
+            value={aboutImageAlt}
+            onChange={(e) => {
+              setAboutImageAlt(e.target.value);
+              setAboutDirty(true);
+            }}
+            placeholder="เช่น ช่างสานหวายในร้าน"
+          />
+        </label>
+
+        <label className="admin-form__field">
+          <span>ที่อยู่</span>
+          <textarea
+            rows={2}
+            value={location}
+            onChange={(e) => {
+              setLocation(e.target.value);
+              setAboutDirty(true);
+            }}
+            placeholder="ที่อยู่ร้าน"
+          />
+        </label>
+
+        <label className="admin-form__field">
+          <span>เวลาทำการ</span>
+          <input
+            value={hours}
+            onChange={(e) => {
+              setHours(e.target.value);
+              setAboutDirty(true);
+            }}
+            placeholder="เช่น ทุกวัน 06:00–21:00"
+          />
+        </label>
+
+        <label className="admin-form__field">
+          <span>โทรศัพท์</span>
+          <input
+            value={phone}
+            onChange={(e) => {
+              setPhone(e.target.value);
+              setAboutDirty(true);
+            }}
+            placeholder="081-470-7089"
+            inputMode="tel"
+          />
+        </label>
+
+        <p className="admin-file-status">
+          {aboutDirty ? 'มีการแก้ข้อมูลร้าน รอบันทึก' : 'ยังไม่ได้แก้ข้อมูลใหม่'}
+          <br />
+          รหัสเข้าหลังบ้านยังใช้ 4 ตัวท้ายเบอร์เดิม ({ADMIN_PIN})
+        </p>
+
+        <div className="admin-form__actions">
+          <button
+            type="button"
+            className="admin-form__save"
+            onClick={handleSaveAbout}
+            disabled={aboutBusy || !aboutImage}
+          >
+            บันทึกเกี่ยวกับเรา
+          </button>
+          <button
+            type="button"
+            className="admin-form__preview"
+            onClick={() => (onViewAbout ? onViewAbout() : onClose())}
+          >
+            ดูหน้าเกี่ยวกับ
+          </button>
+        </div>
+      </div>
+
+      <h3 className="admin-section-title">③ สินค้า</h3>
 
       <form id="admin-product-form" className="admin-form" onSubmit={handleSave}>
         <label className="admin-form__field">
