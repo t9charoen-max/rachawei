@@ -72,11 +72,16 @@ export function BrandMark({
   const gradId = useId().replace(/:/g, '');
   const { primary, secondary } = splitShopName(name);
 
+  const fullLabel = [primary, secondary].filter(Boolean).join(' ');
+
   return (
-    <span className={`brand-mark brand-mark--${variant} ${className}`.trim()}>
+    <span
+      className={`brand-mark brand-mark--${variant} ${className}`.trim()}
+      title={fullLabel}
+      aria-label={fullLabel}
+    >
       {showSeal && <BrandSeal variant={variant} gradId={gradId} />}
       <span className="brand-mark__text">
-        {/* wrap แยก filter ออกจาก background-clip — กัน iOS กลายเป็นกล่องทึบ */}
         <span className="brand-mark__primary-wrap">
           <span className="brand-mark__primary">{primary}</span>
         </span>

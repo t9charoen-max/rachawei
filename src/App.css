@@ -3529,6 +3529,7 @@
 }
 
 /* ——— Brand wordmark ——— */
+/* ใช้สีทึบ + text-shadow เท่านั้น — ไม่ใช้ background-clip/text-fill โปร่ง (พังบน iOS) */
 .brand-mark {
   display: inline-flex;
   min-width: 0;
@@ -3587,40 +3588,31 @@
 .brand-mark__primary-wrap {
   display: block;
   min-width: 0;
-  /* filter อยู่ที่ wrap — ไม่ใส่บนตัวอักษร clip เพื่อไม่ให้ iOS กลายเป็นกล่องทึบ */
-  filter:
-    drop-shadow(0 1px 0 rgba(255, 244, 200, 0.28))
-    drop-shadow(0 2px 3px rgba(0, 0, 0, 0.4));
 }
 
 .brand-mark__primary {
-  display: inline-block;
+  display: block;
   font-family: var(--font-brand), 'Fahkwang', 'Sarabun', sans-serif;
   font-weight: 700;
   letter-spacing: 0.01em;
-  line-height: 1.2;
-  background: linear-gradient(
-    180deg,
-    #fff4c8 0%,
-    #f0d78c 28%,
-    #d4a853 58%,
-    #a67c32 86%,
-    #7a5620 100%
-  );
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: #d4a853; /* fallback ถ้า clip ไม่รองรับ */
-  -webkit-text-fill-color: transparent;
+  line-height: 1.25;
+  color: #e8c97a;
+  text-shadow:
+    0 1px 0 rgba(255, 244, 200, 0.45),
+    0 2px 0 rgba(122, 86, 32, 0.35),
+    0 3px 8px rgba(0, 0, 0, 0.35);
 }
 
 .brand-mark__secondary {
+  display: block;
   font-family: var(--font-brand), 'Fahkwang', 'Sarabun', sans-serif;
   font-weight: 600;
   letter-spacing: 0.18em;
-  color: rgba(232, 217, 200, 0.78);
+  color: rgba(232, 217, 200, 0.85);
 }
 
 .brand-mark__tagline {
+  display: block;
   margin-top: 0.12rem;
   font-size: 0.68rem;
   font-weight: 500;
@@ -3633,11 +3625,12 @@
 }
 
 .brand-mark--header .brand-mark__primary {
-  font-size: 1.05rem;
+  font-size: 1.08rem;
+  color: #ecc974;
 }
 
 .brand-mark--header .brand-mark__secondary {
-  font-size: 0.68rem;
+  font-size: 0.7rem;
 }
 
 .brand-mark--header .brand-mark__primary,
@@ -3649,19 +3642,18 @@
   max-width: 100%;
 }
 
-.brand-mark--hero .brand-mark__primary-wrap {
-  filter:
-    drop-shadow(0 1px 0 rgba(255, 244, 200, 0.35))
-    drop-shadow(0 2px 8px rgba(0, 0, 0, 0.45));
-}
-
 .brand-mark--hero .brand-mark__primary {
-  font-size: 1rem;
+  font-size: 1.05rem;
+  color: #f0d78c;
+  text-shadow:
+    0 1px 0 rgba(255, 244, 200, 0.5),
+    0 2px 0 rgba(90, 60, 20, 0.4),
+    0 4px 12px rgba(0, 0, 0, 0.45);
 }
 
 .brand-mark--hero .brand-mark__secondary {
-  font-size: 0.66rem;
-  color: rgba(247, 240, 230, 0.82);
+  font-size: 0.68rem;
+  color: rgba(247, 240, 230, 0.88);
 }
 
 .brand-mark--showcase {
@@ -3673,30 +3665,28 @@
   align-items: flex-start;
 }
 
-.brand-mark--showcase .brand-mark__primary-wrap {
-  filter:
-    drop-shadow(0 1px 0 rgba(255, 255, 255, 0.45))
-    drop-shadow(0 1px 2px rgba(74, 53, 32, 0.18));
-}
-
 .brand-mark--showcase .brand-mark__primary {
-  font-size: 1.05rem;
-  background: linear-gradient(180deg, #a67c32 0%, #8b6914 42%, #5c4030 100%);
+  font-size: 1.1rem;
   color: #6b4f1a;
-  -webkit-text-fill-color: transparent;
+  text-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.7),
+    0 1px 2px rgba(74, 53, 32, 0.18);
 }
 
 .brand-mark--showcase .brand-mark__secondary {
-  font-size: 0.68rem;
+  font-size: 0.72rem;
   letter-spacing: 0.16em;
-  color: #6b5340;
+  color: #5c4030;
   font-weight: 700;
 }
 
 .brand-mark--inline .brand-mark__primary {
-  font-size: 0.88rem;
+  font-size: 0.9rem;
+  color: #e8c97a;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
 }
 
 .brand-mark--inline .brand-mark__secondary {
-  font-size: 0.62rem;
+  font-size: 0.64rem;
+  color: rgba(232, 217, 200, 0.8);
 }
