@@ -34,8 +34,8 @@ export function PromoSection({
 
   return (
     <section id="home-promo" className="rattan-promo" aria-labelledby="rattan-promo-title">
-      <div className="rattan-promo__frame">
-        <div className="rattan-promo__visual" key={heroImage}>
+      <div className="rattan-promo__stage">
+        <div className="rattan-promo__media" key={heroImage}>
           <img
             src={heroImage}
             alt={heroAlt}
@@ -43,20 +43,19 @@ export function PromoSection({
             loading="lazy"
             decoding="async"
           />
-          <span className="rattan-promo__tag">{RATTAN_PROMO.eyebrow}</span>
         </div>
 
-        <div className="rattan-promo__copy">
+        {/* เงาเฉพาะด้านซ้าย/ล่าง — เปิดพื้นที่ขวาให้เห็นตะกร้าชัด */}
+        <div className="rattan-promo__veil" aria-hidden />
+
+        <div className="rattan-promo__content">
+          <p className="rattan-promo__eyebrow">* {RATTAN_PROMO.eyebrow}</p>
           <h2 id="rattan-promo-title" className="rattan-promo__title">
-            {RATTAN_PROMO.title}
+            งานพิเศษจาก
+            <br />
+            บ้านบุทม
           </h2>
           <p className="rattan-promo__subtitle">{RATTAN_PROMO.subtitle}</p>
-
-          {active && (
-            <p className="rattan-promo__active-name" key={active.id}>
-              สินค้าแนะนำ · {active.name}
-            </p>
-          )}
 
           <div className="rattan-promo__actions">
             <button type="button" className="rattan-promo__cta" onClick={onViewProducts}>
@@ -72,6 +71,12 @@ export function PromoSection({
               </button>
             )}
           </div>
+
+          {active && (
+            <p className="rattan-promo__active-name" key={active.id}>
+              สินค้าแนะนำ · {active.name}
+            </p>
+          )}
         </div>
       </div>
 
