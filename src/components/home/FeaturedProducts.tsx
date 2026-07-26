@@ -1,5 +1,5 @@
 import type { Product } from '../../data/products';
-import { EcoHandmadeBadge } from '../EcoHandmadeBadge';
+import { ProductImageBadges } from '../ProductImageBadges';
 
 interface FeaturedProductsProps {
   products: Product[];
@@ -37,10 +37,10 @@ export function FeaturedProducts({ products, onSelect, onViewAll }: FeaturedProd
           >
             <div className="featured-card__image">
               <img src={product.image} alt={product.name} loading={i === 0 ? 'eager' : 'lazy'} decoding="async" />
-              <span className="featured-card__badge">{product.category}</span>
-              <EcoHandmadeBadge variant="featured" />
+              <ProductImageBadges />
             </div>
             <div className="featured-card__body">
+              <span className="featured-card__category">{product.category}</span>
               <h3 className="featured-card__name">{product.name}</h3>
             </div>
           </button>

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { CATEGORIES, type Category, type Product } from '../../data/products';
 import { SHOP_INFO } from '../../data/products';
-import { EcoHandmadeBadge } from '../EcoHandmadeBadge';
+import { ProductImageBadges } from '../ProductImageBadges';
 import { SafeImage } from '../SafeImage';
 import { BrandMark } from '../BrandMark';
 
@@ -68,8 +68,7 @@ export function ProductsPage({
                   loading="eager"
                   decoding="async"
                 />
-                <EcoHandmadeBadge variant="featured" />
-                {active.special && <span className="products-showcase__badge">พิเศษ</span>}
+                <ProductImageBadges />
               </div>
 
               <div className="products-showcase__picker" role="listbox" aria-label="เลือกสินค้า">
