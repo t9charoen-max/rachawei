@@ -203,12 +203,14 @@ export function ProductAdminPage({
 
     setMessage('กำลังเตรียมรูปสินค้า…');
     try {
-      const compressed = await Promise.all(files.map((file) => compressImageFile(file)));
+      const compressed = await Promise.all(
+        files.map((file) => compressImageFile(file, { purpose: 'product' })),
+      );
       setForm((current) => ({
         ...current,
         images: [...current.images, ...compressed.map((item) => item.dataUrl)],
       }));
-      setMessage(`เพิ่มรูปสินค้าแล้ว ${compressed.length} รูป`);
+      setMessage(`เพิ่มรูปสินค้าแล้ว ${compressed.length} รูป · จัดพอดีกรอบอัตโนมัติ`);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'เพิ่มรูปไม่สำเร็จ');
     } finally {
@@ -226,10 +228,14 @@ export function ProductAdminPage({
     setCoverBusy(true);
     setMessage('กำลังเตรียมภาพหน้าปก…');
     try {
-      const compressed = await Promise.all(files.map((file) => compressImageFile(file)));
+      const compressed = await Promise.all(
+        files.map((file) => compressImageFile(file, { purpose: 'hero' })),
+      );
       setCoverImages((current) => [...current, ...compressed.map((item) => item.dataUrl)]);
       setCoverDirty(true);
-      setMessage(`เพิ่มภาพหน้าปกแล้ว ${compressed.length} รูป — กด “บันทึกภาพหน้าปก” เพื่อยืนยัน`);
+      setMessage(
+        `เพิ่มภาพหน้าปกแล้ว ${compressed.length} รูป · จัดพอดีอัตโนมัติ — กด “บันทึกภาพหน้าปก”`,
+      );
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'เลือกภาพไม่สำเร็จ ลองใหม่');
     } finally {
@@ -294,10 +300,10 @@ export function ProductAdminPage({
     setAboutBusy(true);
     setMessage('กำลังเตรียมภาพเกี่ยวกับเรา…');
     try {
-      const { dataUrl } = await compressImageFile(file);
+      const { dataUrl } = await compressImageFile(file, { purpose: 'about' });
       setAboutImage(dataUrl);
       setAboutDirty(true);
-      setMessage('เลือกภาพเกี่ยวกับเราแล้ว — กด “บันทึกเกี่ยวกับเรา” เพื่อยืนยัน');
+      setMessage('เลือกภาพเกี่ยวกับเราแล้ว · จัดพอดีอัตโนมัติ — กด “บันทึกเกี่ยวกับเรา”');
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'เลือกภาพไม่สำเร็จ ลองใหม่');
     } finally {
@@ -620,7 +626,7 @@ export function ProductAdminPage({
       <div id="admin-cover" className="admin-form admin-cover">
         <h3 className="admin-cover__title">① ภาพหน้าปกเลื่อน (หน้าแรก)</h3>
         <p className="admin-file-status">
-          เลือกได้หลายรูป — หน้าแรกจะเลื่อนไหลอัตโนมัติแบบสไลด์ · รูปแรก = เริ่มต้น
+          เลือกได้หลายรูป — ระบบจัดสัดส่วนให้พอดีกรอบอัตโนมัติ · รูปแรก = เริ่มต้น
         </p>
 
         <div className="admin-cover__preview">
@@ -901,7 +907,7 @@ export function ProductAdminPage({
         </label>
 
         <div className="admin-form__field">
-          <span>รูปสินค้า * (เลือกได้หลายรูป)</span>
+          <span>รูปสินค้า * (เลือกได้หลายรูป · จัดพอดีกรอบอัตโนมัติ)</span>
           <input
             ref={fileRef}
             type="file"
