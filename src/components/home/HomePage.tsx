@@ -20,6 +20,8 @@ interface HomePageProps {
   onContact: () => void;
   onSelectProduct: (product: Product) => void;
   products: Product[];
+  coverImage?: string;
+  coverImageAlt?: string;
 }
 
 const COLLAPSIBLE_SECTIONS = HOME_SECTIONS.filter(
@@ -30,7 +32,14 @@ const COLLAPSIBLE_SECTIONS = HOME_SECTIONS.filter(
   } => section.id !== 'products' && section.id !== 'contact',
 );
 
-export function HomePage({ onViewProducts, onContact, onSelectProduct, products }: HomePageProps) {
+export function HomePage({
+  onViewProducts,
+  onContact,
+  onSelectProduct,
+  products,
+  coverImage,
+  coverImageAlt,
+}: HomePageProps) {
   const [openSection, setOpenSection] = useState<HomeSectionId | null>(null);
   const [activeId, setActiveId] = useState<HomeSectionId | null>(null);
 
@@ -71,7 +80,12 @@ export function HomePage({ onViewProducts, onContact, onSelectProduct, products 
 
   return (
     <div className="home-page">
-      <HeroSection onViewProducts={onViewProducts} onContact={onContact} />
+      <HeroSection
+        onViewProducts={onViewProducts}
+        onContact={onContact}
+        coverImage={coverImage}
+        coverImageAlt={coverImageAlt}
+      />
 
       <HomeQuickNav activeId={activeId} onSelect={handleNavSelect} />
 
