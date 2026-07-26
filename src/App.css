@@ -2774,7 +2774,8 @@
 
 .admin-pin__btn,
 .admin-form__save,
-.admin-form__publish {
+.admin-form__publish,
+.admin-form__preview {
   padding: 0.9rem 1rem;
   border: none;
   border-radius: 0.85rem;
@@ -2792,6 +2793,12 @@
 .admin-form__publish {
   background: linear-gradient(135deg, #12d66d, #06c755);
   color: #fff;
+}
+
+.admin-form__preview {
+  border: 1px solid rgba(212, 168, 83, 0.35);
+  background: rgba(26, 18, 12, 0.75);
+  color: var(--cream);
 }
 
 .admin-pin__error {
@@ -2848,12 +2855,19 @@
 
 .admin-thumbs {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 0.5rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.65rem;
   margin-top: 0.5rem;
 }
 
 .admin-thumbs__item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.admin-thumbs__media {
   position: relative;
   aspect-ratio: 1;
   overflow: hidden;
@@ -2862,29 +2876,50 @@
   background: #efe6d6;
 }
 
-.admin-thumbs__item img {
+.admin-thumbs__media img {
   width: 100%;
   height: 100%;
   object-fit: cover;
 }
 
 .admin-thumbs__actions {
-  position: absolute;
-  inset: auto 0 0;
-  display: flex;
-  gap: 0.15rem;
-  padding: 0.25rem;
-  background: linear-gradient(transparent, rgba(0, 0, 0, 0.65));
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.25rem;
 }
 
-.admin-thumbs__actions button {
-  flex: 1;
-  border: none;
-  border-radius: 0.35rem;
-  background: rgba(255, 255, 255, 0.9);
-  font-size: 0.8rem;
+.admin-thumbs__actions button,
+.admin-thumbs__main-spacer {
+  min-height: 2rem;
+  border: 1px solid rgba(212, 168, 83, 0.28);
+  border-radius: 0.45rem;
+  background: #fff8ee;
+  color: #1f1712;
+  font-size: 0.72rem;
   font-weight: 700;
+  line-height: 1.1;
   cursor: pointer;
+}
+
+.admin-thumbs__actions button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.admin-thumbs__main {
+  background: rgba(212, 168, 83, 0.35) !important;
+}
+
+.admin-thumbs__delete {
+  background: #f3d4c8 !important;
+  color: #6b2a1a !important;
+}
+
+.admin-thumbs__main-spacer {
+  visibility: hidden;
+  pointer-events: none;
+  border: none;
+  background: transparent;
 }
 
 .admin-thumbs__badge {
@@ -2897,6 +2932,68 @@
   font-size: 0.62rem;
   font-weight: 700;
   color: #1f1712;
+}
+
+.admin-publish-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+}
+
+.admin-publish-modal__backdrop {
+  position: absolute;
+  inset: 0;
+  border: none;
+  background: rgba(12, 8, 5, 0.72);
+  cursor: pointer;
+}
+
+.admin-publish-modal__panel {
+  position: relative;
+  z-index: 1;
+  width: min(100%, 22rem);
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1.15rem 1.1rem;
+  border-radius: 1rem;
+  border: 1px solid rgba(212, 168, 83, 0.28);
+  background: #2a1f16;
+  color: var(--cream);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
+}
+
+.admin-publish-modal__panel h3 {
+  margin: 0;
+  font-size: 1.05rem;
+  color: var(--gold-light);
+}
+
+.admin-publish-modal__panel p {
+  margin: 0;
+  font-size: 0.88rem;
+  line-height: 1.45;
+  color: var(--cream-muted);
+}
+
+.admin-publish-modal__warn {
+  padding: 0.65rem 0.75rem;
+  border-radius: 0.7rem;
+  background: rgba(240, 165, 138, 0.12);
+  color: #f0c2b0 !important;
+}
+
+.admin-publish-modal__hint {
+  font-size: 0.78rem !important;
+}
+
+.admin-publish-modal__actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
 }
 
 .admin-list {
