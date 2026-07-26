@@ -6,6 +6,7 @@ import {
   type HomeSectionItem,
 } from '../../data/homeSections';
 import { HeroSection } from './HeroSection';
+import { PromoSection } from './PromoSection';
 import { FeaturedProducts } from './FeaturedProducts';
 import { OurStorySection } from './OurStorySection';
 import { WeavingStorySection } from './WeavingStorySection';
@@ -29,7 +30,7 @@ const COLLAPSIBLE_SECTIONS = HOME_SECTIONS.filter(
     section,
   ): section is HomeSectionItem & {
     id: 'story' | 'weaving' | 'rattan' | 'usage' | 'community';
-  } => section.id !== 'products' && section.id !== 'contact',
+  } => section.id !== 'products' && section.id !== 'contact' && section.id !== 'promo',
 );
 
 export function HomePage({
@@ -55,6 +56,12 @@ export function HomePage({
 
       if (id === 'contact') {
         onContact();
+        return;
+      }
+
+      if (id === 'promo') {
+        setOpenSection(null);
+        scrollToId('home-promo');
         return;
       }
 
@@ -88,6 +95,12 @@ export function HomePage({
       />
 
       <HomeQuickNav activeId={activeId} onSelect={handleNavSelect} />
+
+      <PromoSection
+        products={products}
+        onViewProducts={onViewProducts}
+        onSelectProduct={onSelectProduct}
+      />
 
       <div id="home-products" className="home-page__products">
         <FeaturedProducts

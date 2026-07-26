@@ -1,4 +1,5 @@
 export type HomeSectionId =
+  | 'promo'
   | 'products'
   | 'story'
   | 'weaving'
@@ -16,6 +17,7 @@ export interface HomeSectionItem {
 }
 
 export const HOME_SECTIONS: HomeSectionItem[] = [
+  { id: 'promo', icon: '✨', label: 'โปรโมชั่น', desc: 'ตะกร้างานพิเศษ', accent: 'gold' },
   { id: 'products', icon: '🛍️', label: 'สินค้า', desc: 'ตะกร้าหวายแนะนำ', accent: 'gold' },
   { id: 'story', icon: '📖', label: 'เรื่องราว', desc: 'ราชาหวายสุรินทร์', accent: 'gold' },
   { id: 'weaving', icon: '🧵', label: 'การสาน', desc: '6 ขั้นตอนดั้งเดิม', accent: 'terracotta' },
