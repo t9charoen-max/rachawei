@@ -108,12 +108,29 @@ export function productToCatalogItem(product: Product): CatalogItem {
   };
 }
 
+const MAX_DATA_URL_CHARS = 1_400_000; // ~1MB — oversized drafts freeze mobile Safari
+
+function sanitizeDraftImages(images: string[] | undefined): string[] {
+  if (!Array.isArray(images)) return [];
+  return images.filter((src) => {
+    if (typeof src !== 'string' || !src) return false;
+    if (src.startsWith('data:') && src.length > MAX_DATA_URL_CHARS) return false;
+    return true;
+  });
+}
+
 export function loadDraftItems(): CatalogItem[] {
   try {
     const raw = localStorage.getItem(DRAFT_KEY);
     if (!raw) return [];
     const parsed = JSON.parse(raw) as CatalogItem[];
-    return Array.isArray(parsed) ? parsed : [];
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .map((item) => ({
+        ...item,
+        images: sanitizeDraftImages(item.images),
+      }))
+      .filter((item) => item.images.length > 0);
   } catch {
     return [];
   }
