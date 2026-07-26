@@ -10,6 +10,7 @@ interface ProductsPageProps {
   category: Category;
   onCategoryChange: (category: Category) => void;
   onSelectProduct: (product: Product) => void;
+  shopName?: string;
 }
 
 export function ProductsPage({
@@ -17,6 +18,7 @@ export function ProductsPage({
   category,
   onCategoryChange,
   onSelectProduct,
+  shopName = SHOP_INFO.name,
 }: ProductsPageProps) {
   const [activeIndex, setActiveIndex] = useState(0);
   const active = products[activeIndex] ?? products[0];
@@ -52,7 +54,7 @@ export function ProductsPage({
         active && (
           <>
             <div className="products-showcase">
-              <BrandMark name={SHOP_INFO.name} variant="showcase" className="products-showcase__brand-mark" />
+              <BrandMark name={shopName} variant="showcase" className="products-showcase__brand-mark" />
               <p className="products-showcase__category">{active.category}</p>
               <h3 className="products-showcase__name">{active.name}</h3>
               <p className="products-showcase__tagline">สานมือ 100% · โทรหรือ LINE สั่งได้ทันที</p>

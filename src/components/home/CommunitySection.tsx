@@ -1,5 +1,6 @@
 import { HOME_CONTENT } from '../../data/home';
 import { SectionHeader } from '../ui/SectionHeader';
+import { BrandMark } from '../BrandMark';
 
 export function CommunitySection() {
   const { community } = HOME_CONTENT;
@@ -71,7 +72,7 @@ export function CommunitySection() {
             </span>
             <div>
               <p className="text-sm font-semibold text-gold-300">จากใจชุมชน</p>
-              <p className="text-xs text-cream-300/60">ราชาหวายสุรินทร์</p>
+              <BrandMark name="ราชาหวายสุรินทร์" variant="inline" showSeal={false} />
             </div>
           </div>
           <p className="font-display text-base leading-relaxed text-cream-100/95 italic sm:text-lg">

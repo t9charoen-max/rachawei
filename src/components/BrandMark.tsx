@@ -76,7 +76,10 @@ export function BrandMark({
     <span className={`brand-mark brand-mark--${variant} ${className}`.trim()}>
       {showSeal && <BrandSeal variant={variant} gradId={gradId} />}
       <span className="brand-mark__text">
-        <span className="brand-mark__primary">{primary}</span>
+        {/* wrap แยก filter ออกจาก background-clip — กัน iOS กลายเป็นกล่องทึบ */}
+        <span className="brand-mark__primary-wrap">
+          <span className="brand-mark__primary">{primary}</span>
+        </span>
         {secondary ? <span className="brand-mark__secondary">{secondary}</span> : null}
         {tagline ? <span className="brand-mark__tagline">{tagline}</span> : null}
       </span>

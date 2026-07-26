@@ -160,6 +160,7 @@ export function App() {
             category={category}
             onCategoryChange={setCategory}
             onSelectProduct={selectProduct}
+            shopName={shopName}
           />
         )}
 
