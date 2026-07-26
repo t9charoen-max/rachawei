@@ -1318,6 +1318,20 @@
   transform: scale(0.94);
 }
 
+.header-admin-btn {
+  display: flex;
+  width: 2.5rem;
+  height: 2.5rem;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(212, 168, 83, 0.28);
+  border-radius: 999px;
+  background: rgba(212, 168, 83, 0.1);
+  font-size: 1.05rem;
+  cursor: pointer;
+}
+
 .products-screen__header {
   display: flex;
   align-items: flex-start;
@@ -2970,6 +2984,45 @@
   color: var(--cream-muted);
   font-size: 0.8rem;
   cursor: pointer;
+}
+
+.admin-entry-card {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 0.85rem;
+  margin: 0.75rem 0 1rem;
+  padding: 0.95rem 1rem;
+  border: 1px solid rgba(212, 168, 83, 0.35);
+  border-radius: 1rem;
+  background: linear-gradient(145deg, rgba(212, 168, 83, 0.16), rgba(45, 33, 24, 0.75));
+  text-align: left;
+  cursor: pointer;
+}
+
+.admin-entry-card__icon {
+  display: flex;
+  width: 2.5rem;
+  height: 2.5rem;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.75rem;
+  background: rgba(212, 168, 83, 0.18);
+  font-size: 1.25rem;
+}
+
+.admin-entry-card strong {
+  display: block;
+  font-size: 0.95rem;
+  color: var(--gold-light);
+}
+
+.admin-entry-card span span {
+  display: block;
+  margin-top: 0.15rem;
+  font-size: 0.78rem;
+  color: var(--cream-muted);
 }
 
 .admin-cover {
