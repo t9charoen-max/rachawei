@@ -3533,15 +3533,27 @@
 .brand-mark__text {
   display: flex;
   min-width: 0;
+  flex: 1;
   flex-direction: column;
-  gap: 0.05rem;
+  gap: 0.08rem;
   line-height: 1.15;
 }
 
+.brand-mark__primary-wrap {
+  display: block;
+  min-width: 0;
+  /* filter อยู่ที่ wrap — ไม่ใส่บนตัวอักษร clip เพื่อไม่ให้ iOS กลายเป็นกล่องทึบ */
+  filter:
+    drop-shadow(0 1px 0 rgba(255, 244, 200, 0.28))
+    drop-shadow(0 2px 3px rgba(0, 0, 0, 0.4));
+}
+
 .brand-mark__primary {
+  display: inline-block;
   font-family: var(--font-brand), 'Fahkwang', 'Sarabun', sans-serif;
   font-weight: 700;
   letter-spacing: 0.01em;
+  line-height: 1.2;
   background: linear-gradient(
     180deg,
     #fff4c8 0%,
@@ -3552,18 +3564,14 @@
   );
   -webkit-background-clip: text;
   background-clip: text;
-  color: transparent;
+  color: #d4a853; /* fallback ถ้า clip ไม่รองรับ */
   -webkit-text-fill-color: transparent;
-  filter:
-    drop-shadow(0 1px 0 rgba(255, 244, 200, 0.28))
-    drop-shadow(0 2px 3px rgba(0, 0, 0, 0.45));
 }
 
 .brand-mark__secondary {
   font-family: var(--font-brand), 'Fahkwang', 'Sarabun', sans-serif;
   font-weight: 600;
   letter-spacing: 0.18em;
-  text-transform: none;
   color: rgba(232, 217, 200, 0.78);
 }
 
@@ -3575,6 +3583,10 @@
   color: rgba(201, 184, 168, 0.72);
 }
 
+.brand-mark--header {
+  max-width: 100%;
+}
+
 .brand-mark--header .brand-mark__primary {
   font-size: 1.05rem;
 }
@@ -3583,11 +3595,23 @@
   font-size: 0.68rem;
 }
 
-.brand-mark--hero .brand-mark__primary {
-  font-size: 1rem;
+.brand-mark--header .brand-mark__primary,
+.brand-mark--header .brand-mark__secondary,
+.brand-mark--header .brand-mark__tagline {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+.brand-mark--hero .brand-mark__primary-wrap {
   filter:
     drop-shadow(0 1px 0 rgba(255, 244, 200, 0.35))
     drop-shadow(0 2px 8px rgba(0, 0, 0, 0.45));
+}
+
+.brand-mark--hero .brand-mark__primary {
+  font-size: 1rem;
 }
 
 .brand-mark--hero .brand-mark__secondary {
@@ -3597,25 +3621,31 @@
 
 .brand-mark--showcase {
   justify-content: center;
-  gap: 0.45rem;
+  gap: 0.5rem;
 }
 
 .brand-mark--showcase .brand-mark__text {
   align-items: flex-start;
 }
 
-.brand-mark--showcase .brand-mark__primary {
-  font-size: 0.95rem;
-  background: linear-gradient(180deg, #8b6914 0%, #6b4f1a 55%, #4a3520 100%);
+.brand-mark--showcase .brand-mark__primary-wrap {
   filter:
-    drop-shadow(0 1px 0 rgba(255, 255, 255, 0.35))
-    drop-shadow(0 1px 2px rgba(74, 53, 32, 0.2));
+    drop-shadow(0 1px 0 rgba(255, 255, 255, 0.45))
+    drop-shadow(0 1px 2px rgba(74, 53, 32, 0.18));
+}
+
+.brand-mark--showcase .brand-mark__primary {
+  font-size: 1.05rem;
+  background: linear-gradient(180deg, #a67c32 0%, #8b6914 42%, #5c4030 100%);
+  color: #6b4f1a;
+  -webkit-text-fill-color: transparent;
 }
 
 .brand-mark--showcase .brand-mark__secondary {
-  font-size: 0.62rem;
+  font-size: 0.68rem;
   letter-spacing: 0.16em;
-  color: #7a624c;
+  color: #6b5340;
+  font-weight: 700;
 }
 
 .brand-mark--inline .brand-mark__primary {
