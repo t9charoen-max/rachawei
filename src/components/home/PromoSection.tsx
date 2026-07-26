@@ -34,23 +34,29 @@ export function PromoSection({
 
   return (
     <section id="home-promo" className="rattan-promo" aria-labelledby="rattan-promo-title">
-      <div className="rattan-promo__stage">
-        <div className="rattan-promo__media" key={heroImage}>
-          <img src={heroImage} alt={heroAlt} className="rattan-promo__image" loading="lazy" decoding="async" />
+      <div className="rattan-promo__frame">
+        <div className="rattan-promo__visual" key={heroImage}>
+          <img
+            src={heroImage}
+            alt={heroAlt}
+            className="rattan-promo__image"
+            loading="lazy"
+            decoding="async"
+          />
+          <span className="rattan-promo__tag">{RATTAN_PROMO.eyebrow}</span>
         </div>
 
-        <div className="rattan-promo__veil" aria-hidden />
-        <div className="rattan-promo__grain" aria-hidden />
-
-        <div className="rattan-promo__content">
-          <p className="rattan-promo__eyebrow">
-            <span className="rattan-promo__pulse" aria-hidden />
-            {RATTAN_PROMO.eyebrow}
-          </p>
+        <div className="rattan-promo__copy">
           <h2 id="rattan-promo-title" className="rattan-promo__title">
             {RATTAN_PROMO.title}
           </h2>
           <p className="rattan-promo__subtitle">{RATTAN_PROMO.subtitle}</p>
+
+          {active && (
+            <p className="rattan-promo__active-name" key={active.id}>
+              สินค้าแนะนำ · {active.name}
+            </p>
+          )}
 
           <div className="rattan-promo__actions">
             <button type="button" className="rattan-promo__cta" onClick={onViewProducts}>
@@ -66,12 +72,6 @@ export function PromoSection({
               </button>
             )}
           </div>
-
-          {active && (
-            <p className="rattan-promo__active-name" key={active.id}>
-              กำลังแนะนำ · {active.name}
-            </p>
-          )}
         </div>
       </div>
 
