@@ -93,6 +93,8 @@ export function ProductAdminPage({
   const [coverBusy, setCoverBusy] = useState(false);
   const [coverDirty, setCoverDirty] = useState(false);
   const [message, setMessage] = useState('');
+  const [publishStep, setPublishStep] = useState<'idle' | 'confirm' | 'done'>('idle');
+  const [publishSummary, setPublishSummary] = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
   const coverRef = useRef<HTMLInputElement>(null);
 
@@ -215,7 +217,7 @@ export function ProductAdminPage({
       });
       setCoverDirty(false);
       onCatalogChange();
-      setMessage('บันทึกภาพหน้าปกแล้ว — เห็นบนหน้าแรกทันที กด “ส่งขึ้นเว็บจริง” เพื่ออัปเดตเว็บลูกค้า');
+      setMessage('บันทึกภาพหน้าปกแล้ว — เห็นบนเครื่องนี้ทันที · กด “เตรียมไฟล์อัปเดตเว็บ” เมื่อพร้อมส่งให้ Cursor');
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'บันทึกไม่สำเร็จ');
     }
@@ -234,6 +236,16 @@ export function ProductAdminPage({
       const target = index + direction;
       if (target < 0 || target >= next.length) return current;
       [next[index], next[target]] = [next[target], next[index]];
+      return { ...current, images: next };
+    });
+  };
+
+  const setMainImage = (index: number) => {
+    if (index <= 0) return;
+    setForm((current) => {
+      const next = [...current.images];
+      const [picked] = next.splice(index, 1);
+      next.unshift(picked);
       return { ...current, images: next };
     });
   };
@@ -268,7 +280,7 @@ export function ProductAdminPage({
     try {
       persistDraft(item);
       setEditingId(item.id);
-      setMessage('บันทึกแล้ว — แสดงบนเครื่องนี้ทันที กด “ส่งขึ้นเว็บจริง” เพื่ออัปเดตเว็บลูกค้า');
+      setMessage('บันทึกแล้ว — แสดงบนเครื่องนี้ทันที · กด “เตรียมไฟล์อัปเดตเว็บ” เมื่อพร้อมส่งให้ Cursor');
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'บันทึกไม่สำเร็จ');
     }
@@ -282,10 +294,11 @@ export function ProductAdminPage({
     setMessage('ลบแบบร่างแล้ว');
   };
 
-  const handlePublishPackage = () => {
+  const runPublishPackage = () => {
     const drafts = loadDraftItems();
     const siteDraft = loadSiteDraft();
     if (!drafts.length && !siteDraft) {
+      setPublishStep('idle');
       setMessage('ยังไม่มีแบบร่าง — บันทึกสินค้าหรือภาพหน้าปกก่อน');
       return;
     }
@@ -329,6 +342,14 @@ export function ProductAdminPage({
       );
     }
 
+    const fileList = [
+      namedDrafts.length ? 'products.json' : null,
+      siteDraft ? 'site.json' : null,
+      'และไฟล์รูปที่ดาวน์โหลด',
+    ]
+      .filter(Boolean)
+      .join(' · ');
+
     const prompt = [
       'อัปเดตแคตตาล็อก / ภาพหน้าปก ราชาหวาย',
       namedDrafts.length
@@ -348,9 +369,21 @@ export function ProductAdminPage({
       .join('\n');
 
     void navigator.clipboard?.writeText(prompt);
+    setPublishSummary(fileList);
+    setPublishStep('done');
     setMessage(
-      'ดาวน์โหลดไฟล์แล้ว และคัดลอกคำสั่งไว้แล้ว — ส่งไฟล์ในแชท Cursor หรือวางในโฟลเดอร์โปรเจกต์ได้เลย',
+      'เตรียมไฟล์แล้ว — อย่าเปิดไฟล์ JSON · ส่งไฟล์ในแชท Cursor ให้ช่วยอัปเดตเว็บ',
     );
+  };
+
+  const handlePublishClick = () => {
+    const drafts = loadDraftItems();
+    const siteDraft = loadSiteDraft();
+    if (!drafts.length && !siteDraft) {
+      setMessage('ยังไม่มีแบบร่าง — บันทึกสินค้าหรือภาพหน้าปกก่อน');
+      return;
+    }
+    setPublishStep('confirm');
   };
 
   const handleClearDrafts = () => {
@@ -410,8 +443,9 @@ export function ProductAdminPage({
 
       <h2 className="section-title">จัดการหลังร้าน</h2>
       <p className="admin-screen__hint">
-        1) แก้ภาพหน้าปกด้านบน · 2) เพิ่ม/แก้สินค้าด้านล่าง · แบบร่าง {draftCount} รายการ
-        {hasCoverDraft ? ' · มีแบบร่างหน้าปก' : ''}
+        บันทึก = เห็นบนเครื่องนี้ทันที · “เตรียมไฟล์อัปเดตเว็บ” = ส่งไฟล์ให้ Cursor อัปขึ้นเว็บลูกค้า
+        <br />
+        แบบร่าง {draftCount} รายการ{hasCoverDraft ? ' · มีแบบร่างหน้าปก' : ''}
       </p>
 
       <div id="admin-cover" className="admin-form admin-cover">
@@ -460,14 +494,19 @@ export function ProductAdminPage({
             placeholder="เช่น ตะกร้าหวายภายในร้าน"
           />
         </label>
-        <button
-          type="button"
-          className="admin-form__save"
-          onClick={handleSaveCover}
-          disabled={coverBusy || !coverSrc}
-        >
-          บันทึกภาพหน้าปก
-        </button>
+        <div className="admin-form__actions">
+          <button
+            type="button"
+            className="admin-form__save"
+            onClick={handleSaveCover}
+            disabled={coverBusy || !coverSrc}
+          >
+            บันทึกภาพหน้าปก
+          </button>
+          <button type="button" className="admin-form__preview" onClick={onClose}>
+            ดูหน้าแรก
+          </button>
+        </div>
       </div>
 
       <h3 className="admin-section-title">② สินค้า</h3>
@@ -545,35 +584,99 @@ export function ProductAdminPage({
           <div className="admin-thumbs">
             {form.images.map((src, index) => (
               <div key={`${index}-${src.slice(0, 24)}`} className="admin-thumbs__item">
-                <img src={previewSrc(src)} alt="" />
+                <div className="admin-thumbs__media">
+                  <img src={previewSrc(src)} alt="" />
+                  {index === 0 && <span className="admin-thumbs__badge">รูปหลัก</span>}
+                </div>
                 <div className="admin-thumbs__actions">
-                  <button type="button" onClick={() => moveImage(index, -1)} aria-label="เลื่อนซ้าย">
-                    ‹
+                  <button type="button" onClick={() => moveImage(index, -1)} disabled={index === 0}>
+                    ซ้าย
                   </button>
-                  <button type="button" onClick={() => moveImage(index, 1)} aria-label="เลื่อนขวา">
-                    ›
+                  <button
+                    type="button"
+                    onClick={() => moveImage(index, 1)}
+                    disabled={index === form.images.length - 1}
+                  >
+                    ขวา
                   </button>
-                  <button type="button" onClick={() => removeImage(index)} aria-label="ลบรูป">
-                    ✕
+                  {index > 0 ? (
+                    <button type="button" className="admin-thumbs__main" onClick={() => setMainImage(index)}>
+                      รูปหลัก
+                    </button>
+                  ) : (
+                    <span className="admin-thumbs__main-spacer" aria-hidden="true" />
+                  )}
+                  <button type="button" className="admin-thumbs__delete" onClick={() => removeImage(index)}>
+                    ลบ
                   </button>
                 </div>
-                {index === 0 && <span className="admin-thumbs__badge">รูปหลัก</span>}
               </div>
             ))}
           </div>
+          {form.images.length > 1 && (
+            <p className="admin-file-status">รูปแรก = รูปหลัก · กด “รูปหลัก” เพื่อเลือกใหม่ · ซ้าย/ขวาเรียงลำดับ</p>
+          )}
         </div>
 
         <div className="admin-form__actions">
           <button type="submit" className="admin-form__save">
             บันทึกสินค้า
           </button>
-          <button type="button" className="admin-form__publish" onClick={handlePublishPackage}>
-            ส่งขึ้นเว็บจริง
+          <button type="button" className="admin-form__publish" onClick={handlePublishClick}>
+            เตรียมไฟล์อัปเดตเว็บ
           </button>
         </div>
       </form>
 
       {message && <p className="admin-screen__message">{message}</p>}
+
+      {publishStep !== 'idle' && (
+        <div className="admin-publish-modal" role="dialog" aria-modal="true">
+          <button
+            type="button"
+            className="admin-publish-modal__backdrop"
+            onClick={() => setPublishStep('idle')}
+            aria-label="ปิด"
+          />
+          <div className="admin-publish-modal__panel">
+            {publishStep === 'confirm' ? (
+              <>
+                <h3>เตรียมไฟล์อัปเดตเว็บ</h3>
+                <p>
+                  ปุ่มนี้<strong>ไม่ได้อัปเว็บเอง</strong> — จะดาวน์โหลดไฟล์ให้ส่งในแชท Cursor
+                  เพื่อให้ช่วยอัปขึ้นเว็บลูกค้า
+                </p>
+                <p className="admin-publish-modal__warn">
+                  ถ้าโทรศัพท์ถาม “ดู / ดาวน์โหลด” ให้กด <strong>ดาวน์โหลด</strong> เท่านั้น
+                  <br />
+                  อย่ากด “ดู” และอย่าเปิดไฟล์ JSON
+                </p>
+                <div className="admin-publish-modal__actions">
+                  <button type="button" className="admin-form__save" onClick={runPublishPackage}>
+                    ดาวน์โหลดไฟล์เลย
+                  </button>
+                  <button type="button" className="admin-form__preview" onClick={() => setPublishStep('idle')}>
+                    ยกเลิก
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <h3>ไฟล์พร้อมแล้ว</h3>
+                <p>
+                  ได้ไฟล์: {publishSummary}
+                  <br />
+                  <strong>อย่าเปิดไฟล์ JSON</strong> — ส่งไฟล์ในแชท Cursor ให้ช่วยอัปเดตเว็บ
+                </p>
+                <p className="admin-publish-modal__hint">คำสั่งสั้น ๆ คัดลอกไว้ในคลิปบอร์ดแล้ว</p>
+                <button type="button" className="admin-form__save" onClick={() => setPublishStep('idle')}>
+                  เข้าใจแล้ว
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+      )}
 
       <div className="admin-list">
         <div className="admin-list__head">
@@ -601,7 +704,7 @@ export function ProductAdminPage({
                 </div>
                 <div className="admin-list__btns">
                   <button type="button" onClick={() => startEdit(product)}>
-                    แก้
+                    แก้ไข
                   </button>
                   {isDraft && (
                     <button type="button" onClick={() => handleDeleteDraft(product.id)}>

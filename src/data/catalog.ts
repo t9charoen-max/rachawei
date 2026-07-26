@@ -190,13 +190,21 @@ export function suggestImageFilename(id: string, index: number, fileName: string
   return `basket-${id.padStart(2, '0')}-${index + 1}.${safeExt}`;
 }
 
-export function downloadTextFile(filename: string, content: string, type = 'application/json') {
+export function downloadTextFile(
+  filename: string,
+  content: string,
+  // octet-stream reduces Safari “View JSON” prompts on iPhone
+  type = 'application/octet-stream',
+) {
   const blob = new Blob([content], { type: `${type};charset=utf-8` });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
   a.download = filename;
+  a.rel = 'noopener';
+  document.body.appendChild(a);
   a.click();
+  a.remove();
   URL.revokeObjectURL(url);
 }
 
