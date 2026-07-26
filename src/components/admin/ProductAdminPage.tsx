@@ -87,9 +87,8 @@ export function ProductAdminPage({
   const [pinError, setPinError] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<FormState>(() => emptyForm('13'));
-  const [coverSrc, setCoverSrc] = useState('');
+  const [coverImages, setCoverImages] = useState<string[]>([]);
   const [coverAlt, setCoverAlt] = useState(DEFAULT_SITE_SETTINGS.heroCoverAlt);
-  const [coverFileName, setCoverFileName] = useState('');
   const [coverBusy, setCoverBusy] = useState(false);
   const [coverDirty, setCoverDirty] = useState(false);
   const [message, setMessage] = useState('');
@@ -107,7 +106,7 @@ export function ProductAdminPage({
   useEffect(() => {
     if (coverDirty) return;
     const current = site ?? DEFAULT_SITE_SETTINGS;
-    setCoverSrc(current.heroCover);
+    setCoverImages(current.heroCovers);
     setCoverAlt(current.heroCoverAlt);
   }, [site, coverDirty]);
 
@@ -183,8 +182,8 @@ export function ProductAdminPage({
   };
 
   const handleCoverFile = async (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) {
+    const files = [...(event.target.files ?? [])];
+    if (!files.length) {
       setMessage('ยังไม่ได้เลือกไฟล์ — ลองใหม่อีกครั้ง');
       return;
     }
@@ -192,11 +191,10 @@ export function ProductAdminPage({
     setCoverBusy(true);
     setMessage('กำลังเตรียมภาพหน้าปก…');
     try {
-      const { dataUrl, fileName } = await compressImageFile(file);
-      setCoverSrc(dataUrl);
-      setCoverFileName(fileName);
+      const compressed = await Promise.all(files.map((file) => compressImageFile(file)));
+      setCoverImages((current) => [...current, ...compressed.map((item) => item.dataUrl)]);
       setCoverDirty(true);
-      setMessage(`เลือกภาพแล้ว: ${fileName} — กด “บันทึกภาพหน้าปก” เพื่อยืนยัน`);
+      setMessage(`เพิ่มภาพหน้าปกแล้ว ${compressed.length} รูป — กด “บันทึกภาพหน้าปก” เพื่อยืนยัน`);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'เลือกภาพไม่สำเร็จ ลองใหม่');
     } finally {
@@ -205,19 +203,51 @@ export function ProductAdminPage({
     }
   };
 
+  const removeCoverImage = (index: number) => {
+    setCoverImages((current) => current.filter((_, i) => i !== index));
+    setCoverDirty(true);
+  };
+
+  const moveCoverImage = (index: number, direction: -1 | 1) => {
+    setCoverImages((current) => {
+      const next = [...current];
+      const target = index + direction;
+      if (target < 0 || target >= next.length) return current;
+      [next[index], next[target]] = [next[target], next[index]];
+      return next;
+    });
+    setCoverDirty(true);
+  };
+
+  const setMainCoverImage = (index: number) => {
+    if (index <= 0) return;
+    setCoverImages((current) => {
+      const next = [...current];
+      const [picked] = next.splice(index, 1);
+      next.unshift(picked);
+      return next;
+    });
+    setCoverDirty(true);
+  };
+
   const handleSaveCover = () => {
-    if (!coverSrc) {
-      setMessage('กรุณาเลือกภาพหน้าปก');
+    if (!coverImages.length) {
+      setMessage('กรุณาเพิ่มภาพหน้าปกอย่างน้อย 1 รูป');
       return;
     }
     try {
       saveSiteDraft({
-        heroCover: coverSrc,
+        heroCover: coverImages[0],
         heroCoverAlt: coverAlt.trim() || DEFAULT_SITE_SETTINGS.heroCoverAlt,
+        heroCovers: coverImages,
       });
       setCoverDirty(false);
       onCatalogChange();
-      setMessage('บันทึกภาพหน้าปกแล้ว — เห็นบนเครื่องนี้ทันที · กด “เตรียมไฟล์อัปเดตเว็บ” เมื่อพร้อมส่งให้ Cursor');
+      setMessage(
+        coverImages.length > 1
+          ? `บันทึกภาพหน้าปก ${coverImages.length} รูปแล้ว — หน้าแรกจะเลื่อนไหล · กด “เตรียมไฟล์อัปเดตเว็บ” เมื่อพร้อม`
+          : 'บันทึกภาพหน้าปกแล้ว — เห็นบนเครื่องนี้ทันที · กด “เตรียมไฟล์อัปเดตเว็บ” เมื่อพร้อมส่งให้ Cursor',
+      );
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'บันทึกไม่สำเร็จ');
     }
@@ -320,21 +350,23 @@ export function ProductAdminPage({
       downloadTextFile('products.json', `${JSON.stringify(published, null, 2)}\n`);
     }
 
-    let coverPath = site?.heroCover ?? DEFAULT_SITE_SETTINGS.heroCover;
+    let publishedCovers = site?.heroCovers ?? DEFAULT_SITE_SETTINGS.heroCovers;
     if (siteDraft) {
-      if (siteDraft.heroCover.startsWith('data:')) {
-        const filename = suggestCoverFilename('cover.jpg');
-        downloadDataUrl(filename, siteDraft.heroCover);
-        coverPath = `/images/shop/${filename}`;
-      } else {
-        coverPath = siteDraft.heroCover;
-      }
+      publishedCovers = siteDraft.heroCovers.map((src, index) => {
+        if (src.startsWith('data:')) {
+          const filename = suggestCoverFilename(`cover-${index}.jpg`, index);
+          downloadDataUrl(filename, src);
+          return `/images/shop/${filename}`;
+        }
+        return src;
+      });
       downloadTextFile(
         'site.json',
         `${JSON.stringify(
           {
-            heroCover: coverPath,
+            heroCover: publishedCovers[0],
             heroCoverAlt: siteDraft.heroCoverAlt,
+            heroCovers: publishedCovers,
           },
           null,
           2,
@@ -363,7 +395,7 @@ export function ProductAdminPage({
       namedDrafts.length
         ? `สินค้าที่แก้: ${namedDrafts.map((d) => `${d.id} ${d.name}`).join(', ')}`
         : null,
-      siteDraft ? `ภาพหน้าปก: ${coverPath}` : null,
+      siteDraft ? `ภาพหน้าปก (${publishedCovers.length} รูป): ${publishedCovers.join(', ')}` : null,
     ]
       .filter(Boolean)
       .join('\n');
@@ -449,20 +481,28 @@ export function ProductAdminPage({
       </p>
 
       <div id="admin-cover" className="admin-form admin-cover">
-        <h3 className="admin-cover__title">① ภาพหน้าปก (หน้าแรก)</h3>
+        <h3 className="admin-cover__title">① ภาพหน้าปกเลื่อน (หน้าแรก)</h3>
+        <p className="admin-file-status">
+          เลือกได้หลายรูป — หน้าแรกจะเลื่อนไหลอัตโนมัติแบบสไลด์ · รูปแรก = เริ่มต้น
+        </p>
+
         <div className="admin-cover__preview">
-          {coverSrc ? (
-            <img src={resolveSiteImage(coverSrc)} alt="ตัวอย่างหน้าปก" />
+          {coverImages[0] ? (
+            <img src={resolveSiteImage(coverImages[0])} alt="ตัวอย่างหน้าปก" />
           ) : (
             <span>ยังไม่มีภาพ</span>
           )}
           {coverBusy && <span className="admin-cover__busy">กำลังโหลดรูป…</span>}
+          {coverImages.length > 1 && (
+            <span className="admin-cover__count">{coverImages.length} รูป</span>
+          )}
         </div>
 
         <input
           ref={coverRef}
           type="file"
           accept="image/*,.jpg,.jpeg,.png,.webp"
+          multiple
           className="admin-file-input"
           onChange={handleCoverFile}
         />
@@ -473,14 +513,44 @@ export function ProductAdminPage({
           disabled={coverBusy}
           onClick={() => coverRef.current?.click()}
         >
-          {coverBusy ? 'กำลังเตรียมรูป…' : 'เลือกภาพจากเครื่อง / ถ่ายรูป'}
+          {coverBusy ? 'กำลังเตรียมรูป…' : 'เลือกภาพหน้าปกจากเครื่อง / ถ่ายรูป (หลายรูปได้)'}
         </button>
+
+        <div className="admin-thumbs">
+          {coverImages.map((src, index) => (
+            <div key={`${index}-${src.slice(0, 24)}`} className="admin-thumbs__item">
+              <div className="admin-thumbs__media">
+                <img src={resolveSiteImage(src)} alt="" />
+                {index === 0 && <span className="admin-thumbs__badge">เริ่มต้น</span>}
+              </div>
+              <div className="admin-thumbs__actions">
+                <button type="button" onClick={() => moveCoverImage(index, -1)} disabled={index === 0}>
+                  ซ้าย
+                </button>
+                <button
+                  type="button"
+                  onClick={() => moveCoverImage(index, 1)}
+                  disabled={index === coverImages.length - 1}
+                >
+                  ขวา
+                </button>
+                {index > 0 ? (
+                  <button type="button" className="admin-thumbs__main" onClick={() => setMainCoverImage(index)}>
+                    เริ่มต้น
+                  </button>
+                ) : (
+                  <span className="admin-thumbs__main-spacer" aria-hidden="true" />
+                )}
+                <button type="button" className="admin-thumbs__delete" onClick={() => removeCoverImage(index)}>
+                  ลบ
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+
         <p className="admin-file-status">
-          {coverFileName
-            ? `เลือกแล้ว: ${coverFileName}`
-            : coverDirty
-              ? 'เลือกภาพใหม่แล้ว รอบันทึก'
-              : 'ยังไม่ได้เลือกไฟล์ใหม่'}
+          {coverDirty ? 'มีการแก้ภาพหน้าปก รอบันทึก' : `มีภาพหน้าปก ${coverImages.length} รูป`}
         </p>
 
         <label className="admin-form__field">
@@ -499,7 +569,7 @@ export function ProductAdminPage({
             type="button"
             className="admin-form__save"
             onClick={handleSaveCover}
-            disabled={coverBusy || !coverSrc}
+            disabled={coverBusy || !coverImages.length}
           >
             บันทึกภาพหน้าปก
           </button>

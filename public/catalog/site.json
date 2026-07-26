@@ -1,4 +1,10 @@
 {
   "heroCover": "/images/shop/shop-interior-1.jpg",
-  "heroCoverAlt": "ตะกร้าหวายสานมือภายในร้านราชาหวายสุรินทร์"
+  "heroCoverAlt": "ตะกร้าหวายสานมือภายในร้านราชาหวายสุรินทร์",
+  "heroCovers": [
+    "/images/shop/shop-interior-1.jpg",
+    "/images/promo/usage-market.png",
+    "/images/promo/usage-decor.png",
+    "/images/promo/usage-shopping.png"
+  ]
 }

@@ -19,15 +19,43 @@ const DRAFT_KEY = 'rachawei-catalog-drafts-v1';
 const SITE_DRAFT_KEY = 'rachawei-site-draft-v1';
 
 export interface SiteSettings {
-  /** ภาพหน้าปก (path หรือ data URL) */
+  /** ภาพหน้าปกแรก (เข้ากันได้กับเวอร์ชันเก่า) */
   heroCover: string;
   heroCoverAlt: string;
+  /** ภาพหน้าปกเลื่อนได้หลายรูป */
+  heroCovers: string[];
 }
 
 export const DEFAULT_SITE_SETTINGS: SiteSettings = {
   heroCover: '/images/shop/shop-interior-1.jpg',
   heroCoverAlt: 'ตะกร้าหวายสานมือภายในร้านราชาหวายสุรินทร์',
+  heroCovers: [
+    '/images/shop/shop-interior-1.jpg',
+    '/images/promo/usage-market.png',
+    '/images/promo/usage-decor.png',
+    '/images/promo/usage-shopping.png',
+  ],
 };
+
+export function normalizeSiteSettings(
+  data: Partial<SiteSettings> & { heroCover?: string } | null | undefined,
+): SiteSettings {
+  const covers = (
+    Array.isArray(data?.heroCovers) && data.heroCovers.length
+      ? data.heroCovers
+      : data?.heroCover
+        ? [data.heroCover]
+        : DEFAULT_SITE_SETTINGS.heroCovers
+  ).filter((src): src is string => typeof src === 'string' && src.length > 0);
+
+  const heroCovers = covers.length ? covers : [...DEFAULT_SITE_SETTINGS.heroCovers];
+
+  return {
+    heroCovers,
+    heroCover: heroCovers[0],
+    heroCoverAlt: data?.heroCoverAlt?.trim() || DEFAULT_SITE_SETTINGS.heroCoverAlt,
+  };
+}
 
 function withVersion(pathOrData: string): string {
   if (pathOrData.startsWith('data:') || pathOrData.startsWith('blob:')) {
@@ -134,16 +162,17 @@ export function loadSiteDraft(): SiteSettings | null {
   try {
     const raw = localStorage.getItem(SITE_DRAFT_KEY);
     if (!raw) return null;
-    const parsed = JSON.parse(raw) as SiteSettings;
-    if (!parsed?.heroCover) return null;
-    return parsed;
+    const parsed = JSON.parse(raw) as Partial<SiteSettings>;
+    const normalized = normalizeSiteSettings(parsed);
+    if (!normalized.heroCovers.length) return null;
+    return normalized;
   } catch {
     return null;
   }
 }
 
 export function saveSiteDraft(settings: SiteSettings) {
-  safeLocalStorageSet(SITE_DRAFT_KEY, JSON.stringify(settings));
+  safeLocalStorageSet(SITE_DRAFT_KEY, JSON.stringify(normalizeSiteSettings(settings)));
 }
 
 export function clearSiteDraft() {
@@ -157,10 +186,7 @@ export async function fetchBaseSite(): Promise<SiteSettings> {
     });
     if (!response.ok) return DEFAULT_SITE_SETTINGS;
     const data = (await response.json()) as Partial<SiteSettings>;
-    return {
-      heroCover: data.heroCover || DEFAULT_SITE_SETTINGS.heroCover,
-      heroCoverAlt: data.heroCoverAlt || DEFAULT_SITE_SETTINGS.heroCoverAlt,
-    };
+    return normalizeSiteSettings(data);
   } catch {
     return DEFAULT_SITE_SETTINGS;
   }
@@ -172,10 +198,10 @@ export async function loadSiteSettings(): Promise<SiteSettings> {
   return draft ?? base;
 }
 
-export function suggestCoverFilename(fileName: string): string {
+export function suggestCoverFilename(fileName: string, index = 0): string {
   const ext = fileName.includes('.') ? fileName.split('.').pop()?.toLowerCase() : 'jpg';
   const safeExt = ext && ['jpg', 'jpeg', 'png', 'webp'].includes(ext) ? ext.replace('jpeg', 'jpg') : 'jpg';
-  return `hero-cover.${safeExt}`;
+  return `hero-cover-${String(index + 1).padStart(2, '0')}.${safeExt}`;
 }
 
 export function nextProductId(items: CatalogItem[]): string {

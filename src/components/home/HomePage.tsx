@@ -20,7 +20,7 @@ interface HomePageProps {
   onContact: () => void;
   onSelectProduct: (product: Product) => void;
   products: Product[];
-  coverImage?: string;
+  coverImages?: string[];
   coverImageAlt?: string;
 }
 
@@ -37,7 +37,7 @@ export function HomePage({
   onContact,
   onSelectProduct,
   products,
-  coverImage,
+  coverImages,
   coverImageAlt,
 }: HomePageProps) {
   const [openSection, setOpenSection] = useState<HomeSectionId | null>(null);
@@ -83,7 +83,7 @@ export function HomePage({
       <HeroSection
         onViewProducts={onViewProducts}
         onContact={onContact}
-        coverImage={coverImage}
+        coverImages={coverImages}
         coverImageAlt={coverImageAlt}
       />
 
