@@ -3,6 +3,7 @@
 @theme {
   --font-sans: 'Noto Sans Thai', ui-sans-serif, system-ui, sans-serif;
   --font-display: 'Sarabun', 'Noto Sans Thai', ui-sans-serif, sans-serif;
+  --font-brand: 'Fahkwang', 'Sarabun', 'Noto Sans Thai', ui-sans-serif, sans-serif;
   --color-earth-950: #14100c;
   --color-earth-900: #1f1610;
   --color-earth-800: #2d2118;

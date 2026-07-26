@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { HOME_CONTENT } from '../../data/home';
+import { BrandMark } from '../BrandMark';
 
 interface HeroSectionProps {
   onViewProducts: () => void;
@@ -113,11 +114,8 @@ export function HeroSection({
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-earth-950/40 via-transparent to-transparent" />
 
         <div className="relative z-10 flex min-h-[58vh] flex-col justify-between px-5 pt-8 pb-10 sm:min-h-[62vh] sm:px-8 sm:pb-14">
-          <div className="animate-fade-in flex items-center gap-2">
-            <span className="flex h-9 w-9 items-center justify-center rounded-full border border-gold-400/20 bg-earth-900/60 text-lg backdrop-blur-sm">
-              👑
-            </span>
-            <span className="text-sm font-medium text-cream-200/80">ราชาหวายสุรินทร์</span>
+          <div className="animate-fade-in">
+            <BrandMark name="ราชาหวายสุรินทร์" variant="hero" />
           </div>
 
           <div className="animate-fade-up" style={{ animationDelay: '0.15s' }}>

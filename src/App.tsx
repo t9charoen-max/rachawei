@@ -16,6 +16,7 @@ import { VirtualTour } from './components/VirtualTour';
 import { AboutPage } from './components/about/AboutPage';
 import { HomePage } from './components/home/HomePage';
 import { ProductAdminPage } from './components/admin/ProductAdminPage';
+import { BrandMark } from './components/BrandMark';
 
 type Tab = 'home' | 'products' | 'about' | 'contact' | 'admin';
 
@@ -102,13 +103,12 @@ export function App() {
       <header className="sticky top-0 z-20 border-b border-gold-400/8 bg-earth-950/80 px-4 py-3 backdrop-blur-xl">
         <div className="flex w-full items-center gap-3">
           <button type="button" onClick={() => goTo('home')} className="flex min-w-0 flex-1 items-center gap-3 text-left">
-            <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-gold-400/20 bg-gradient-to-br from-earth-800 to-earth-900 text-lg shadow-inner">
-              👑
-            </span>
-            <div className="min-w-0 flex-1">
-              <p className="font-display truncate text-base font-bold text-gold-400">{shopName}</p>
-              <p className="truncate text-[0.7rem] text-cream-300/60">งานหัตถกรรมหวาย · สุรินทร์</p>
-            </div>
+            <BrandMark
+              name={shopName}
+              tagline="งานหัตถกรรมหวาย · สุรินทร์"
+              variant="header"
+              className="min-w-0"
+            />
           </button>
           <button
             type="button"
