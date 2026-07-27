@@ -3020,6 +3020,32 @@
   font-weight: 600;
 }
 
+.order-form__message-preview {
+  margin-top: 0.7rem;
+  padding: 0.7rem;
+  border-radius: 0.85rem;
+  border: 1px solid rgba(42, 31, 22, 0.1);
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.order-form__message-title {
+  margin: 0;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  color: #6b5340;
+}
+
+.order-form__message-preview pre {
+  margin: 0.45rem 0 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: 'Sarabun', ui-sans-serif, system-ui, sans-serif;
+  font-size: 0.8rem;
+  line-height: 1.5;
+  color: #2d231c;
+}
+
 .order-form {
   display: flex;
   flex-direction: column;
