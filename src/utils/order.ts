@@ -57,20 +57,125 @@ function lineAddUrl(): string {
   return `https://line.me/ti/p/~${LINE_CONFIG.id}`;
 }
 
-/**
- * เปิด LINE พร้อมข้อความสั่งซื้อ
- * - คัดลอกข้อความไว้ก่อน
- * - เปิดหน้าแชร์ LINE ให้เลือกร้าน/แชทที่ต้องการส่ง
- */
-export async function submitOrderViaLine(values: OrderFormValues) {
-  const text = formatOrderMessage(values);
-  const copied = await copyText(text);
+function toAbsoluteUrl(url: string): string | null {
+  const trimmed = url.trim();
+  if (!trimmed) return null;
+  if (trimmed.startsWith('data:') || trimmed.startsWith('blob:')) return trimmed;
+  try {
+    return new URL(trimmed, window.location.origin).href;
+  } catch {
+    return null;
+  }
+}
+
+function sanitizeFilename(name: string): string {
+  const cleaned = name
+    .trim()
+    .replace(/[^\p{L}\p{N}\-_]+/gu, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '');
+  return cleaned.slice(0, 40) || 'product';
+}
+
+function extensionForType(type: string): string {
+  if (type.includes('png')) return 'png';
+  if (type.includes('webp')) return 'webp';
+  if (type.includes('gif')) return 'gif';
+  return 'jpg';
+}
+
+async function imageUrlToFile(url: string, basename: string): Promise<File | null> {
+  const absolute = toAbsoluteUrl(url);
+  if (!absolute) return null;
 
   try {
-    window.location.assign(lineShareUrl(text));
+    const response = await fetch(absolute);
+    if (!response.ok) return null;
+    const blob = await response.blob();
+    if (!blob.size) return null;
+    const type = blob.type.startsWith('image/') ? blob.type : 'image/jpeg';
+    return new File([blob], `${sanitizeFilename(basename)}.${extensionForType(type)}`, { type });
+  } catch {
+    return null;
+  }
+}
+
+function canShareFiles(files: File[]): boolean {
+  if (typeof navigator === 'undefined' || typeof navigator.share !== 'function') return false;
+  if (typeof navigator.canShare !== 'function') return false;
+  try {
+    return navigator.canShare({ files });
+  } catch {
+    return false;
+  }
+}
+
+function isAbortError(error: unknown): boolean {
+  return (
+    (error instanceof DOMException && error.name === 'AbortError') ||
+    (typeof error === 'object' &&
+      error !== null &&
+      'name' in error &&
+      (error as { name: string }).name === 'AbortError')
+  );
+}
+
+export interface SubmitOrderOptions {
+  /** รูปสินค้าจากแคตตาล็อก — จะแนบผ่าน Web Share API เมื่ออุปกรณ์รองรับ */
+  imageUrl?: string;
+}
+
+export interface SubmitOrderResult {
+  copied: boolean;
+  text: string;
+  sharedWithImage: boolean;
+  cancelled?: boolean;
+}
+
+/**
+ * ส่งคำสั่งซื้อเข้า LINE
+ * - คัดลอกข้อความไว้เสมอ (เผื่อวางแชท)
+ * - ถ้ามีรูปและเครื่องรองรับ → เปิดแชร์พร้อมแนบรูป (เลือก LINE ได้)
+ * - ไม่รองรับแนบรูป → เปิด LINE แชร์ข้อความ (พร้อมลิงก์รูปถ้ามี)
+ */
+export async function submitOrderViaLine(
+  values: OrderFormValues,
+  options: SubmitOrderOptions = {},
+): Promise<SubmitOrderResult> {
+  const baseText = formatOrderMessage(values);
+  const absoluteImage = options.imageUrl ? toAbsoluteUrl(options.imageUrl) : null;
+  const textWithImageLink =
+    absoluteImage && !absoluteImage.startsWith('data:') && !absoluteImage.startsWith('blob:')
+      ? `${baseText}\n\nรูปสินค้า: ${absoluteImage}`
+      : baseText;
+
+  const copied = await copyText(textWithImageLink);
+
+  const file = options.imageUrl
+    ? await imageUrlToFile(options.imageUrl, values.productName || 'product')
+    : null;
+
+  if (file && canShareFiles([file])) {
+    try {
+      await navigator.share({
+        title: `สั่งซื้อ — ${SHOP_INFO.name}`,
+        text: textWithImageLink,
+        files: [file],
+      });
+      return { copied, text: textWithImageLink, sharedWithImage: true };
+    } catch (error) {
+      if (isAbortError(error)) {
+        return { copied, text: textWithImageLink, sharedWithImage: false, cancelled: true };
+      }
+      // แชร์รูปไม่สำเร็จ — ตกไปเปิด LINE แบบข้อความ
+    }
+  }
+
+  try {
+    window.location.assign(lineShareUrl(textWithImageLink));
   } catch {
     window.open(lineAddUrl(), '_blank', 'noopener,noreferrer');
   }
 
-  return { copied, text };
+  return { copied, text: textWithImageLink, sharedWithImage: false };
 }

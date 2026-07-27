@@ -2993,6 +2993,33 @@
   color: #6b5340;
 }
 
+.order-form__preview {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  margin-top: 0.85rem;
+  padding: 0.55rem 0.65rem;
+  border-radius: 0.85rem;
+  background: rgba(42, 31, 22, 0.04);
+  border: 1px solid rgba(42, 31, 22, 0.08);
+}
+
+.order-form__preview img {
+  width: 3.25rem;
+  height: 3.25rem;
+  object-fit: cover;
+  border-radius: 0.55rem;
+  background: #e8ddd0;
+  flex-shrink: 0;
+}
+
+.order-form__preview span {
+  font-size: 0.78rem;
+  line-height: 1.4;
+  color: #5a4a3c;
+  font-weight: 600;
+}
+
 .order-form {
   display: flex;
   flex-direction: column;
