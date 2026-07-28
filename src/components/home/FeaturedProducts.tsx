@@ -1,5 +1,6 @@
 import type { Product } from '../../data/products';
 import { ProductImageBadges } from '../ProductImageBadges';
+import { ProductImageFrame } from '../ProductImageFrame';
 
 interface FeaturedProductsProps {
   products: Product[];
@@ -36,8 +37,10 @@ export function FeaturedProducts({ products, onSelect, onViewAll }: FeaturedProd
             style={{ animationDelay: `${i * 100}ms` }}
           >
             <div className="featured-card__image">
-              <img src={product.image} alt={product.name} loading={i === 0 ? 'eager' : 'lazy'} decoding="async" />
-              <ProductImageBadges />
+              <ProductImageFrame variant="featured">
+                <img src={product.image} alt={product.name} loading={i === 0 ? 'eager' : 'lazy'} decoding="async" />
+                <ProductImageBadges />
+              </ProductImageFrame>
             </div>
             <div className="featured-card__body">
               <span className="featured-card__category">{product.category}</span>

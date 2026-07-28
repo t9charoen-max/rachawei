@@ -1,6 +1,7 @@
 import type { Product } from '../data/products';
 import { ProductImage } from './ProductImage';
 import { ProductImageBadges } from './ProductImageBadges';
+import { ProductImageFrame } from './ProductImageFrame';
 
 interface ProductCardProps {
   product: Product;
@@ -11,8 +12,10 @@ export function ProductCard({ product, onSelect }: ProductCardProps) {
   return (
     <button type="button" className="product-card" onClick={() => onSelect(product)}>
       <div className="product-card__image">
-        <ProductImage src={product.image} alt={product.name} />
-        <ProductImageBadges />
+        <ProductImageFrame variant="card">
+          <ProductImage src={product.image} alt={product.name} />
+          <ProductImageBadges />
+        </ProductImageFrame>
         {product.panorama360 && <span className="product-card__360">360°</span>}
       </div>
       <div className="product-card__body">

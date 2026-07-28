@@ -5,6 +5,7 @@ import { HowToOrder } from './HowToOrder';
 import { Product360Viewer } from './Product360Viewer';
 import { ProductImage } from './ProductImage';
 import { ProductImageBadges } from './ProductImageBadges';
+import { ProductImageFrame } from './ProductImageFrame';
 import { StickyOrderBar } from './StickyOrderBar';
 import { TrustBadges } from './TrustBadges';
 
@@ -98,8 +99,10 @@ export function ProductDetail({ product, products = [], onBack }: ProductDetailP
                   ‹
                 </button>
               )}
-              <ProductImage src={activePhoto} alt={`${product.name} รูปที่ ${photoIndex + 1}`} variant="detail" />
-              <ProductImageBadges />
+              <ProductImageFrame variant="detail">
+                <ProductImage src={activePhoto} alt={`${product.name} รูปที่ ${photoIndex + 1}`} variant="detail" />
+                <ProductImageBadges />
+              </ProductImageFrame>
               {hasGallery && (
                 <>
                   <span className="detail-hero__counter">
