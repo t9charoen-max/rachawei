@@ -9,3 +9,11 @@ createRoot(document.getElementById('root')!).render(
     <App />
   </StrictMode>,
 );
+
+if ('serviceWorker' in navigator && import.meta.env.PROD) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(() => {
+      // ติดตั้งไม่ได้ก็ใช้เว็บปกติต่อได้
+    });
+  });
+}
