@@ -3207,6 +3207,68 @@
   transform: scale(0.98);
 }
 
+/* ——— แบนเนอร์ติดตั้งแอป ——— */
+.install-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  margin: 0.6rem 0.75rem 0;
+  padding: 0.6rem 0.7rem;
+  border-radius: 0.95rem;
+  border: 1px solid rgba(212, 168, 83, 0.3);
+  background: linear-gradient(135deg, rgba(61, 45, 32, 0.92), rgba(38, 27, 19, 0.95));
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.3);
+}
+
+.install-banner__icon img {
+  display: block;
+  border-radius: 0.6rem;
+}
+
+.install-banner__text {
+  flex: 1;
+  min-width: 0;
+}
+
+.install-banner__title {
+  margin: 0;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--gold-light);
+}
+
+.install-banner__desc {
+  margin: 0.1rem 0 0;
+  font-size: 0.74rem;
+  line-height: 1.4;
+  color: var(--cream-muted);
+}
+
+.install-banner__install {
+  flex-shrink: 0;
+  padding: 0.5rem 0.9rem;
+  border: none;
+  border-radius: 0.7rem;
+  background: linear-gradient(135deg, var(--gold-light), var(--gold));
+  color: #2a1f16;
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.install-banner__close {
+  flex-shrink: 0;
+  width: 1.7rem;
+  height: 1.7rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--cream-muted);
+  font-size: 0.75rem;
+}
+
 /* ——— จัดการสินค้า (Admin) ——— */
 .admin-screen__top {
   display: flex;

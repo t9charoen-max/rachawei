@@ -17,6 +17,7 @@ import { AboutPage } from './components/about/AboutPage';
 import { HomePage } from './components/home/HomePage';
 import { ProductAdminPage } from './components/admin/ProductAdminPage';
 import { BrandMark } from './components/BrandMark';
+import { InstallAppBanner } from './components/InstallAppBanner';
 
 type Tab = 'home' | 'products' | 'about' | 'contact' | 'admin';
 
@@ -99,6 +100,8 @@ export function App() {
         aria-hidden
       />
       <div className="pointer-events-none fixed inset-0 -z-10 bg-woven-pattern opacity-30" aria-hidden />
+
+      <InstallAppBanner />
 
       <header className="sticky top-0 z-20 border-b border-gold-400/8 bg-earth-950/80 px-4 py-3 backdrop-blur-xl">
         <div className="flex w-full items-center gap-3">
