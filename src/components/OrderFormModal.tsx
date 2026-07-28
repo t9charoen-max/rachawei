@@ -1,6 +1,6 @@
 import { useEffect, useId, useMemo, useState, type FormEvent } from 'react';
 import type { Product } from '../data/products';
-import { emptyOrderForm, submitOrderViaLine, type OrderFormValues } from '../utils/order';
+import { buildLineOrderShareText, emptyOrderForm, submitOrderViaLine, type OrderFormValues } from '../utils/order';
 
 interface OrderFormModalProps {
   product?: Product;
@@ -42,6 +42,10 @@ export function OrderFormModal({ product, products = [], onClose }: OrderFormMod
   const selectedImage = useMemo(
     () => resolveProductImage(values.productName, product, products),
     [values.productName, product, products],
+  );
+  const previewMessage = useMemo(
+    () => buildLineOrderShareText(values, selectedImage),
+    [values, selectedImage],
   );
 
   const update = <K extends keyof OrderFormValues>(key: K, value: OrderFormValues[K]) => {
@@ -102,6 +106,11 @@ export function OrderFormModal({ product, products = [], onClose }: OrderFormMod
             <span>จะแนบรูปนี้ไปกับคำสั่งซื้อ</span>
           </div>
         ) : null}
+
+        <div className="order-form__message-preview" aria-live="polite">
+          <p className="order-form__message-title">ตัวอย่างข้อความที่จะส่ง</p>
+          <pre>{previewMessage}</pre>
+        </div>
 
         <form className="order-form" onSubmit={handleSubmit}>
           <label className="order-form__field">

@@ -24,20 +24,43 @@ export function emptyOrderForm(product?: Product): OrderFormValues {
 
 export function formatOrderMessage(values: OrderFormValues): string {
   const qty = Number.isFinite(values.quantity) && values.quantity > 0 ? values.quantity : 1;
+  const name = values.customerName.trim();
+  const phone = values.phone.trim();
+  const productName = values.productName.trim();
+  const address = values.address.trim();
+  const note = values.note.trim();
 
   return [
-    `🛒 สั่งซื้อ — ${SHOP_INFO.name}`,
-    `ชื่อ: ${values.customerName.trim()}`,
-    `โทร: ${values.phone.trim()}`,
-    `สินค้า: ${values.productName.trim()}`,
-    `จำนวน: ${qty} ชิ้น`,
-    values.address.trim() ? `ที่อยู่จัดส่ง: ${values.address.trim()}` : null,
-    values.note.trim() ? `หมายเหตุ: ${values.note.trim()}` : null,
+    '🛒 คำสั่งซื้อใหม่',
+    `ร้าน: ${SHOP_INFO.name}`,
     '',
-    'รบกวนทางร้านยืนยันราคาและค่าจัดส่งด้วยครับ/ค่า',
+    '👤 ผู้สั่งซื้อ',
+    `• ชื่อ: ${name}`,
+    `• โทร: ${phone}`,
+    '',
+    '🧺 รายการสินค้า',
+    `• สินค้า: ${productName}`,
+    `• จำนวน: ${qty} ชิ้น`,
+    address ? '' : null,
+    address ? '📍 ที่อยู่จัดส่ง' : null,
+    address || null,
+    note ? '' : null,
+    note ? `📝 หมายเหตุ: ${note}` : null,
+    '',
+    'รบกวนยืนยันราคาและค่าจัดส่งด้วยครับ/ค่ะ',
   ]
     .filter(Boolean)
     .join('\n');
+}
+
+export function buildLineOrderShareText(values: OrderFormValues, imageUrl?: string): string {
+  const baseText = formatOrderMessage(values);
+  const absoluteImage = imageUrl ? toAbsoluteUrl(imageUrl) : null;
+  if (!absoluteImage || absoluteImage.startsWith('data:') || absoluteImage.startsWith('blob:')) {
+    return baseText;
+  }
+
+  return `${baseText}\n\n🖼️ รูปสินค้า: ${absoluteImage}`;
 }
 
 async function copyText(text: string): Promise<boolean> {
@@ -142,12 +165,7 @@ export async function submitOrderViaLine(
   values: OrderFormValues,
   options: SubmitOrderOptions = {},
 ): Promise<SubmitOrderResult> {
-  const baseText = formatOrderMessage(values);
-  const absoluteImage = options.imageUrl ? toAbsoluteUrl(options.imageUrl) : null;
-  const textWithImageLink =
-    absoluteImage && !absoluteImage.startsWith('data:') && !absoluteImage.startsWith('blob:')
-      ? `${baseText}\n\nรูปสินค้า: ${absoluteImage}`
-      : baseText;
+  const textWithImageLink = buildLineOrderShareText(values, options.imageUrl);
 
   const copied = await copyText(textWithImageLink);
 
