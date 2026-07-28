@@ -612,6 +612,13 @@
 
 .product-image-frame--showcase {
   z-index: 1;
+  display: block;
+  width: 100%;
+  max-width: 100%;
+}
+
+.products-showcase__frame {
+  margin: 0 auto;
 }
 
 .product-image-badges {
@@ -1535,7 +1542,7 @@
 
 .products-showcase {
   margin: 0 -1rem;
-  padding: 1.35rem 1rem 1.1rem;
+  padding: 1.25rem 0.55rem 1rem;
   text-align: center;
   background: linear-gradient(180deg, #faf6f0 0%, #f3ebe0 55%, #ebe2d4 100%);
   color: #2a1f16;
@@ -1584,8 +1591,9 @@
 
 .products-showcase__stage {
   position: relative;
-  margin: 1.1rem auto 0;
-  min-height: 240px;
+  width: 100%;
+  margin: 0.85rem 0 0;
+  min-height: clamp(300px, 62vw, 440px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1605,7 +1613,7 @@
 
 .products-showcase__glow {
   position: absolute;
-  inset: 8% 4%;
+  inset: 6% 5%;
   border-radius: 50%;
   background: radial-gradient(ellipse, rgba(212, 168, 83, 0.22), transparent 70%);
   pointer-events: none;
@@ -1614,11 +1622,11 @@
 .products-showcase__hero {
   position: relative;
   z-index: 1;
-  width: auto;
-  height: auto;
+  width: 100%;
+  height: clamp(300px, 62vw, 440px);
   max-width: 100%;
-  max-height: 260px;
   object-fit: contain;
+  object-position: center;
   filter: drop-shadow(0 16px 24px rgba(42, 31, 22, 0.18));
 }
 
