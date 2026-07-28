@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { CATEGORIES, type Category, type Product } from '../../data/products';
 import { SHOP_INFO } from '../../data/products';
 import { ProductImageBadges } from '../ProductImageBadges';
+import { ProductImageFrame } from '../ProductImageFrame';
 import { SafeImage } from '../SafeImage';
 import { BrandMark } from '../BrandMark';
 
@@ -60,15 +61,17 @@ export function ProductsPage({
               <p className="products-showcase__tagline">สานมือ 100% · โทรหรือ LINE สั่งได้ทันที</p>
 
               <div className="products-showcase__stage" key={active.id}>
-                <div className="products-showcase__glow" aria-hidden />
-                <SafeImage
-                  src={active.image}
-                  alt={active.name}
-                  className="products-showcase__hero"
-                  loading="eager"
-                  decoding="async"
-                />
-                <ProductImageBadges />
+                <ProductImageFrame variant="showcase" className="products-showcase__frame">
+                  <div className="products-showcase__glow" aria-hidden />
+                  <SafeImage
+                    src={active.image}
+                    alt={active.name}
+                    className="products-showcase__hero"
+                    loading="eager"
+                    decoding="async"
+                  />
+                  <ProductImageBadges />
+                </ProductImageFrame>
               </div>
 
               <div className="products-showcase__picker" role="listbox" aria-label="เลือกสินค้า">
