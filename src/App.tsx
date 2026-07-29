@@ -21,14 +21,14 @@ import { InstallAppBanner } from './components/InstallAppBanner';
 
 type Tab = 'home' | 'products' | 'about' | 'contact' | 'admin';
 
-const NAV_ITEMS = [
+const CUSTOMER_NAV = [
   { id: 'home' as const, icon: '🏠', label: 'หน้าแรก' },
   { id: 'products' as const, icon: '🛍️', label: 'สินค้า' },
   { id: 'about' as const, icon: '📖', label: 'เกี่ยวกับ' },
   { id: 'contact' as const, icon: '📞', label: 'ติดต่อ' },
-  { id: 'admin' as const, icon: '⚙️', label: 'ร้าน' },
 ];
 
+/** เปิดหลังร้านเฉพาะเจ้าของร้าน — ไม่โชว์ให้ลูกค้า */
 function wantsAdmin(): boolean {
   if (typeof window === 'undefined') return false;
   const params = new URLSearchParams(window.location.search);
@@ -36,6 +36,7 @@ function wantsAdmin(): boolean {
 }
 
 export function App() {
+  const [adminGate, setAdminGate] = useState(() => wantsAdmin());
   const [tab, setTab] = useState<Tab>(() => (wantsAdmin() ? 'admin' : 'home'));
   const [category, setCategory] = useState<Category>('ทั้งหมด');
   const [selected, setSelected] = useState<Product | null>(null);
@@ -43,6 +44,20 @@ export function App() {
   const [site, setSite] = useState<SiteSettings | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
+
+  useEffect(() => {
+    const syncAdminGate = () => {
+      const open = wantsAdmin();
+      setAdminGate(open);
+      if (open) setTab('admin');
+    };
+    window.addEventListener('hashchange', syncAdminGate);
+    window.addEventListener('popstate', syncAdminGate);
+    return () => {
+      window.removeEventListener('hashchange', syncAdminGate);
+      window.removeEventListener('popstate', syncAdminGate);
+    };
+  }, []);
 
   const refreshCatalog = useCallback(async () => {
     try {
@@ -84,14 +99,28 @@ export function App() {
   );
 
   const goTo = (next: Tab) => {
+    if (next === 'admin' && !adminGate) return;
     setTab(next);
     if (next !== 'products') setSelected(null);
+  };
+
+  const leaveAdmin = () => {
+    setAdminGate(false);
+    setTab('home');
+    const url = new URL(window.location.href);
+    url.searchParams.delete('admin');
+    if (url.hash === '#admin') url.hash = '';
+    window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
   };
 
   const selectProduct = (product: Product) => {
     setSelected(product);
     setTab('products');
   };
+
+  const navItems = adminGate
+    ? [...CUSTOMER_NAV, { id: 'admin' as const, icon: '⚙️', label: 'หลังร้าน' }]
+    : CUSTOMER_NAV;
 
   return (
     <div className="relative mx-auto flex min-h-dvh max-w-lg flex-col bg-earth-950">
@@ -113,15 +142,6 @@ export function App() {
               className="min-w-0"
             />
           </button>
-          <button
-            type="button"
-            className="header-admin-btn"
-            onClick={() => goTo('admin')}
-            aria-label="จัดการหลังร้าน"
-            title="จัดการหลังร้าน"
-          >
-            ⚙️
-          </button>
           <a
             href={`tel:${shopPhone.replace(/-/g, '')}`}
             className="header-call-btn"
@@ -136,12 +156,12 @@ export function App() {
         {loading && <p className="contact-note">กำลังโหลดสินค้า…</p>}
         {loadError && <p className="contact-note">{loadError}</p>}
 
-        {tab === 'admin' && (
+        {adminGate && tab === 'admin' && (
           <ProductAdminPage
             products={products}
             site={site}
             onCatalogChange={() => void refreshCatalog()}
-            onClose={() => goTo('home')}
+            onClose={leaveAdmin}
             onViewAbout={() => goTo('about')}
           />
         )}
@@ -234,8 +254,8 @@ export function App() {
       {tab === 'products' && !selected && <FloatingCallButton products={products} />}
 
       <nav className="sticky bottom-0 z-20 mx-3 mb-3 rounded-2xl border border-gold-400/10 bg-earth-900/90 p-1 shadow-2xl shadow-black/40 backdrop-blur-xl">
-        <div className="grid grid-cols-5">
-          {NAV_ITEMS.map(({ id, icon, label }) => {
+        <div className={`grid ${adminGate ? 'grid-cols-5' : 'grid-cols-4'}`}>
+          {navItems.map(({ id, icon, label }) => {
             const active = tab === id;
             return (
               <button
