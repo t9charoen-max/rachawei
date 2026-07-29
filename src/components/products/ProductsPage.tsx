@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type TouchEvent } from 'react';
 import { CATEGORIES, type Category, type Product } from '../../data/products';
-import { SHOP_INFO } from '../../data/products';
+import { SHOP_INFO, getProductDisplayCategory } from '../../data/products';
 import { telLink } from '../../utils/contact';
 import { BrandMark } from '../BrandMark';
 import { OrderFormButton } from '../OrderFormButton';
@@ -26,6 +26,7 @@ export function ProductsPage({
   const [activeIndex, setActiveIndex] = useState(0);
   const touchStartX = useRef<number | null>(null);
   const active = products[activeIndex] ?? products[0];
+  const activeCategoryLabel = active ? getProductDisplayCategory(active) : null;
 
   useEffect(() => {
     setActiveIndex(0);
@@ -130,7 +131,9 @@ export function ProductsPage({
               </div>
 
               <div className="products-showcase__info">
-                <p className="products-showcase__category">{active.category}</p>
+                {activeCategoryLabel ? (
+                  <p className="products-showcase__category">{activeCategoryLabel}</p>
+                ) : null}
                 <h3 className="products-showcase__name">{active.name}</h3>
                 <p className="products-showcase__hint">
                   {activeIndex + 1}/{products.length} · ปัดซ้าย–ขวาเพื่อดูชิ้นอื่น

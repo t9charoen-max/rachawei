@@ -1,4 +1,5 @@
 import type { Product } from '../../data/products';
+import { getProductDisplayCategory } from '../../data/products';
 import { ProductImageBadges } from '../ProductImageBadges';
 import { ProductImageFrame } from '../ProductImageFrame';
 
@@ -28,7 +29,9 @@ export function FeaturedProducts({ products, onSelect, onViewAll }: FeaturedProd
       </div>
 
       <div className="featured-scroll">
-        {featured.map((product, i) => (
+        {featured.map((product, i) => {
+          const categoryLabel = getProductDisplayCategory(product);
+          return (
           <button
             key={product.id}
             type="button"
@@ -43,11 +46,14 @@ export function FeaturedProducts({ products, onSelect, onViewAll }: FeaturedProd
               </ProductImageFrame>
             </div>
             <div className="featured-card__body">
-              <span className="featured-card__category">{product.category}</span>
+              {categoryLabel ? (
+                <span className="featured-card__category">{categoryLabel}</span>
+              ) : null}
               <h3 className="featured-card__name">{product.name}</h3>
             </div>
           </button>
-        ))}
+          );
+        })}
       </div>
     </section>
   );

@@ -382,7 +382,7 @@ export function ProductAdminPage({
       name: form.name.trim(),
       description: form.description.trim() || form.name.trim(),
       category: form.category,
-      special: form.special || form.category === 'พิเศษ',
+      special: form.special,
       images: form.images,
     };
 
@@ -896,7 +896,7 @@ export function ProductAdminPage({
             checked={form.special}
             onChange={(e) => setForm((c) => ({ ...c, special: e.target.checked }))}
           />
-          <span>สินค้าพิเศษ</span>
+          <span>สินค้าพิเศษ — ติ๊กแล้วคำว่า “พิเศษ” จะขึ้นหน้าร้าน</span>
         </label>
 
         <label className="admin-form__field">

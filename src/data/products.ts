@@ -37,6 +37,20 @@ export function getProductImages(product: Product): string[] {
   return [product.image];
 }
 
+/** ป้ายบนหน้าร้าน — คำว่า “พิเศษ” โชว์เฉพาะเมื่อติ๊กสินค้าพิเศษในหลังร้าน */
+export function getProductDisplayCategory(product: Product): string | null {
+  if (product.special) return 'พิเศษ';
+  if (product.category && product.category !== 'พิเศษ') return product.category;
+  return null;
+}
+
+/** กรองตามหมวด — หมวด “พิเศษ” ใช้ธง special ไม่ใช่ชื่อหมวดอย่างเดียว */
+export function productMatchesCategory(product: Product, category: Category): boolean {
+  if (category === 'ทั้งหมด') return true;
+  if (category === 'พิเศษ') return Boolean(product.special);
+  return product.category === category;
+}
+
 export const SHOP_INFO = {
   name: 'ราชาหวายสุรินทร์',
   tagline: 'ตะกร้าหวายสานมือจากชุมชนสุรินทร์',

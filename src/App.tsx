@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { SHOP_INFO, type Category, type Product } from './data/products';
+import { SHOP_INFO, productMatchesCategory, type Category, type Product } from './data/products';
 import {
   loadProducts,
   loadSiteSettings,
@@ -91,10 +91,7 @@ export function App() {
   const aboutStory = site?.story || SHOP_INFO.story;
 
   const filtered = useMemo(
-    () =>
-      category === 'ทั้งหมด'
-        ? products
-        : products.filter((p) => p.category === category),
+    () => products.filter((p) => productMatchesCategory(p, category)),
     [category, products],
   );
 
