@@ -14,7 +14,7 @@ export function PromoSection({
   onSelectProduct,
 }: PromoSectionProps) {
   const promoProducts = useMemo(() => {
-    const specials = products.filter((product) => product.special || product.category === 'พิเศษ');
+    const specials = products.filter((product) => product.special);
     const list = specials.length ? specials : products.slice(0, 4);
     return list.slice(0, 4);
   }, [products]);

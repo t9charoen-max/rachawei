@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import type { Product } from '../data/products';
-import { getProductImages } from '../data/products';
+import { getProductDisplayCategory, getProductImages } from '../data/products';
 import { HowToOrder } from './HowToOrder';
 import { Product360Viewer } from './Product360Viewer';
 import { ProductImage } from './ProductImage';
@@ -27,6 +27,7 @@ export function ProductDetail({ product, products = [], onBack }: ProductDetailP
   const [photoIndex, setPhotoIndex] = useState(0);
   const touchStartX = useRef<number | null>(null);
   const activePhoto = photos[photoIndex] ?? product.image;
+  const categoryLabel = getProductDisplayCategory(product);
 
   useEffect(() => {
     setPhotoIndex(0);
@@ -157,8 +158,12 @@ export function ProductDetail({ product, products = [], onBack }: ProductDetailP
 
         <div className="detail-body detail-body--card">
           <div className="detail-body__meta">
-            <span className="detail-body__category">{product.category}</span>
-            <span className="detail-body__special">พิเศษ · สานมือ 100%</span>
+            {categoryLabel ? (
+              <span className={categoryLabel === 'พิเศษ' ? 'detail-body__special' : 'detail-body__category'}>
+                {categoryLabel}
+              </span>
+            ) : null}
+            <span className="detail-body__handmade">สานมือ 100%</span>
           </div>
           <h2 className="detail-body__name">{product.name}</h2>
           <p className="detail-body__desc">{product.description}</p>
