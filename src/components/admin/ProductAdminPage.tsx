@@ -481,7 +481,8 @@ export function ProductAdminPage({
     const handoff = [
       'ช่วยอัปเดตเว็บราชาหวายสุรินทร์ให้หน่อยครับ/ค่ะ',
       '',
-      'เว็บจริง: https://rachawei.vercel.app',
+      'เว็บจริง (ส่งลูกค้า): https://rachawei.vercel.app',
+      'หลังร้าน (เจ้าของเท่านั้น): https://rachawei.vercel.app/?admin=1',
       'โปรเจกต์: https://github.com/t9charoen-max/rachawei',
       '',
       'ฉันแก้ในหลังบ้านแล้ว ส่งไฟล์มาด้วย กรุณาทำตามนี้:',
@@ -577,9 +578,11 @@ export function ProductAdminPage({
         </button>
         <h2 className="section-title">จัดการหลังร้าน</h2>
         <p className="admin-screen__hint">
-          สำหรับเจ้าของร้าน — กรอกรหัส 4 ตัวท้ายเบอร์โทรร้าน
+          สำหรับเจ้าของร้านเท่านั้น — ลูกค้าไม่เห็นหน้านี้
           <br />
-          เบอร์ร้าน {SHOP_INFO.phone} → รหัส <strong>{ADMIN_PIN}</strong>
+          กรอกรหัส 4 ตัวท้ายเบอร์โทรร้าน ({SHOP_INFO.phone} → <strong>{ADMIN_PIN}</strong>)
+          <br />
+          บุ๊กมาร์กลิงก์หลังร้านไว้เอง: <strong>rachawei.vercel.app/?admin=1</strong>
         </p>
         <form className="admin-pin" onSubmit={handleUnlock}>
           <input
@@ -599,7 +602,7 @@ export function ProductAdminPage({
           {pinError && <p className="admin-pin__error">{pinError}</p>}
         </form>
         <p className="admin-screen__hint">
-          แนะนำ: อย่าใช้โหมดส่วนตัว/Incognito เพราะอาจบันทึกรูปไม่ได้
+          ส่งให้ลูกค้าใช้ลิงก์ปกติ (ไม่มี ?admin=1) — จะเห็นเฉพาะหน้าร้าน
         </p>
       </section>
     );
