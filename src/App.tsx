@@ -18,6 +18,11 @@ import { HomePage } from './components/home/HomePage';
 import { ProductAdminPage } from './components/admin/ProductAdminPage';
 import { BrandMark } from './components/BrandMark';
 import { InstallAppBanner } from './components/InstallAppBanner';
+import {
+  setAdminUnlocked,
+  shouldOpenAdminGate,
+  wantsAdminUrl,
+} from './utils/adminAccess';
 
 type Tab = 'home' | 'products' | 'about' | 'contact' | 'admin';
 
@@ -28,16 +33,16 @@ const CUSTOMER_NAV = [
   { id: 'contact' as const, icon: '📞', label: 'ติดต่อ' },
 ];
 
-/** เปิดหลังร้านเฉพาะเจ้าของร้าน — ไม่โชว์ให้ลูกค้า */
-function wantsAdmin(): boolean {
-  if (typeof window === 'undefined') return false;
-  const params = new URLSearchParams(window.location.search);
-  return params.get('admin') === '1' || window.location.hash === '#admin';
+function clearAdminFromUrl() {
+  const url = new URL(window.location.href);
+  url.searchParams.delete('admin');
+  if (url.hash === '#admin') url.hash = '';
+  window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
 }
 
 export function App() {
-  const [adminGate, setAdminGate] = useState(() => wantsAdmin());
-  const [tab, setTab] = useState<Tab>(() => (wantsAdmin() ? 'admin' : 'home'));
+  const [adminGate, setAdminGate] = useState(() => shouldOpenAdminGate());
+  const [tab, setTab] = useState<Tab>(() => (wantsAdminUrl() ? 'admin' : 'home'));
   const [category, setCategory] = useState<Category>('ทั้งหมด');
   const [selected, setSelected] = useState<Product | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
@@ -47,9 +52,9 @@ export function App() {
 
   useEffect(() => {
     const syncAdminGate = () => {
-      const open = wantsAdmin();
+      const open = shouldOpenAdminGate();
       setAdminGate(open);
-      if (open) setTab('admin');
+      if (wantsAdminUrl()) setTab('admin');
     };
     window.addEventListener('hashchange', syncAdminGate);
     window.addEventListener('popstate', syncAdminGate);
@@ -101,13 +106,26 @@ export function App() {
     if (next !== 'products') setSelected(null);
   };
 
-  const leaveAdmin = () => {
+  /** กลับดูหน้าร้าน — ยังเป็นแอดมินอยู่ กดแท็บหลังร้านกลับมาแก้ได้ */
+  const goStorefront = () => {
+    setTab('home');
+    setSelected(null);
+    clearAdminFromUrl();
+  };
+
+  /** ออกจากโหมดแอดมินทั้งเครื่องนี้ — เหลือเฉพาะหน้าร้าน */
+  const exitAdminMode = () => {
+    setAdminUnlocked(false);
     setAdminGate(false);
     setTab('home');
-    const url = new URL(window.location.href);
-    url.searchParams.delete('admin');
-    if (url.hash === '#admin') url.hash = '';
-    window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
+    setSelected(null);
+    clearAdminFromUrl();
+  };
+
+  const handleAdminUnlocked = () => {
+    setAdminUnlocked(true);
+    setAdminGate(true);
+    setTab('admin');
   };
 
   const selectProduct = (product: Product) => {
@@ -158,7 +176,9 @@ export function App() {
             products={products}
             site={site}
             onCatalogChange={() => void refreshCatalog()}
-            onClose={leaveAdmin}
+            onClose={goStorefront}
+            onExitAdmin={exitAdminMode}
+            onUnlocked={handleAdminUnlocked}
             onViewAbout={() => goTo('about')}
           />
         )}

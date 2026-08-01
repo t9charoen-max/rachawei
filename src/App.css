@@ -3297,6 +3297,33 @@
   color: var(--cream-muted);
 }
 
+.admin-invite {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  margin-top: 0.5rem;
+}
+
+.admin-invite__url {
+  display: inline-block;
+  margin-top: 0.25rem;
+  word-break: break-all;
+  color: var(--gold-light);
+  font-size: 0.8rem;
+}
+
+.admin-exit-btn {
+  display: inline-flex;
+  margin: 0 0 0.85rem;
+  padding: 0.45rem 0.75rem;
+  border: 1px solid rgba(212, 168, 83, 0.28);
+  border-radius: 0.7rem;
+  background: transparent;
+  color: var(--cream-muted);
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
 .admin-screen__message {
   margin: 0.85rem 0 0;
   padding: 0.75rem 0.9rem;

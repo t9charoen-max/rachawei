@@ -26,12 +26,15 @@ import {
   type Product,
 } from '../../data/products';
 import { compressImageFile } from '../../utils/imageUpload';
+import { adminInviteUrl, isAdminUnlocked, setAdminUnlocked } from '../../utils/adminAccess';
 
 interface ProductAdminPageProps {
   products: Product[];
   site: SiteSettings | null;
   onCatalogChange: () => void;
   onClose: () => void;
+  onExitAdmin?: () => void;
+  onUnlocked?: () => void;
   onViewAbout?: () => void;
 }
 
@@ -59,23 +62,13 @@ function previewSrc(src: string): string {
   return `/products/${src}`;
 }
 
-const UNLOCK_KEY = 'rachawei-admin-unlocked';
-
-function readUnlocked(): boolean {
-  try {
-    return sessionStorage.getItem(UNLOCK_KEY) === '1';
-  } catch {
-    return false;
-  }
-}
-
-function writeUnlocked(value: boolean) {
-  try {
-    if (value) sessionStorage.setItem(UNLOCK_KEY, '1');
-    else sessionStorage.removeItem(UNLOCK_KEY);
-  } catch {
-    // private mode may block storage — keep in memory only
-  }
+function focusProductForm() {
+  requestAnimationFrame(() => {
+    document.getElementById('admin-product-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    window.setTimeout(() => {
+      document.getElementById('admin-product-name')?.focus();
+    }, 280);
+  });
 }
 
 export function ProductAdminPage({
@@ -83,11 +76,14 @@ export function ProductAdminPage({
   site,
   onCatalogChange,
   onClose,
+  onExitAdmin,
+  onUnlocked,
   onViewAbout,
 }: ProductAdminPageProps) {
-  const [unlocked, setUnlocked] = useState(() => readUnlocked());
+  const [unlocked, setUnlocked] = useState(() => isAdminUnlocked());
   const [pin, setPin] = useState('');
   const [pinError, setPinError] = useState('');
+  const [inviteCopied, setInviteCopied] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<FormState>(() => emptyForm('13'));
   const [coverImages, setCoverImages] = useState<string[]>([]);
@@ -149,7 +145,8 @@ export function ProductAdminPage({
     const id = nextProductId(baseItems);
     setEditingId(null);
     setForm(emptyForm(id));
-    setMessage('');
+    setMessage('ฟอร์มเพิ่มสินค้าใหม่ — กรอกชื่อ เลือกรูป แล้วกดบันทึกสินค้า');
+    focusProductForm();
   };
 
   const startEdit = (product: Product) => {
@@ -163,24 +160,41 @@ export function ProductAdminPage({
       special: Boolean(item.special),
       images: item.images,
     });
-    setMessage('');
-    requestAnimationFrame(() => {
-      document.getElementById('admin-product-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    });
+    setMessage(`กำลังแก้ไข #${product.id}`);
+    focusProductForm();
   };
 
   const unlock = (value: string) => {
     if (value.trim() === ADMIN_PIN) {
       setUnlocked(true);
-      writeUnlocked(true);
+      setAdminUnlocked(true);
+      onUnlocked?.();
       setPinError('');
       setPin('');
       startCreate();
-      setMessage('เข้าสู่ระบบแล้ว — เลื่อนลงเพื่อแก้ภาพหน้าปกหรือสินค้า');
+      setMessage('เข้าสู่ระบบแล้ว — กรอกฟอร์มด้านล่างเพื่อเพิ่มสินค้า หรือเลื่อนไปแก้ภาพหน้าปก');
       return true;
     }
     setPinError(`รหัสไม่ถูกต้อง — ใช้ 4 ตัวท้ายเบอร์ร้าน (${ADMIN_PIN})`);
     return false;
+  };
+
+  const copyAdminInvite = async () => {
+    const text = [
+      'ลิงก์หลังร้านราชาหวาย (สำหรับแอดมินเท่านั้น)',
+      adminInviteUrl(),
+      '',
+      `รหัสเข้า: ${ADMIN_PIN} (4 ตัวท้ายเบอร์ร้าน)`,
+      '',
+      'ลูกค้าใช้ลิงก์ปกติไม่มี ?admin=1',
+    ].join('\n');
+    try {
+      await navigator.clipboard.writeText(text);
+      setInviteCopied(true);
+      window.setTimeout(() => setInviteCopied(false), 2500);
+    } catch {
+      setPinError('คัดลอกไม่สำเร็จ — ส่งลิงก์ rachawei.vercel.app/?admin=1 ให้แอดมินเอง');
+    }
   };
 
   const handleUnlock = (event: FormEvent) => {
@@ -574,15 +588,13 @@ export function ProductAdminPage({
     return (
       <section className="screen admin-screen py-4">
         <button type="button" className="btn btn--ghost back-btn" onClick={onClose}>
-          ← กลับ
+          ← กลับหน้าร้าน
         </button>
         <h2 className="section-title">จัดการหลังร้าน</h2>
         <p className="admin-screen__hint">
-          สำหรับเจ้าของร้านเท่านั้น — ลูกค้าไม่เห็นหน้านี้
+          สำหรับเจ้าของร้าน / แอดมินเท่านั้น — ลูกค้าไม่เห็นหน้านี้
           <br />
           กรอกรหัส 4 ตัวท้ายเบอร์โทรร้าน ({SHOP_INFO.phone} → <strong>{ADMIN_PIN}</strong>)
-          <br />
-          บุ๊กมาร์กลิงก์หลังร้านไว้เอง: <strong>rachawei.vercel.app/?admin=1</strong>
         </p>
         <form className="admin-pin" onSubmit={handleUnlock}>
           <input
@@ -601,9 +613,17 @@ export function ProductAdminPage({
           </button>
           {pinError && <p className="admin-pin__error">{pinError}</p>}
         </form>
-        <p className="admin-screen__hint">
-          ส่งให้ลูกค้าใช้ลิงก์ปกติ (ไม่มี ?admin=1) — จะเห็นเฉพาะหน้าร้าน
-        </p>
+        <div className="admin-invite">
+          <p className="admin-screen__hint">
+            ส่งให้แอดมินคนอื่น: ใช้ลิงก์หลังร้าน + รหัสด้านบน
+            <br />
+            <strong className="admin-invite__url">{adminInviteUrl()}</strong>
+          </p>
+          <button type="button" className="admin-form__save" onClick={() => void copyAdminInvite()}>
+            {inviteCopied ? 'คัดลอกแล้ว' : 'คัดลอกลิงก์+รหัสส่งแอดมิน'}
+          </button>
+          <p className="admin-screen__hint">ลูกค้าใช้ลิงก์ปกติ https://rachawei.vercel.app (ไม่มี ?admin=1)</p>
+        </div>
       </section>
     );
   }
@@ -621,14 +641,145 @@ export function ProductAdminPage({
 
       <h2 className="section-title">จัดการหลังร้าน</h2>
       <p className="admin-screen__hint">
-        บันทึก = เห็นบนเครื่องนี้ทันที · “เตรียมไฟล์ส่งคนอื่น” = ได้ไฟล์+ข้อความส่งให้คนอื่น/Cursor อัปเว็บจริง
+        บันทึก = เห็นบนเครื่องนี้ทันที · “เตรียมไฟล์ส่งคนอื่น” = อัปขึ้นเว็บจริง
         <br />
         แบบร่างสินค้า {draftCount} รายการ{hasSiteDraft ? ' · มีแบบร่างข้อมูลร้าน' : ''}
+        <br />
+        กดกลับหน้าร้านแล้วยังเป็นแอดมินอยู่ — แท็บ <strong>หลังร้าน</strong> ยังกดกลับมาแก้ได้
       </p>
+      {onExitAdmin && (
+        <button type="button" className="admin-exit-btn" onClick={onExitAdmin}>
+          ออกจากโหมดแอดมินบนเครื่องนี้
+        </button>
+      )}
+
+      {message && <p className="admin-screen__message">{message}</p>}
+
+      <h3 id="admin-product-section" className="admin-section-title">
+        ① เพิ่ม / แก้ไขสินค้า
+      </h3>
+
+<form id="admin-product-form" className="admin-form" onSubmit={handleSave}>
+        <label className="admin-form__field">
+          <span>รหัสสินค้า</span>
+          <input
+            value={form.id}
+            onChange={(e) => setForm((c) => ({ ...c, id: e.target.value }))}
+            disabled={Boolean(editingId)}
+          />
+        </label>
+
+        <label className="admin-form__field">
+          <span>ชื่อสินค้า *</span>
+          <input
+            id="admin-product-name"
+            value={form.name}
+            onChange={(e) => setForm((c) => ({ ...c, name: e.target.value }))}
+            placeholder="เช่น ตะกร้าหวายทรงรี 2 ชั้น"
+            required
+          />
+        </label>
+
+        <label className="admin-form__field">
+          <span>หมวด</span>
+          <select
+            value={form.category}
+            onChange={(e) => setForm((c) => ({ ...c, category: e.target.value }))}
+          >
+            {PRODUCT_CATEGORY_OPTIONS.map((category) => (
+              <option key={category} value={category}>
+                {category}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <label className="admin-form__check">
+          <input
+            type="checkbox"
+            checked={form.special}
+            onChange={(e) => setForm((c) => ({ ...c, special: e.target.checked }))}
+          />
+          <span>สินค้าพิเศษ — ติ๊กแล้วคำว่า “พิเศษ” จะขึ้นหน้าร้าน</span>
+        </label>
+
+        <label className="admin-form__field">
+          <span>รายละเอียด</span>
+          <textarea
+            rows={3}
+            value={form.description}
+            onChange={(e) => setForm((c) => ({ ...c, description: e.target.value }))}
+            placeholder="เขียนสั้น ๆ ได้ เช่น หูจับสูง ลายสานโปร่ง เหมาะใส่ผลไม้"
+          />
+        </label>
+
+        <div className="admin-form__field">
+          <span>รูปสินค้า * (เลือกได้หลายรูป · จัดพอดีกรอบอัตโนมัติ)</span>
+          <input
+            ref={fileRef}
+            type="file"
+            accept="image/*,.jpg,.jpeg,.png,.webp"
+            multiple
+            className="admin-file-input"
+            onChange={handleFiles}
+          />
+          <button
+            type="button"
+            className="admin-file-btn"
+            onClick={() => fileRef.current?.click()}
+          >
+            เลือกภาพสินค้าจากเครื่อง / ถ่ายรูป
+          </button>
+          <div className="admin-thumbs">
+            {form.images.map((src, index) => (
+              <div key={`${index}-${src.slice(0, 24)}`} className="admin-thumbs__item">
+                <div className="admin-thumbs__media">
+                  <img src={previewSrc(src)} alt="" />
+                  {index === 0 && <span className="admin-thumbs__badge">รูปหลัก</span>}
+                </div>
+                <div className="admin-thumbs__actions">
+                  <button type="button" onClick={() => moveImage(index, -1)} disabled={index === 0}>
+                    ซ้าย
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => moveImage(index, 1)}
+                    disabled={index === form.images.length - 1}
+                  >
+                    ขวา
+                  </button>
+                  {index > 0 ? (
+                    <button type="button" className="admin-thumbs__main" onClick={() => setMainImage(index)}>
+                      รูปหลัก
+                    </button>
+                  ) : (
+                    <span className="admin-thumbs__main-spacer" aria-hidden="true" />
+                  )}
+                  <button type="button" className="admin-thumbs__delete" onClick={() => removeImage(index)}>
+                    ลบ
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+          {form.images.length > 1 && (
+            <p className="admin-file-status">รูปแรก = รูปหลัก · กด “รูปหลัก” เพื่อเลือกใหม่ · ซ้าย/ขวาเรียงลำดับ</p>
+          )}
+        </div>
+
+        <div className="admin-form__actions">
+          <button type="submit" className="admin-form__save">
+            บันทึกสินค้า
+          </button>
+          <button type="button" className="admin-form__publish" onClick={handlePublishClick}>
+            เตรียมไฟล์ส่งคนอื่น
+          </button>
+        </div>
+      </form>
 
       <div id="admin-cover" className="admin-form admin-cover">
-        <h3 className="admin-cover__title">① ภาพหน้าปกเลื่อน (หน้าแรก)</h3>
-        <p className="admin-file-status">
+        <h3 className="admin-cover__title">② ภาพหน้าปกเลื่อน (หน้าแรก)</h3>
+<p className="admin-file-status">
           เลือกได้หลายรูป — ระบบจัดสัดส่วนให้พอดีกรอบอัตโนมัติ · รูปแรก = เริ่มต้น
         </p>
 
@@ -725,8 +876,8 @@ export function ProductAdminPage({
         </div>
       </div>
 
-      <div id="admin-about" className="admin-form admin-cover">
-        <h3 className="admin-cover__title">② เกี่ยวกับเรา / ข้อมูลร้าน</h3>
+<div id="admin-about" className="admin-form admin-cover">
+        <h3 className="admin-cover__title">③ เกี่ยวกับเรา / ข้อมูลร้าน</h3>
         <p className="admin-file-status">แก้ภาพและข้อความในหน้าเกี่ยวกับ + ที่อยู่/เวลา/โทร ที่หน้าติดต่อ</p>
 
         <div className="admin-cover__preview">
@@ -854,128 +1005,7 @@ export function ProductAdminPage({
         </div>
       </div>
 
-      <h3 className="admin-section-title">③ สินค้า</h3>
-
-      <form id="admin-product-form" className="admin-form" onSubmit={handleSave}>
-        <label className="admin-form__field">
-          <span>รหัสสินค้า</span>
-          <input
-            value={form.id}
-            onChange={(e) => setForm((c) => ({ ...c, id: e.target.value }))}
-            disabled={Boolean(editingId)}
-          />
-        </label>
-
-        <label className="admin-form__field">
-          <span>ชื่อสินค้า *</span>
-          <input
-            value={form.name}
-            onChange={(e) => setForm((c) => ({ ...c, name: e.target.value }))}
-            placeholder="เช่น ตะกร้าหวายทรงรี 2 ชั้น"
-            required
-          />
-        </label>
-
-        <label className="admin-form__field">
-          <span>หมวด</span>
-          <select
-            value={form.category}
-            onChange={(e) => setForm((c) => ({ ...c, category: e.target.value }))}
-          >
-            {PRODUCT_CATEGORY_OPTIONS.map((category) => (
-              <option key={category} value={category}>
-                {category}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <label className="admin-form__check">
-          <input
-            type="checkbox"
-            checked={form.special}
-            onChange={(e) => setForm((c) => ({ ...c, special: e.target.checked }))}
-          />
-          <span>สินค้าพิเศษ — ติ๊กแล้วคำว่า “พิเศษ” จะขึ้นหน้าร้าน</span>
-        </label>
-
-        <label className="admin-form__field">
-          <span>รายละเอียด</span>
-          <textarea
-            rows={3}
-            value={form.description}
-            onChange={(e) => setForm((c) => ({ ...c, description: e.target.value }))}
-            placeholder="เขียนสั้น ๆ ได้ เช่น หูจับสูง ลายสานโปร่ง เหมาะใส่ผลไม้"
-          />
-        </label>
-
-        <div className="admin-form__field">
-          <span>รูปสินค้า * (เลือกได้หลายรูป · จัดพอดีกรอบอัตโนมัติ)</span>
-          <input
-            ref={fileRef}
-            type="file"
-            accept="image/*,.jpg,.jpeg,.png,.webp"
-            multiple
-            className="admin-file-input"
-            onChange={handleFiles}
-          />
-          <button
-            type="button"
-            className="admin-file-btn"
-            onClick={() => fileRef.current?.click()}
-          >
-            เลือกภาพสินค้าจากเครื่อง / ถ่ายรูป
-          </button>
-          <div className="admin-thumbs">
-            {form.images.map((src, index) => (
-              <div key={`${index}-${src.slice(0, 24)}`} className="admin-thumbs__item">
-                <div className="admin-thumbs__media">
-                  <img src={previewSrc(src)} alt="" />
-                  {index === 0 && <span className="admin-thumbs__badge">รูปหลัก</span>}
-                </div>
-                <div className="admin-thumbs__actions">
-                  <button type="button" onClick={() => moveImage(index, -1)} disabled={index === 0}>
-                    ซ้าย
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => moveImage(index, 1)}
-                    disabled={index === form.images.length - 1}
-                  >
-                    ขวา
-                  </button>
-                  {index > 0 ? (
-                    <button type="button" className="admin-thumbs__main" onClick={() => setMainImage(index)}>
-                      รูปหลัก
-                    </button>
-                  ) : (
-                    <span className="admin-thumbs__main-spacer" aria-hidden="true" />
-                  )}
-                  <button type="button" className="admin-thumbs__delete" onClick={() => removeImage(index)}>
-                    ลบ
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-          {form.images.length > 1 && (
-            <p className="admin-file-status">รูปแรก = รูปหลัก · กด “รูปหลัก” เพื่อเลือกใหม่ · ซ้าย/ขวาเรียงลำดับ</p>
-          )}
-        </div>
-
-        <div className="admin-form__actions">
-          <button type="submit" className="admin-form__save">
-            บันทึกสินค้า
-          </button>
-          <button type="button" className="admin-form__publish" onClick={handlePublishClick}>
-            เตรียมไฟล์ส่งคนอื่น
-          </button>
-        </div>
-      </form>
-
-      {message && <p className="admin-screen__message">{message}</p>}
-
-      {publishStep !== 'idle' && (
+{publishStep !== 'idle' && (
         <div className="admin-publish-modal" role="dialog" aria-modal="true">
           <button
             type="button"
@@ -1032,7 +1062,7 @@ export function ProductAdminPage({
         </div>
       )}
 
-      <div className="admin-list">
+<div className="admin-list">
         <div className="admin-list__head">
           <h3>รายการทั้งหมด ({products.length})</h3>
           {draftCount > 0 && (
@@ -1071,6 +1101,7 @@ export function ProductAdminPage({
           })}
         </ul>
       </div>
+
     </section>
   );
 }
