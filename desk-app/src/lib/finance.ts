@@ -52,8 +52,8 @@ function estimateDebtFree(sales: number, margin: number, growth: number): string
 }
 
 function riskFromCoverage(coverage: number): 'ต่ำ' | 'ปานกลาง' | 'สูง' {
-  if (coverage >= 1.4) return 'ต่ำ'
-  if (coverage >= 0.9) return 'ปานกลาง'
+  if (coverage >= 1.35) return 'ต่ำ'
+  if (coverage >= 0.85) return 'ปานกลาง'
   return 'สูง'
 }
 
