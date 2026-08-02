@@ -21,6 +21,8 @@
 npm run dev:desk
 ```
 
+Live: **https://rachawei.vercel.app/desk**
+
 Build ฝังที่ `/desk`:
 
 ```bash
