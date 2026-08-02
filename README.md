@@ -13,6 +13,20 @@
 
 **[https://rachawei.vercel.app](https://rachawei.vercel.app)**
 
+## ราชาวัสดุ Desk
+
+แอปวางแผนการเงินโครงการราชาวัสดุ (สไตล์ desk):
+
+```bash
+npm run dev:desk
+```
+
+Build ฝังที่ `/desk`:
+
+```bash
+npm run build:desk
+```
+
 ## เริ่มพัฒนา
 
 ```bash

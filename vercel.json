@@ -11,6 +11,7 @@
     { "source": "/rajawasu/:path*", "destination": "/rachawatsadu/:path*", "permanent": true }
   ],
   "rewrites": [
+    { "source": "/desk", "destination": "/desk/index.html" },
     { "source": "/rachawatsadu", "destination": "/rachawatsadu/index.html" },
     { "source": "/rachawatsadu/products/:slug", "destination": "/rachawatsadu/products/:slug.html" }
   ],
@@ -29,6 +30,12 @@
     },
     {
       "source": "/rachawatsadu/(.*)",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" }
+      ]
+    },
+    {
+      "source": "/desk/(.*)",
       "headers": [
         { "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" }
       ]
