@@ -37,15 +37,21 @@ export default function App() {
   }
 
   return (
-    <div className="mx-auto flex min-h-dvh w-full max-w-md flex-col px-3.5 pt-3 sm:max-w-lg sm:px-4 sm:pt-4">
-      <main className="relative z-0 flex-1 pb-[calc(5.75rem+env(safe-area-inset-bottom))]">
-        {tab === 'plan' && <PlanScreen onNavigate={go} />}
-        {tab === 'capital' && <CapitalScreen />}
-        {tab === 'cashflow' && <CashflowScreen />}
-        {tab === 'scenario' && <ScenarioScreen />}
-        {tab === 'rules' && <RulesScreen />}
-      </main>
-      <BottomNav active={tab} onChange={go} />
+    <div className="app-shell">
+      <div className="ambient-floor" aria-hidden />
+      <div className="mx-auto flex min-h-dvh w-full max-w-md flex-col px-3.5 pt-3 sm:max-w-lg sm:px-4 sm:pt-4">
+        <main
+          key={tab}
+          className="relative z-0 flex-1 pb-[calc(5.85rem+env(safe-area-inset-bottom))]"
+        >
+          {tab === 'plan' && <PlanScreen onNavigate={go} />}
+          {tab === 'capital' && <CapitalScreen />}
+          {tab === 'cashflow' && <CashflowScreen />}
+          {tab === 'scenario' && <ScenarioScreen />}
+          {tab === 'rules' && <RulesScreen />}
+        </main>
+        <BottomNav active={tab} onChange={go} />
+      </div>
     </div>
   )
 }
