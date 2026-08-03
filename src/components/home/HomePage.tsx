@@ -15,6 +15,7 @@ import { CommunitySection } from './CommunitySection';
 import { RattanTypesSection } from './RattanTypesSection';
 import { HomeQuickNav } from './HomeQuickNav';
 import { HomeSectionPanel } from './HomeSectionPanel';
+import { DeskEntryCard } from './DeskEntryCard';
 
 interface HomePageProps {
   onViewProducts: () => void;
@@ -95,6 +96,8 @@ export function HomePage({
       />
 
       <HomeQuickNav activeId={activeId} onSelect={handleNavSelect} />
+
+      <DeskEntryCard />
 
       <PromoSection
         products={products}

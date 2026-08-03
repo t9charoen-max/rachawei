@@ -14,7 +14,7 @@ export function PlanScreen({ onNavigate }: { onNavigate: (tab: TabId) => void })
       />
 
       <GlassCard className="fade-up stagger-1">
-        <SectionKicker>เส้นทาง 5 เฟส</SectionKicker>
+        <SectionKicker>หน้าแรก · เส้นทาง 5 เฟส</SectionKicker>
         <h1 className="mt-1.5 text-xl font-bold leading-snug tracking-tight sm:text-2xl">
           แผนการเงินส่วนตัว ตามระบบ
         </h1>

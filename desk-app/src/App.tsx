@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { BottomNav } from './components/BottomNav'
+import { InstallHomeBanner } from './components/InstallHomeBanner'
 import { PlanScreen } from './components/screens/PlanScreen'
 import { CapitalScreen } from './components/screens/CapitalScreen'
 import { CashflowScreen } from './components/screens/CashflowScreen'
@@ -42,7 +43,7 @@ export default function App() {
       <div className="mx-auto flex min-h-dvh w-full max-w-md flex-col px-3.5 pt-3 sm:max-w-lg sm:px-4 sm:pt-4">
         <main
           key={tab}
-          className="relative z-0 flex-1 pb-[calc(5.85rem+env(safe-area-inset-bottom))]"
+          className="relative z-0 flex-1 pb-[calc(7.75rem+env(safe-area-inset-bottom))]"
         >
           {tab === 'plan' && <PlanScreen onNavigate={go} />}
           {tab === 'capital' && <CapitalScreen />}
@@ -50,6 +51,7 @@ export default function App() {
           {tab === 'scenario' && <ScenarioScreen />}
           {tab === 'rules' && <RulesScreen />}
         </main>
+        <InstallHomeBanner />
         <BottomNav active={tab} onChange={go} />
       </div>
     </div>

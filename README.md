@@ -23,6 +23,8 @@ npm run dev:desk
 
 Live: **https://rachawei.vercel.app/desk**
 
+ทางเข้าถาวรอยู่ที่หน้าแรกของเว็บหลัก และติดตั้งลงหน้าจอโฮมได้ (PWA)
+
 Build ฝังที่ `/desk`:
 
 ```bash
