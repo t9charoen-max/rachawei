@@ -1,5 +1,6 @@
 import { BrandMark } from '../BrandMark'
 import { GlassCard } from '../GlassCard'
+import { MetricTile, ScreenHeader, SectionKicker } from '../ui'
 import { BRAND, KEY_METRICS, PHASES } from '../../lib/plan-data'
 import { formatBaht } from '../../lib/format'
 import type { TabId } from '../../App'
@@ -7,55 +8,51 @@ import type { TabId } from '../../App'
 export function PlanScreen({ onNavigate }: { onNavigate: (tab: TabId) => void }) {
   return (
     <div className="space-y-4">
-      <header className="fade-up px-1 pt-1">
-        <BrandMark size="lg" />
-        <p className="mt-2 max-w-[34ch] text-sm leading-relaxed text-muted">
-          {BRAND.principle}
-        </p>
-      </header>
+      <ScreenHeader
+        brand={<BrandMark size="lg" />}
+        subtitle={BRAND.principle}
+      />
 
       <GlassCard className="fade-up stagger-1">
-        <p className="text-[11px] font-semibold tracking-[0.16em] text-gold-soft">
-          เส้นทาง 5 เฟส
-        </p>
-        <h1 className="mt-1 text-xl font-bold leading-snug sm:text-2xl">
+        <SectionKicker>เส้นทาง 5 เฟส</SectionKicker>
+        <h1 className="mt-1.5 text-xl font-bold leading-snug tracking-tight sm:text-2xl">
           แผนการเงินส่วนตัว ตามระบบ
         </h1>
-        <p className="mt-2 text-sm leading-relaxed text-muted">
-          {BRAND.tagline}
-        </p>
+        <p className="mt-2 text-sm leading-relaxed text-muted">{BRAND.tagline}</p>
 
-        <div className="mt-4 space-y-2.5">
+        <div className="relative mt-5 space-y-2.5">
+          <div
+            aria-hidden
+            className="absolute top-4 bottom-4 left-[1.45rem] w-px bg-gradient-to-b from-gold/50 via-gold/20 to-transparent"
+          />
           {PHASES.map((phase, index) => (
             <div
               key={phase.id}
-              className="flex gap-3 rounded-2xl border border-white/8 bg-white/[0.03] px-3 py-2.5"
+              className="surface-raised relative flex gap-3 px-3 py-3"
+              style={{ animationDelay: `${80 + index * 40}ms` }}
             >
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gold/15 text-xs font-bold text-gold">
-                {index}
-              </div>
+              <div className="phase-node relative z-10 shrink-0">{index}</div>
               <div className="min-w-0 flex-1">
                 <div className="flex items-start justify-between gap-2">
-                  <p className="text-sm font-semibold">{phase.name}</p>
-                  <span className="shrink-0 text-[11px] font-medium text-gold-soft">
+                  <p className="text-sm font-semibold tracking-tight">{phase.name}</p>
+                  <span className="shrink-0 rounded-full bg-gold/10 px-2 py-0.5 text-[11px] font-semibold text-gold-soft">
                     {phase.budgetLabel}
                   </span>
                 </div>
-                <p className="mt-0.5 text-[11px] text-muted-dim">{phase.period}</p>
-                <p className="mt-1 text-xs leading-relaxed text-muted">{phase.summary}</p>
+                <p className="mt-0.5 text-[11px] font-medium text-muted-dim">{phase.period}</p>
+                <p className="mt-1.5 text-xs leading-relaxed text-muted">{phase.summary}</p>
               </div>
             </div>
           ))}
         </div>
 
-        <div className="mt-5 grid grid-cols-2 gap-2">
+        <div className="mt-5 grid grid-cols-2 gap-2.5">
           {KEY_METRICS.slice(0, 4).map((item) => (
-            <div key={item.label} className="rounded-xl bg-black/20 px-3 py-2.5">
-              <p className="text-[11px] text-muted">{item.label}</p>
-              <p className="mt-1 text-sm font-semibold text-sky-value">
-                {item.value != null ? formatBaht(item.value, true) : item.valueLabel}
-              </p>
-            </div>
+            <MetricTile
+              key={item.label}
+              label={item.label}
+              value={item.value != null ? formatBaht(item.value, true) : (item.valueLabel ?? '')}
+            />
           ))}
         </div>
 
@@ -75,7 +72,7 @@ export function PlanScreen({ onNavigate }: { onNavigate: (tab: TabId) => void })
         </button>
       </GlassCard>
 
-      <p className="fade-up stagger-2 px-1 text-center text-[11px] text-muted-dim">
+      <p className="fade-up stagger-2 px-1 pb-1 text-center text-[11px] text-muted-dim">
         สรุปจากแบบจำลอง Excel · {BRAND.updatedAt} · ปรับตัวเลขได้ตามสถานการณ์จริง
       </p>
     </div>
