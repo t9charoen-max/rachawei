@@ -8,7 +8,7 @@ import {
 import type { TabId } from '../App'
 
 const ITEMS: { id: TabId; label: string; icon: typeof BriefcaseBusiness }[] = [
-  { id: 'plan', label: 'แผน', icon: BriefcaseBusiness },
+  { id: 'plan', label: 'หน้าแรก', icon: BriefcaseBusiness },
   { id: 'capital', label: 'ทุน', icon: Calculator },
   { id: 'cashflow', label: 'กระแสเงิน', icon: LineChart },
   { id: 'scenario', label: 'สถานการณ์', icon: Split },

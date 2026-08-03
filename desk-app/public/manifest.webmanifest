@@ -1,18 +1,32 @@
 {
   "name": "ราชาวัสดุ Desk",
   "short_name": "ราชาวัสดุ",
-  "description": "แผนการเงินและเส้นทางสู่โครงการเต็มรูปแบบ",
-  "start_url": ".",
+  "description": "แผนการเงินและเส้นทางสู่โครงการเต็มรูปแบบ — เปิดจากหน้าจอโฮมได้ถาวร",
+  "id": "./",
+  "start_url": "./",
+  "scope": "./",
   "display": "standalone",
-  "background_color": "#071426",
+  "orientation": "portrait",
+  "background_color": "#050b16",
   "theme_color": "#0b1f3a",
   "lang": "th",
+  "categories": ["finance", "business"],
   "icons": [
     {
-      "src": "favicon.svg",
-      "sizes": "any",
-      "type": "image/svg+xml",
-      "purpose": "any maskable"
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "icons/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ]
 }

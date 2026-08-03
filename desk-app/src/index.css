@@ -343,6 +343,80 @@
   .stagger-2 { animation-delay: 110ms; }
   .stagger-3 { animation-delay: 170ms; }
   .stagger-4 { animation-delay: 230ms; }
+
+  .install-home {
+    pointer-events: auto;
+    position: fixed;
+    z-index: 60;
+    left: 50%;
+    bottom: calc(4.85rem + env(safe-area-inset-bottom));
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    width: min(34rem, calc(100% - 1.5rem));
+    transform: translateX(-50%);
+    padding: 0.7rem 0.75rem;
+    border: 1px solid rgba(212, 175, 55, 0.28);
+    border-radius: 1.15rem;
+    background:
+      linear-gradient(165deg, rgba(255, 255, 255, 0.1), transparent 45%),
+      rgba(10, 18, 32, 0.94);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.12),
+      0 14px 28px rgba(0, 0, 0, 0.45);
+    backdrop-filter: blur(16px);
+  }
+
+  .install-home__icon img {
+    display: block;
+    border-radius: 0.7rem;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+  }
+
+  .install-home__copy {
+    min-width: 0;
+    flex: 1;
+  }
+
+  .install-home__title {
+    margin: 0;
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--color-gold-soft);
+  }
+
+  .install-home__desc {
+    margin: 0.15rem 0 0;
+    font-size: 0.72rem;
+    line-height: 1.35;
+    color: var(--color-muted);
+  }
+
+  .install-home__actions {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+  }
+
+  .install-home__cta {
+    border: none;
+    border-radius: 0.7rem;
+    padding: 0.45rem 0.75rem;
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: #1a1405;
+    background: linear-gradient(180deg, #f3d26a, #c9a227);
+    box-shadow: 0 4px 12px rgba(201, 162, 39, 0.3);
+  }
+
+  .install-home__later {
+    border: none;
+    background: transparent;
+    color: var(--color-muted-dim);
+    font-size: 0.7rem;
+    font-weight: 600;
+    padding: 0.2rem;
+  }
 }
 
 @keyframes fade-up {
