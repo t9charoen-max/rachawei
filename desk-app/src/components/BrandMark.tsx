@@ -1,9 +1,22 @@
 export function BrandMark({ size = 'md' }: { size?: 'sm' | 'md' | 'lg' }) {
   const text =
     size === 'lg' ? 'text-[2.05rem] sm:text-5xl' : size === 'sm' ? 'text-xl' : 'text-[1.75rem]'
+  const mark =
+    size === 'lg' ? 'h-11 w-11 sm:h-14 sm:w-14' : size === 'sm' ? 'h-8 w-8' : 'h-10 w-10'
 
   return (
     <div className="flex items-center gap-2.5">
+      <span
+        className={`logo-mark ${mark}`}
+        aria-hidden
+      >
+        <img
+          src={`${import.meta.env.BASE_URL}brand/logo-mark.svg`}
+          alt=""
+          className="h-full w-full"
+          draggable={false}
+        />
+      </span>
       <span
         className={`brand-glow font-extrabold tracking-tight text-gold ${text}`}
         style={{ fontFamily: 'var(--font-sans)' }}

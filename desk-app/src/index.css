@@ -323,6 +323,20 @@
       0 2px 0 rgba(0, 0, 0, 0.35);
   }
 
+  .logo-mark {
+    display: inline-grid;
+    place-items: center;
+    flex-shrink: 0;
+    filter:
+      drop-shadow(0 6px 14px rgba(0, 0, 0, 0.45))
+      drop-shadow(0 0 18px rgba(212, 175, 55, 0.28));
+  }
+
+  .logo-mark img {
+    display: block;
+    border-radius: 22%;
+  }
+
   .value-glow {
     text-shadow: 0 0 18px rgba(142, 212, 255, 0.25);
   }
