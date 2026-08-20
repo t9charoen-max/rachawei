@@ -4,7 +4,7 @@
   "outputDirectory": "dist",
   "framework": "vite",
   "cleanUrls": true,
-  "ignoreCommand": "if [ \"$VERCEL_GIT_COMMIT_REF\" = \"next-deploy\" ]; then exit 0; fi; git diff HEAD^ HEAD --quiet -- . && exit 0 || exit 1",
+  "ignoreCommand": "if [ \"$VERCEL_GIT_COMMIT_REF\" = \"next-deploy\" ]; then exit 0; fi; case \"$VERCEL_PROJECT_PRODUCTION_URL$VERCEL_URL\" in *rachawei-f1it*) exit 0 ;; esac; git diff HEAD^ HEAD --quiet -- . && exit 0 || exit 1",
   "redirects": [
     { "source": "/rajawasu", "destination": "/rachawatsadu", "permanent": true },
     { "source": "/rajawasu/", "destination": "/rachawatsadu/", "permanent": true },
@@ -12,6 +12,8 @@
   ],
   "rewrites": [
     { "source": "/desk", "destination": "/desk/index.html" },
+    { "source": "/store", "destination": "/store/index.html" },
+    { "source": "/rachawei-surin", "destination": "/store/index.html" },
     { "source": "/rachawatsadu", "destination": "/rachawatsadu/index.html" },
     { "source": "/rachawatsadu/products/:slug", "destination": "/rachawatsadu/products/:slug.html" }
   ],
@@ -24,6 +26,12 @@
     },
     {
       "source": "/products/(.*)",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" }
+      ]
+    },
+    {
+      "source": "/store/(.*)",
       "headers": [
         { "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" }
       ]
