@@ -1,0 +1,759 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ราชาหวายสุรินทร์ | ตะกร้าหวายสานมือคุณภาพจากบ้านบุทม</title>
+  <meta name="description" content="ตะกร้าหวายสานมือจากหมู่บ้านจักสานบ้านบุทม ต.เมืองที สุรินทร์ ใช้หวายหางหนู ไม่เคลือบแล็กเกอร์ สืบทอดภูมิปัญญากว่า 60 ปี สินค้า OTOP" />
+  <meta name="theme-color" content="#5c4033" />
+  <meta name="robots" content="index,follow" />
+  <meta name="author" content="ราชาหวายสุรินทร์" />
+  <link rel="canonical" href="/" />
+  <meta property="og:title" content="ราชาหวายสุรินทร์ | ตะกร้าหวายสานมือบ้านบุทม" />
+  <meta property="og:description" content="งานจักสานหวายหางหนูจากบ้านบุทม สุรินทร์ — ไม่เคลือบแล็กเกอร์ สืบทอดกว่า 60 ปี" />
+  <meta property="og:type" content="website" />
+  <meta property="og:locale" content="th_TH" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700;800&family=Cormorant+Garamond:wght@600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+  <!-- Header -->
+  <header>
+    <a href="#" class="logo">
+      <span class="logo-icon">👑</span>
+      <div>
+        <span class="logo-text">ราชาหวายสุรินทร์</span>
+        <span class="logo-sub">งานหัตถกรรมหวาย · บ้านบุทม</span>
+      </div>
+    </a>
+    <div class="header-actions">
+      <button class="theme-btn" id="themeBtn" aria-label="สลับโหมดมืด/สว่าง" title="สลับโหมดมืด / สว่าง">🌙</button>
+      <button class="status-btn" id="statusBtn" aria-label="ตรวจสอบสถานะ" title="ตรวจสอบสถานะคำสั่งซื้อ">📦</button>
+      <button class="cart-btn" id="cartBtn" aria-label="ตะกร้าสินค้า" title="ตะกร้าสินค้า">
+        🛒
+        <span class="cart-badge" id="cartBadge" data-count="0">0</span>
+      </button>
+      <a href="tel:+66814707089" class="btn btn-primary btn-shine"><span class="hide-sm">📞</span> สั่งเลย</a>
+    </div>
+  </header>
+
+  <nav class="main-nav" id="mainNav" aria-label="เมนูหลัก">
+    <button type="button" class="active" data-page="home">🛒 สินค้า</button>
+    <button type="button" data-page="story">🏡 เรื่องราว</button>
+    <button type="button" data-page="process">✋ ขั้นตอนผลิต</button>
+    <button type="button" data-page="care">🌿 ดูแลหวาย</button>
+    <button type="button" data-page="media">📰 ข่าว & วิดีโอ</button>
+  </nav>
+
+
+  <!-- PAGE: HOME -->
+  <div class="page-panel active" id="page-home">
+  <!-- Hero -->
+  <section class="hero">
+    <div class="badge">🏅 สินค้า OTOP สุรินทร์ · สานด้วยมือทุกชิ้น</div>
+    <h1>ตะกร้าหวาย<br><span>คุณภาพจากชุมชน</span></h1>
+    <p class="hero-desc">
+      จากหมู่บ้านจักสานบ้านบุทม ต.เมืองที จ.สุรินทร์
+      สานด้วยหวายหางหนู เส้นละเอียด ไม่เคลือบสารเคมี
+      ทนทาน ใช้งานจริง — มรดกภูมิปัญญากว่า 60 ปี
+    </p>
+    <div class="hero-cta">
+      <a href="#products" class="btn btn-primary btn-shine">เลือกชมสินค้า</a>
+      <a href="#contact" class="btn btn-outline">สอบถาม / สั่งซื้อ</a>
+    </div>
+    <div class="hero-features">
+      <div class="feature-item"><span>✋</span> สานมือทุกชิ้น</div>
+      <div class="feature-item"><span>🌿</span> หวายธรรมชาติ</div>
+      <div class="feature-item"><span>🏅</span> มาตรฐาน OTOP</div>
+      <div class="feature-item"><span>🚚</span> สั่งออนไลน์ได้</div>
+    </div>
+  </section>
+
+  <!-- Products -->
+  <section id="products" class="reveal">
+    <div class="section-header">
+      <h2>สินค้าแนะนำ</h2>
+      <p>ตะกร้า เก้าอี้ และของใช้ในบ้านจากหวาย — กดที่สินค้าเพื่อดูรูปและรายละเอียดเพิ่มเติม</p>
+    </div>
+
+    <div class="filters">
+      <button class="filter-btn active" data-filter="all">ทั้งหมด</button>
+      <button class="filter-btn" data-filter="basket">ตะกร้า</button>
+      <button class="filter-btn" data-filter="chair">เก้าอี้</button>
+      <button class="filter-btn" data-filter="home">ของใช้ในบ้าน</button>
+    </div>
+
+    <div class="product-grid" id="productGrid"></div>
+  </section>
+
+  </div><!-- /page-home -->
+
+  <!-- PAGE: STORY -->
+  <div class="page-panel" id="page-story">
+    <div class="page-top">
+      <h1>เรื่องราวบ้านบุทม</h1>
+      <p>ประวัติหมู่บ้านจักสาน กลุ่มหัตถกรรม และภูมิปัญญาท้องถิ่น</p>
+    </div>
+  <!-- Story -->
+  <div class="story reveal visible">
+    <div class="story-inner">
+      <div class="story-visual">🧺</div>
+      <div>
+        <h2>หมู่บ้านจักสานบ้านบุทม</h2>
+        <p>
+          <strong>บ้านบุทม</strong> (เขมร: <em>เบาะทม</em>)
+          หมายถึงที่ดอนอันเคยเป็นป่าใหญ่ ถูกถากถางทำไร่
+          ตั้งอยู่หมู่ 4 ต.เมืองที อ.เมือง จ.สุรินทร์
+          มีราว 228 ครัวเรือน ประชากรประมาณหนึ่งพันคน
+          ชาวบ้านพูดภาษาเขมรพื้นถิ่น และสื่อสารภาษาไทยได้
+        </p>
+        <p>
+          วิถีชีวิตผูกกับ<strong>นา</strong>เป็นหลัก และ<strong>จักสานหวาย</strong>เป็นอาชีพเสริมตลอดปี
+          เกือบทุกบ้านสานเป็น — ใช้เวลาว่างหลังนา นั่งสานที่บ้าน แล้วนำฝากขายที่กลุ่ม
+          สืบทอดมามากกว่า 60 ปี
+        </p>
+        <p>
+          จุดเริ่มอยู่ที่ปี พ.ศ. 2473 เมื่อนายลีง เลิศล้ำ นายเหลี่ยม ภาสวัสดี และนายพัน กล้ายิ่ง
+          นำความรู้จักสานจากเรือนจำจังหวัดสุรินทร์กลับมาเลี้ยงครอบครัว
+          ปี 2527 พัฒนาชุมชนส่งเสริมเป็นอุตสาหกรรมครัวเรือน
+          ความรู้จากสามครอบครัวแรกจึงแผ่ขยายทั่วหมู่บ้าน
+        </p>
+        <p>
+          หลังเคยรวมกลุ่มแล้วล้มเลิก อาจารย์สุเทพ ศรีลานุช ได้ชวนชาวบ้านถือหุ้นตั้งกลุ่มใหม่
+          ราวปี 2537–2539 (หุ้นละ 50 บาท อย่างน้อย 2 หุ้น)
+          ปัจจุบัน<strong>กลุ่มหัตถกรรมหวายบ้านบุทม</strong> มีสมาชิกเครือข่ายราว 338 คน ในสามตำบล
+          คำขวัญของกลุ่มคือ
+          <em>“ปลูกข้าวได้ใครตั้งราคา จักสานดีกว่าตั้งราคาได้เอง”</em>
+        </p>
+        <p>
+          รายได้แบ่งประมาณ 70% ให้ผู้ผลิต 20% สวัสดิการสมาชิก และ 10% ค่าบริหาร
+          งานทั้งหมดสานด้วยมือ ไม่ใช้เครื่องจักร
+          ผู้ชายมักขึ้นโครง ผู้หญิงรับงานลายละเอียด ผู้สูงอายุยังร่วมสานและถ่ายทอดฝีมือได้
+        </p>
+        <p>
+          วัตถุดิบหลักสามชนิด:
+          <strong>หวายหางหนู</strong> เส้นเล็กเหนียว ใช้สานลาย ·
+          <strong>หวายน้ำ</strong> ลำใหญ่ ใช้ทำโครง ·
+          <strong>หวายนิ่ม</strong> ดัดง่าย ใช้โครงบางส่วน
+          ผลงานจึงแข็งแรง ยืดหยุ่น เหมาะภูมิอากาศร้อนชื้น
+        </p>
+        <p>
+          ร้าน<strong>ราชาหวายสุรินทร์</strong> รวบรวมผลงานคุณภาพจากชุมชน
+          ทั้งตะกร้า เก้าอี้ กล่องทิชชู่ ถาด และกระเช้าของขวัญ
+          ยินดีต้อนรับลูกค้าและผู้เยี่ยมชมแหล่งท่องเที่ยวเชิงวัฒนธรรมแห่งนี้
+        </p>
+        <div class="story-tags">
+          <span class="tag">แหล่งท่องเที่ยวเชิงวัฒนธรรม</span>
+          <span class="tag">ซื้อตรงจากผู้ผลิต</span>
+          <span class="tag">สมาชิก ~338 คน</span>
+          <span class="tag">หวายหางหนู</span>
+          <span class="tag">ตั้งราคาเองได้</span>
+          <span class="tag">สืบทอด 60+ ปี</span>
+          <span class="tag">ต.เมืองที</span>
+          <span class="tag">OTOP สุรินทร์</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  </div><!-- /page-story -->
+
+  <!-- PAGE: MEDIA -->
+  <div class="page-panel" id="page-media">
+    <div class="page-top">
+      <h1>ข่าว & วิดีโอ</h1>
+      <p>สื่อมวลชนและรายการโทรทัศน์ที่พูดถึงหัตถกรรมหวายบ้านบุทม</p>
+    </div>
+  <!-- News reference -->
+  <section class="news-section reveal visible" id="news">
+    <div class="section-header">
+      <h2>ข่าวอ้างอิง</h2>
+      <p>สื่อมวลชนพูดถึงหัตถกรรมหวายบ้านบุทม และร้านราชาหวาย</p>
+    </div>
+    <article class="news-card">
+      <div class="news-source">📰 เดลินิวส์</div>
+      <h3>
+        <a href="https://www.dailynews.co.th/news/5784668/" target="_blank" rel="noopener noreferrer">
+          ของดี เมืองช้าง จ.สุรินทร์ ณ บ้านบุทม ส่งเสริมการท่องเที่ยวสืบทอดภูมิปัญญา
+        </a>
+      </h3>
+      <div class="news-meta">เผยแพร่ 16 เม.ย. 2569 · dailynews.co.th</div>
+      <p class="news-excerpt">
+        รายงานถึงหัตถกรรมหวายบ้านบุทม ต.เมืองที อ.เมือง จ.สุรินทร์
+        งานสานตะกร้า ขันโตก ที่วางแก้ว และของใช้ ลายประณีต ทนทาน
+        พร้อมพัฒนารูปทรงใหม่ เช่น ทรงรีและหลายเหลี่ยม
+        โดยระบุว่าร้านในชุมชนอย่าง <strong>วังหวาย</strong> และ <strong>ราชาหวาย</strong>
+        รวมสินค้าจำหน่ายในราคาเป็นธรรม สะท้อนความเชื่อถือในความคงทนของงานหวาย
+      </p>
+      <a class="btn btn-outline btn-sm" href="https://www.dailynews.co.th/news/5784668/" target="_blank" rel="noopener noreferrer">
+        อ่านข่าวเต็ม →
+      </a>
+    </article>
+  </section>
+
+  <!-- Video reference -->
+  <section class="video-section reveal" id="video">
+    <div class="section-header">
+      <h2>วิดีโออ้างอิง</h2>
+      <p>รายการโทรทัศน์เล่าเรื่องจักสานหวายบ้านบุทม — กดเปิดชมบน YouTube</p>
+    </div>
+    <div class="video-stack">
+
+      <div class="video-card">
+        <div class="video-frame" data-yt="_6JMaYC-Zbw" data-title="Thai PBS · ที่นี่บ้านเรา — จักสานหวายบ้านบุทม" role="button" tabindex="0" aria-label="เล่นวิดีโอ ที่นี่บ้านเรา">
+          <div class="video-poster">
+            <div class="play-btn">▶</div>
+            <div class="poster-label">Thai PBS · ที่นี่บ้านเรา</div>
+            <div class="poster-hint">กดเพื่อเล่นวิดีโอ</div>
+          </div>
+        </div>
+        <div class="video-body">
+          <div class="video-badge">▶ Thai PBS · ที่นี่บ้านเรา</div>
+          <h3>สร้างอาชีพ “จักสานหวาย” ให้ชุมชนบ้านบุทม</h3>
+          <p>
+            รายการ <strong>ที่นี่บ้านเรา</strong> เล่าเส้นทางจักสานหวายบ้านบุทม
+            จากอาชีพเสริมสู่รายได้หลักของชุมชน
+            พัฒนารูปทรงรี แปดเหลี่ยม ตะกร้า และขันโตก จนเป็นเอกลักษณ์เฉพาะถิ่น
+            และเปิดพื้นที่ให้ผู้สูงอายุได้ใช้ฝีมือในงานหัตถกรรม
+          </p>
+          <p style="font-size:0.82rem;margin-bottom:0.85rem;opacity:0.9;">
+            ออกอากาศ 19 มิ.ย. 2562 เวลา 13.30 น. · ไทยพีบีเอส
+          </p>
+          <div class="video-actions">
+            <button type="button" class="btn btn-primary btn-sm yt-open-btn" data-yt="_6JMaYC-Zbw" data-title="Thai PBS · ที่นี่บ้านเรา">▶ เล่นวิดีโอ</button>
+            <a class="btn btn-outline btn-sm" href="https://www.youtube.com/watch?v=_6JMaYC-Zbw" target="_blank" rel="noopener noreferrer">เปิดใน YouTube</a>
+          </div>
+        </div>
+      </div>
+
+      <div class="video-card">
+        <div class="video-frame" data-yt="AdpJCJ7TVpQ" data-title="NBT · รอบภูมิภาค — หัตถกรรมหวายบ้านบุทม" role="button" tabindex="0" aria-label="เล่นวิดีโอ NBT รอบภูมิภาค">
+          <div class="video-poster">
+            <div class="play-btn">▶</div>
+            <div class="poster-label">NBT · รอบภูมิภาค</div>
+            <div class="poster-hint">กดเพื่อเล่นวิดีโอ</div>
+          </div>
+        </div>
+        <div class="video-body">
+          <div class="video-badge">▶ NBT UBON · รอบภูมิภาค</div>
+          <h3>หัตถกรรมหวายบ้านบุทม ภูมิปัญญาพัฒนาอาชีพ</h3>
+          <p>
+            รายการ <strong>รอบภูมิภาค</strong> โดย NBT
+            นำเสนองานจักสานบ้านบุทมในฐานะภูมิปัญญาที่สร้างอาชีพและรายได้ให้ชุมชน
+            พร้อมเผยเอกลักษณ์หัตถกรรมสุรินทร์สู่สายตาคนทั้งประเทศ
+          </p>
+          <div class="video-actions">
+            <button type="button" class="btn btn-primary btn-sm yt-open-btn" data-yt="AdpJCJ7TVpQ" data-title="NBT · รอบภูมิภาค">▶ เล่นวิดีโอ</button>
+            <a class="btn btn-outline btn-sm" href="https://www.youtube.com/watch?v=AdpJCJ7TVpQ" target="_blank" rel="noopener noreferrer">เปิดใน YouTube</a>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  </div><!-- /page-media -->
+
+  <!-- PAGE: PROCESS -->
+  <div class="page-panel" id="page-process">
+    <div class="page-top">
+      <h1>ขั้นตอนการผลิต</h1>
+      <p>จากต้นหวายสู่ตะกร้าสำเร็จ — ภูมิปัญญาช่างบ้านบุทม</p>
+    </div>
+  <!-- Production process -->
+  <section class="process-section reveal visible" id="process">
+    <div class="section-header">
+      <h2>ขั้นตอนการผลิต</h2>
+      <p>ภูมิปัญญาจักสานหวายบ้านบุทม — จากต้นหวายสู่ตะกร้าสำเร็จ</p>
+    </div>
+    <div class="process-list">
+
+      <div class="process-item">
+        <div class="process-num">1</div>
+        <div>
+          <h3>ผ่าหวาย</h3>
+          <p>เลือกหวายประมาณ 10 ต้น โดยเลือกลำต้นใหญ่กว่าขนาดลูกกรง หวาย 1 ต้นควรผ่าได้อย่างน้อย 4 ส่วนจนสุดลำต้น</p>
+          <ul>
+            <li>มีดต้องคม ผ่าจากปลายไปหาโคน</li>
+            <li>ใช้กำลังมือตั้งมีดตอก อีกมือดันหวายตามความถนัด</li>
+            <li>บังคับไม่ให้บิดเบี้ยว เพื่อไม่ให้หวายขาดกลางลำ</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="process-item">
+        <div class="process-num">2</div>
+        <div>
+          <h3>รีดหวาย</h3>
+          <p>ใช้มีดตอกรีดเอาไส้หวายออก ให้เหลือเฉพาะส่วนเปลือก จากนั้นสอดเข้าไปในรูแป้น รีดทีละเส้น ค่อย ๆ ดึงจนสุดเส้น</p>
+          <ul>
+            <li>รีดให้ได้ขนาดเท่ากันทุกเส้น</li>
+            <li>เส้นหวายจะเป็นระเบียบ สวยงาม พร้อมนำไปสาน</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="process-item">
+        <div class="process-num">3</div>
+        <div>
+          <h3>ตีลายลูกกรง</h3>
+          <p>นำหวายหางหนูที่แช่น้ำแล้ว (ประมาณ 10 ต้น) มาดัดลูกกรงครั้งละ 2–4 ต้นจนครบ และสุดลำต้น</p>
+          <ul>
+            <li>วางหวายทาบบนไม้ดัดลูกกรง</li>
+            <li>ใช้ค้อนทุบเบา ๆ พอให้หวายหักมุมตามลายที่ต้องการ</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="process-item">
+        <div class="process-num">4</div>
+        <div>
+          <h3>ดัดรูปทรงตะกร้า</h3>
+          <p>กำหนดรูปทรงตามแบบที่ต้องการ เช่น กลม สี่เหลี่ยม รี หรือทรงอื่น ๆ ก่อนขึ้นโครงจริง</p>
+        </div>
+      </div>
+
+      <div class="process-item">
+        <div class="process-num">5</div>
+        <div>
+          <h3>ทำฐาน (ก้นตะกร้า)</h3>
+          <div class="process-sub">
+            <h4>5.1 วงกลมชั้นใน</h4>
+            <p>นำไม้เจลยดัดเป็นวงกลม (เช่น เส้นผ่านศูนย์กลาง 28 ซม. หรือตามขนาดที่ต้องการ) ตอกตะปูเข็มยึด แล้วใช้เส้นหวายที่รีดแล้วพันรอบวง โดยพันเว้นช่องพองาม</p>
+            <h4>5.2 ซ้อนวงและยึด</h4>
+            <p>นำหวายน้ำขนาดเท่าวงแรกตีทับ ตอกตะปูเข็ม แล้วพันเส้นหวายรอบทั้ง 2 วงให้ติดกันจนครบรอบ</p>
+            <h4>5.3 ฐานรอง</h4>
+            <p>ใช้หวายน้ำ 2 เส้นขนาดเท่าวง ตอกยึดรอบวง เพื่อเป็นฐานรองรับก้นตะกร้าให้แข็งแรง</p>
+            <h4>5.4 กากบาท</h4>
+            <p>ใช้ไม้เจลย 8 ท่อน ความยาวเท่าเส้นผ่านศูนย์กลาง ตีกากบาท 8 มุม ตอกยึดกับวงกลม</p>
+            <h4>5.5 สานใยแมงมุม</h4>
+            <p>ใช้เส้นหวายที่รีดแล้วสานตามเส้นผ่านศูนย์กลางคล้ายใยแมงมุม ความกว้างประมาณ 5 ซม.</p>
+            <h4>5.6 ขดก้นตะกร้า</h4>
+            <p>นำหวายหางหนูทั้งต้นขนาดใกล้เคียงกัน ขดให้เต็มวงคล้ายขดยากันยุง แล้วใช้เส้นหวายสานยึดทีละเส้นจนครบ — จบขั้นตอนทำก้นตะกร้า</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="process-item">
+        <div class="process-num">6</div>
+        <div>
+          <h3>ขึ้นลูกกรง</h3>
+          <div class="process-sub">
+            <h4>6.1 ปักลูกกรง</h4>
+            <p>ใช้เหล็กแหลมเจาะขอบฐาน 5–7 รูตามจำนวนลูกกรง เหลาปลายลูกกรงให้แหลม สอดลงรู แล้วดัดขึ้นเป็นลวดลาย ใช้เส้นหวายสานยึดกับขอบฐานจนครบ</p>
+            <h4>6.2 ใส่ขอบขั้นที่ 1 (กะนับ / เอวตะกร้า)</h4>
+            <p>นำต้นเจลยที่ดัดเป็นวงกลมวางทับลูกกรงชั้นที่ 1 ใช้เส้นหวายรีดสานยึดวงกับลูกกรงจนครบรอบ</p>
+            <h4>6.3 ซ้อนขอบและยึด</h4>
+            <p>นำหวายน้ำขนาดเท่าวง ตีทับขอบวงแรก ตอกตะปูยึดทั้งสองวงจนครบรอบ — ได้ตัวกระจาด 1 ชั้น พร้อมทำหูจับ</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="process-item">
+        <div class="process-num">7</div>
+        <div>
+          <h3>ทำหูจับ (มือจับ / หูหิ้ว)</h3>
+          <div class="process-sub">
+            <h4>7.1 ดัดหู</h4>
+            <p>ใช้หวายน้ำขนาดใหญ่พอสมควร ดัดเป็นรูปโค้ง ตอกตะปูยึดทั้ง 2 ข้างติดฐานและขอบปากตะกร้า โค้งพอสอดนิ้วได้ประมาณ 4 นิ้ว</p>
+            <h4>7.2 ทาบขอบ</h4>
+            <p>นำหวายทาบบนขอบตะกร้าและหูจับให้โค้งตาม ใช้ตะปูเข็มตอกยึดโดยรอบ</p>
+            <h4>7.3 พันและสานลาย</h4>
+            <p>ใช้เส้นหวายรีดพันรอบขอบปากและหูจับ เว้นช่องพองาม จากนั้นสานจูงนางเป็นลวดลายให้สวยงาม — เสร็จชิ้นงาน</p>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  </div><!-- /page-process -->
+
+  <!-- PAGE: CARE -->
+  <div class="page-panel" id="page-care">
+    <div class="page-top">
+      <h1>การดูแลรักษาหวาย</h1>
+      <p>ดูแลถูกวิธี งานสานจะสวยทน และใช้งานได้นาน</p>
+    </div>
+  <!-- Care guide -->
+  <section class="care-section reveal visible" id="care">
+    <div class="section-header">
+      <h2>การดูแลรักษาผลิตภัณฑ์หวาย</h2>
+      <p>ตามวิธีดั้งเดิมของช่างบ้านบุทม — ดูแลถูกวิธี งานสานจะสวยทนได้นาน</p>
+    </div>
+    <div class="care-grid">
+      <div class="care-card care-do">
+        <div class="icon">✅</div>
+        <h3>ควรทำ</h3>
+        <ul>
+          <li>เช็ดฝุ่นด้วยผ้าแห้งหรือผ้าหมาดเล็กน้อย</li>
+          <li>ผึ่งลมในที่ร่มหลังทำความสะอาด</li>
+          <li>วางในที่แห้ง มีอากาศถ่ายเท</li>
+          <li>หมุนเวียนใช้งาน ไม่กองทับนานเกินไป</li>
+        </ul>
+      </div>
+      <div class="care-card care-dont">
+        <div class="icon">🚫</div>
+        <h3>ไม่ควรทำ</h3>
+        <ul>
+          <li>อย่าแช่น้ำหรือล้างด้วยน้ำแรงเป็นประจำ</li>
+          <li>อย่าวางแดดจัดหรือใกล้เตาไฟนาน</li>
+          <li>อย่าใช้สารฟอกขาว / ทินเนอร์ / แล็กเกอร์เพิ่ม</li>
+          <li>อย่าเก็บในที่ชื้นจัดหรือปิดทึบ</li>
+        </ul>
+      </div>
+      <div class="care-card care-tip">
+        <div class="icon">🍋</div>
+        <h3>วิธีพื้นบ้านแก้หมอง</h3>
+        <ul>
+          <li>ใช้ผลไม้เปรี้ยว เช่น มะนาว มะกรูด หรือมะเฟือง</li>
+          <li>ถูเบา ๆ บริเวณที่หมองหรือมีคราบ</li>
+          <li>ล้างน้ำสะอาด แล้วผึ่งให้แห้ง</li>
+          <li>หวายจะกลับเงางามโดยไม่ใช้สารเคมี</li>
+        </ul>
+      </div>
+      <div class="care-card care-fix">
+        <div class="icon">🧺</div>
+        <h3>เกี่ยวกับวัสดุ</h3>
+        <ul>
+          <li><strong>หวายหางหนู</strong> — เส้นเล็ก เหนียว ผิวมัน ใช้สานลาย</li>
+          <li><strong>หวายน้ำ</strong> — ลำใหญ่กว่า ใช้ทำโครงตะกร้า</li>
+          <li><strong>หวายนิ่ม</strong> — ดัดง่าย ใช้โครงบางส่วน</li>
+          <li>งานสานมือ ไม่ใช้เครื่องจักร แต่ละชิ้นมีเอกลักษณ์</li>
+        </ul>
+      </div>
+    </div>
+    <div class="care-note">
+      <strong>📌 หมายเหตุจากร้าน:</strong> ผลิตภัณฑ์จากบ้านบุทมเน้นความเป็นธรรมชาติ
+      หากเปียกน้ำโดยไม่ตั้งใจ ให้ซับให้แห้งทันที แล้วผึ่งลมในที่ร่ม
+      วิธีผลไม้เปรี้ยว (มะนาว มะกรูด มะเฟือง) เป็นภูมิปัญญาท้องถิ่นที่ใช้กันมานาน
+      — สอบถามรายละเอียดเพิ่มเติมได้ที่ร้าน
+    </div>
+  </section>
+
+  </div><!-- /page-care -->
+
+  <!-- Contact (shown on every page as sales CTA) -->
+  <div class="contact-section reveal visible" id="contact">
+    <h2>พร้อมสั่ง หรืออยากดูของจริง?</h2>
+    <p>ทักหรือโทรหาเราได้เลย — ยืนยันแบบ สี ขนาด และราคา ก่อนโอนทุกครั้ง</p>
+
+    <div class="contact-cards">
+      <div class="contact-card">
+        <div class="icon">📍</div>
+        <h3>ที่อยู่ร้าน</h3>
+        <p>126 หมู่ 4 บ้านบุทม<br>ต.เมืองที อ.เมือง จ.สุรินทร์ 32000<br><small style="opacity:0.85">ห่างตัวเมืองสุรินทร์ประมาณ 12 กม. ทางหลวง 226</small></p>
+      </div>
+      <div class="contact-card">
+        <div class="icon">📞</div>
+        <h3>โทรศัพท์</h3>
+        <p><a href="tel:+66814707089">081-470-7089</a></p>
+      </div>
+      <div class="contact-card">
+        <div class="icon">💬</div>
+        <h3>Line / Facebook</h3>
+        <p>ค้นหา “ราชาหวายสุรินทร์”</p>
+      </div>
+    </div>
+
+    <div class="contact-actions">
+      <a href="tel:+66814707089" class="btn btn-light">📞 โทรเลย</a>
+      <a href="https://www.facebook.com/p/%E0%B8%A3%E0%B9%89%E0%B8%B2%E0%B8%99-%E0%B8%A3%E0%B8%B2%E0%B8%8A%E0%B8%B2%E0%B8%AB%E0%B8%A7%E0%B8%B2%E0%B8%A2%E0%B8%AA%E0%B8%B8%E0%B8%A3%E0%B8%B4%E0%B8%99%E0%B8%97%E0%B8%A3%E0%B9%8C-100063725193085/" target="_blank" rel="noopener" class="btn btn-ghost">📘 ดูเพจ Facebook</a>
+    </div>
+  </div>
+
+  <footer>
+    <p>© 2026 <strong>ราชาหวายสุรินทร์</strong> · งานหัตถกรรมหวายจากบ้านบุทม สุรินทร์</p>
+    <p style="margin-top:0.3rem;font-size:0.8rem;">สืบสานภูมิปัญญา · สร้างรายได้ให้ชุมชน</p>
+    <button type="button" class="admin-link" id="adminOpenBtn">🔐 เมนูหลังร้าน</button>
+  </footer>
+
+  <!-- Cart Overlay + Drawer -->
+  <div class="cart-overlay" id="cartOverlay"></div>
+  <aside class="cart-drawer" id="cartDrawer">
+    <div class="cart-header">
+      <h2>🛒 ตะกร้าสินค้า</h2>
+      <button class="cart-close" id="cartClose" aria-label="ปิด">×</button>
+    </div>
+    <div class="cart-body" id="cartBody">
+      <!-- filled by JS -->
+    </div>
+    <div class="cart-footer" id="cartFooter">
+      <div class="cart-total-row">
+        <span>จำนวนชิ้น</span>
+        <span id="cartCountText">0 ชิ้น</span>
+      </div>
+      <div class="cart-total-row grand">
+        <span>รวมประมาณ</span>
+        <span id="cartTotalText">฿0</span>
+      </div>
+      <p class="cart-note">* ราคาเป็นราคาประมาณ ยืนยันราคากับร้านก่อนสั่งซื้อจริง</p>
+      <div class="cart-actions">
+        <button class="btn btn-primary" id="checkoutBtn">💳 ชำระเงิน / สั่งซื้อ</button>
+        <button class="btn btn-outline" id="clearCartBtn">ล้างตะกร้า</button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Checkout / Payment Modal -->
+  <div class="modal-overlay" id="checkoutModal">
+    <div class="modal wide">
+      <button class="modal-close" id="checkoutClose">×</button>
+      <h3 id="payTitle">💳 ชำระเงิน / สั่งซื้อ</h3>
+      <div class="pay-steps">
+        <div class="pay-step active" id="step1">1</div>
+        <div class="pay-step" id="step2">2</div>
+        <div class="pay-step" id="step3">3</div>
+      </div>
+
+      <!-- Step 1: Customer info / Shipping address -->
+      <div id="payPanel1">
+        <p style="margin-bottom:0.9rem;font-size:0.9rem;">กรอกชื่อ ที่อยู่ สำหรับพิมพ์ใบปะหน้าไปรษณีย์</p>
+        <div class="form-group">
+          <label for="custName">ชื่อ-นามสกุล ผู้รับ *</label>
+          <input type="text" id="custName" placeholder="เช่น สมชาย ใจดี" autocomplete="name" />
+          <div class="form-error" id="errName">กรุณากรอกชื่อ-นามสกุล ผู้รับ</div>
+        </div>
+        <div class="form-group">
+          <label for="custPhone">เบอร์โทรผู้รับ *</label>
+          <input type="tel" id="custPhone" placeholder="08x-xxx-xxxx" autocomplete="tel" />
+          <div class="form-error" id="errPhone">กรุณากรอกเบอร์โทรผู้รับ</div>
+        </div>
+        <div class="form-group">
+          <label for="custAddress">ที่อยู่จัดส่ง *</label>
+          <textarea id="custAddress" placeholder="บ้านเลขที่ หมู่ ซอย ถนน&#10;ตำบล/แขวง อำเภอ/เขต&#10;จังหวัด รหัสไปรษณีย์"></textarea>
+          <div class="form-error" id="errAddress">กรุณากรอกที่อยู่จัดส่งให้ครบ</div>
+        </div>
+        <div class="form-group">
+          <label for="custNote">หมายเหตุถึงร้าน (ถ้ามี)</label>
+          <input type="text" id="custNote" placeholder="เช่น ต้องการสีธรรมชาติ / ฝากไว้ที่รปภ." />
+        </div>
+        <div class="modal-actions">
+          <button class="btn btn-primary" id="toStep2">ถัดไป → เลือกวิธีชำระ</button>
+        </div>
+      </div>
+
+      <!-- Step 2: Payment method -->
+      <div id="payPanel2" style="display:none;">
+        <p style="margin-bottom:0.9rem;font-size:0.9rem;">เลือกวิธีชำระเงิน</p>
+        <div class="pay-methods">
+          <label class="pay-method selected" data-method="promptpay">
+            <input type="radio" name="payMethod" value="promptpay" checked />
+            <span class="pay-method-icon">📱</span>
+            <span class="pay-method-info">
+              <strong>พร้อมเพย์ (PromptPay)</strong>
+              <span>สแกน QR หรือโอนผ่านเบอร์โทร</span>
+            </span>
+          </label>
+          <label class="pay-method" data-method="bank">
+            <input type="radio" name="payMethod" value="bank" />
+            <span class="pay-method-icon">🏦</span>
+            <span class="pay-method-info">
+              <strong>โอนเงินผ่านธนาคาร</strong>
+              <span>กสิกร / ไทยพาณิชย์ / กรุงไทย</span>
+            </span>
+          </label>
+          <label class="pay-method" data-method="cod">
+            <input type="radio" name="payMethod" value="cod" />
+            <span class="pay-method-icon">🏠</span>
+            <span class="pay-method-info">
+              <strong>ชำระเมื่อรับสินค้า (COD)</strong>
+              <span>จ่ายเงินสดตอนรับของ</span>
+            </span>
+          </label>
+        </div>
+        <div class="modal-actions">
+          <button class="btn btn-primary" id="toStep3">ถัดไป → ยืนยันการชำระ</button>
+          <button class="btn btn-outline" id="backTo1">← กลับ</button>
+        </div>
+      </div>
+
+      <!-- Step 3: Confirm & pay -->
+      <div id="payPanel3" style="display:none;">
+        <div class="order-lines" id="payOrderLines"></div>
+        <div class="pay-detail-box" id="payDetailBox">
+          <!-- filled by JS -->
+        </div>
+        <div class="order-summary" id="orderSummary" style="display:none;"></div>
+        <div class="modal-actions">
+          <button class="btn btn-primary" id="confirmOrderBtn">✅ ยืนยันคำสั่งซื้อ</button>
+          <button class="btn btn-outline" id="copyOrderBtn">📋 คัดลอกสรุปคำสั่งซื้อ</button>
+          <a href="tel:+66814707089" class="btn btn-outline">📞 โทรแจ้งร้าน 081-470-7089</a>
+          <a href="https://www.facebook.com/p/%E0%B8%A3%E0%B9%89%E0%B8%B2%E0%B8%99-%E0%B8%A3%E0%B8%B2%E0%B8%8A%E0%B8%B2%E0%B8%AB%E0%B8%A7%E0%B8%B2%E0%B8%A2%E0%B8%AA%E0%B8%B8%E0%B8%A3%E0%B8%B4%E0%B8%99%E0%B8%97%E0%B8%A3%E0%B9%8C-100063725193085/" target="_blank" rel="noopener" class="btn btn-outline">💬 ส่งสลิปทาง Facebook</a>
+          <button class="btn btn-outline" id="backTo2">← กลับ</button>
+        </div>
+      </div>
+
+      <!-- Step 4: Order success -->
+      <div id="payPanel4" style="display:none;">
+        <div style="text-align:center;padding:0.5rem 0 1rem;">
+          <div style="font-size:3rem;margin-bottom:0.4rem;">✅</div>
+          <div style="font-weight:700;font-size:1.15rem;color:var(--rattan-deep);margin-bottom:0.3rem;">สั่งซื้อสำเร็จ</div>
+          <div style="font-size:0.9rem;color:var(--text-soft);">บันทึกเลขที่ออเดอร์ไว้เพื่อตรวจสอบสถานะ</div>
+        </div>
+        <div class="status-order-id" id="successOrderBox"></div>
+        <div class="modal-actions">
+          <button class="btn btn-primary" id="printLabelBtn">🖨️ พิมพ์ใบปะหน้าไปรษณีย์</button>
+          <button class="btn btn-outline" id="viewStatusBtn">📦 ดูสถานะคำสั่งซื้อ</button>
+          <button class="btn btn-outline" id="copyOrderIdBtn">📋 คัดลอกเลขที่ออเดอร์</button>
+          <button class="btn btn-outline" id="closeSuccessBtn">ปิด</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Status Tracking Modal -->
+  <div class="modal-overlay" id="statusModal">
+    <div class="modal wide">
+      <button class="modal-close" id="statusClose">×</button>
+      <h3>📦 ตรวจสอบสถานะคำสั่งซื้อ</h3>
+      <p style="font-size:0.9rem;margin-bottom:1rem;">กรอกเลขที่ออเดอร์ หรือเบอร์โทรที่ใช้สั่งซื้อ</p>
+      <div class="form-group">
+        <label for="trackInput">เลขที่ออเดอร์ / เบอร์โทร</label>
+        <input type="text" id="trackInput" placeholder="เช่น RW20260808-001 หรือ 0812345678" />
+        <div class="form-error" id="errTrack">กรุณากรอกเลขที่ออเดอร์หรือเบอร์โทร</div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-primary" id="trackBtn">🔍 ค้นหา</button>
+      </div>
+      <div class="status-not-found" id="statusNotFound">
+        <div style="font-size:2rem;margin-bottom:0.4rem;">😕</div>
+        <div>ไม่พบคำสั่งซื้อ</div>
+        <div style="font-size:0.85rem;margin-top:0.3rem;">ตรวจสอบเลขที่ออเดอร์หรือเบอร์โทรอีกครั้ง</div>
+      </div>
+      <div class="status-result" id="statusResult">
+        <div class="status-order-id" id="statusOrderInfo"></div>
+        <div class="timeline" id="statusTimeline"></div>
+        <div class="demo-hint">
+          💡 <strong>โหมดสาธิต:</strong> กดปุ่มด้านล่างเพื่อจำลองการอัปเดตสถานะ (ร้านจริงจะอัปเดตเอง)
+        </div>
+        <div class="modal-actions" style="margin-top:0.8rem;">
+          <button class="btn btn-primary" id="printLabelFromStatusBtn">🖨️ พิมพ์ใบปะหน้าไปรษณีย์</button>
+          <button class="btn btn-outline" id="advanceStatusBtn">▶️ จำลองอัปเดตสถานะถัดไป</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Promo Popup -->
+  <div class="promo-overlay" id="promoOverlay" role="dialog" aria-modal="true" aria-labelledby="promoTitle">
+    <div class="promo-card">
+      <div class="promo-ribbon">โปรโมชั่นพิเศษ</div>
+      <button type="button" class="promo-close" id="promoClose" aria-label="ปิด">×</button>
+      <div class="promo-body">
+        <div class="promo-emoji">🧺</div>
+        <h2 id="promoTitle">ชุดของขวัญหวาย ลดพิเศษ</h2>
+        <p class="promo-sub">สั่งตะกร้า / กระเช้าครบชุด รับส่วนลดจากร้าน</p>
+        <div class="promo-deal">
+          <div class="label">เมื่อสั่งครบ 1,500 บาท</div>
+          <div class="value">ลดทันที 100 บาท</div>
+          <div class="extra">+ แถมวิธีดูแลหวายฉบับร้าน</div>
+        </div>
+        <div class="promo-actions">
+          <a href="#products" class="btn btn-primary" id="promoShopBtn">เลือกชมสินค้า</a>
+          <a href="https://line.me/ti/p/~0814707089" target="_blank" rel="noopener" class="btn btn-outline">ทัก LINE สอบถาม</a>
+          <button type="button" class="promo-skip" id="promoSkip">ไว้ทีหลัง</button>
+        </div>
+        <p class="promo-footer-note">เงื่อนไขตามร้านกำหนด · ทักยืนยันก่อนโอน</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Product Detail Modal -->
+  <div class="modal-overlay" id="productDetailModal">
+    <div class="modal pd-modal">
+      <button class="modal-close" id="pdClose" style="z-index:5;background:rgba(255,255,255,0.85);border-radius:50%;width:32px;height:32px;line-height:1;">×</button>
+      <div class="pd-layout">
+        <div class="pd-gallery">
+          <div class="pd-main-img" id="pdMainImg"></div>
+          <div class="pd-thumbs" id="pdThumbs"></div>
+        </div>
+        <div class="pd-info">
+          <div class="product-cat" id="pdCat"></div>
+          <h3 id="pdName"></h3>
+          <div class="pd-price" id="pdPrice"></div>
+          <div class="pd-meta" id="pdMeta"></div>
+          <div class="pd-desc" id="pdDesc"></div>
+          <div class="pd-actions">
+            <button class="btn btn-primary" id="pdAddCart" style="justify-content:center;">🛒 เพิ่มลงตะกร้า</button>
+            <button class="btn btn-outline" id="pdCloseBtn" style="justify-content:center;">ปิด</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Admin Panel -->
+  <div class="admin-overlay" id="adminOverlay">
+    <div class="admin-panel">
+      <div class="admin-top">
+        <h2>🛠️ เมนูหลังร้าน</h2>
+        <div class="admin-top-actions">
+          <span style="font-size:0.8rem;opacity:0.85;" id="adminUserLabel">ราชาหวายสุรินทร์</span>
+          <button class="admin-close" id="adminCloseBtn" title="ปิด">×</button>
+        </div>
+      </div>
+
+      <!-- Login -->
+      <div class="admin-body" id="adminLoginView">
+        <div class="admin-login">
+          <div style="font-size:2.5rem;margin-bottom:0.5rem;">👑</div>
+          <h3>เข้าสู่ระบบหลังร้าน</h3>
+          <p>รหัสผ่านสำหรับเจ้าของร้าน<br><small>กำหนดใน SHOP_CONFIG.adminPin</small></p>
+          <div class="form-group" style="text-align:left;">
+            <label for="adminPin">รหัสผ่าน</label>
+            <input type="password" id="adminPin" placeholder="••••" maxlength="12" />
+            <div class="form-error" id="errAdminPin">รหัสผ่านไม่ถูกต้อง</div>
+          </div>
+          <button class="btn btn-primary" id="adminLoginBtn" style="width:100%;justify-content:center;">เข้าสู่ระบบ</button>
+        </div>
+      </div>
+
+      <!-- Main admin (hidden until login) -->
+      <div id="adminMainView" style="display:none;flex-direction:column;flex:1;min-height:0;">
+        <div class="admin-tabs">
+          <button class="admin-tab active" data-tab="dash">📊 ภาพรวม</button>
+          <button class="admin-tab" data-tab="products">🧺 สินค้า</button>
+          <button class="admin-tab" data-tab="orders">📦 ออเดอร์</button>
+          <button class="admin-tab" data-tab="settings">⚙️ ตั้งค่า</button>
+        </div>
+        <div class="admin-body" id="adminContent">
+          <!-- filled by JS -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+  
+  <!-- Video Modal -->
+  <div class="video-modal-overlay" id="videoModal" role="dialog" aria-modal="true" aria-labelledby="videoModalTitle">
+    <div class="video-modal">
+      <div class="video-modal-head">
+        <h3 id="videoModalTitle">วิดีโอ</h3>
+        <button type="button" class="video-modal-close" id="videoModalClose" aria-label="ปิด">×</button>
+      </div>
+      <div class="video-modal-player" id="videoModalPlayer">
+        <div class="video-modal-fallback" id="videoModalFallback">
+          <div style="font-size:2.2rem;">📺</div>
+          <p>ถ้าวิดีโอไม่ขึ้นในหน้านี้ ให้กดปุ่มด้านล่างเพื่อเปิดชมบน YouTube โดยตรง</p>
+          <a class="btn btn-primary" id="videoModalYtLink" href="#" target="_blank" rel="noopener noreferrer">▶ เปิดใน YouTube</a>
+        </div>
+      </div>
+      <div class="video-modal-actions">
+        <a class="btn btn-primary btn-sm" id="videoModalOpenBtn" href="#" target="_blank" rel="noopener noreferrer">▶ เปิดใน YouTube</a>
+        <button type="button" class="btn btn-outline btn-sm" id="videoModalCopyBtn">คัดลอกลิงก์</button>
+        <button type="button" class="btn btn-outline btn-sm" id="videoModalClose2">ปิด</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div class="toast" id="toast"></div>
+
+  <script src="js/config.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
