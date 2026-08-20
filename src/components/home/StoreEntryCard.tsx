@@ -8,11 +8,11 @@ export function StoreEntryCard() {
         <div className="desk-entry__row">
           <div className="desk-entry__icon" aria-hidden>
             <img
-              src="/brand/rachawei-logo.png"
+              src="/brand/rachawei-logo-square.png"
               alt=""
               width={48}
               height={48}
-              style={{ display: 'block', width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center', borderRadius: '0.65rem' }}
+              style={{ display: 'block', width: '100%', height: '100%', objectFit: 'contain', objectPosition: 'center', borderRadius: '0.65rem' }}
             />
           </div>
           <div className="desk-entry__text">
