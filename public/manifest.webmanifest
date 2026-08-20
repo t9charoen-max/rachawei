@@ -1,5 +1,5 @@
 {
-  "name": "ราชาหวายสุรินทร์ — ตะกร้าหวายสานมือ",
+  "name": "ราชาหวายสุรินทร์",
   "short_name": "ราชาหวาย",
   "description": "ตะกร้าหวายสานมือ 100% จากบ้านบุทม จ.สุรินทร์ — ดูสินค้า สั่งซื้อทาง LINE ได้ทันที",
   "id": "/",
@@ -7,8 +7,8 @@
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#1a120c",
-  "theme_color": "#2d1f14",
+  "background_color": "#0f172a",
+  "theme_color": "#0f172a",
   "lang": "th",
   "categories": ["shopping", "lifestyle"],
   "icons": [
@@ -27,6 +27,11 @@
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
+    },
+    {
+      "src": "/brand/rachawei-logo-square.png",
+      "sizes": "640x640",
+      "type": "image/png"
     }
   ]
 }
