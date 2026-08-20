@@ -12,7 +12,7 @@ export function StoreEntryCard() {
               alt=""
               width={48}
               height={48}
-              style={{ display: 'block', width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center 42%', borderRadius: '0.65rem' }}
+              style={{ display: 'block', width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center', borderRadius: '0.65rem' }}
             />
           </div>
           <div className="desk-entry__text">

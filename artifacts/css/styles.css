@@ -283,7 +283,7 @@
       height: 44px;
       border-radius: 12px;
       object-fit: cover;
-      object-position: center 42%;
+      object-position: center center;
       flex-shrink: 0;
       background: #0f172a;
       box-shadow:
