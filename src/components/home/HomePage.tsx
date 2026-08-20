@@ -98,6 +98,8 @@ export function HomePage({
 
       <HomeQuickNav activeId={activeId} onSelect={handleNavSelect} />
 
+      <StoreEntryCard />
+
       <DeskEntryCard />
 
       <PromoSection
