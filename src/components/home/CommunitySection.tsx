@@ -72,7 +72,7 @@ export function CommunitySection() {
             </span>
             <div>
               <p className="text-sm font-semibold text-gold-300">จากใจชุมชน</p>
-              <BrandMark name="ราชาหวายสุรินทร์" variant="inline" showSeal={false} />
+              <BrandMark name="ราชาหวายสุรินทร์" variant="inline" />
             </div>
           </div>
           <p className="font-display text-base leading-relaxed text-cream-100/95 italic sm:text-lg">

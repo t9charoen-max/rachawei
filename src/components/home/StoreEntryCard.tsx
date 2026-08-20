@@ -7,7 +7,13 @@ export function StoreEntryCard() {
         <div className="desk-entry__badge">สั่งออนไลน์</div>
         <div className="desk-entry__row">
           <div className="desk-entry__icon" aria-hidden>
-            <span style={{ fontSize: '1.75rem', lineHeight: 1 }}>🛒</span>
+            <img
+              src="/brand/rachawei-logo.jpeg"
+              alt=""
+              width={48}
+              height={48}
+              style={{ display: 'block', width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center 42%', borderRadius: '0.65rem' }}
+            />
           </div>
           <div className="desk-entry__text">
             <p className="desk-entry__kicker">ตะกร้า + พร้อมเพย์</p>
