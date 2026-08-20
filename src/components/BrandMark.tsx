@@ -10,7 +10,7 @@ interface BrandMarkProps {
   showSeal?: boolean;
 }
 
-const LOGO_SRC = '/brand/rachawei-logo.jpeg';
+const LOGO_SRC = '/brand/rachawei-logo.png';
 
 /** แยก “ราชาหวาย” เป็นชื่อหลัก และ “สุรินทร์” เป็นรอง — รองรับชื่อที่แก้จากหลังบ้าน */
 export function splitShopName(name: string): { primary: string; secondary: string } {

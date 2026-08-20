@@ -29,9 +29,9 @@
       "purpose": "maskable"
     },
     {
-      "src": "/brand/rachawei-logo-square.jpeg",
+      "src": "/brand/rachawei-logo-square.png",
       "sizes": "640x640",
-      "type": "image/jpeg"
+      "type": "image/png"
     }
   ]
 }

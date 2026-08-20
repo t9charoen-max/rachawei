@@ -8,7 +8,7 @@ export function StoreEntryCard() {
         <div className="desk-entry__row">
           <div className="desk-entry__icon" aria-hidden>
             <img
-              src="/brand/rachawei-logo.jpeg"
+              src="/brand/rachawei-logo.png"
               alt=""
               width={48}
               height={48}
