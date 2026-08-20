@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="th">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#1a1410" />
+    <meta
+      name="description"
+      content="ราชาหวายสุรินทร์ — ตะกร้าหวายสานมือ OTOP จากบ้านบุทม สั่งซื้อออนไลน์ ชำระ PromptPay"
+    />
+    <title>ราชาหวายสุรินทร์ — สั่งซื้อออนไลน์</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Fahkwang:wght@500;700&family=Sarabun:wght@400;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="css/styles.css" />
+  </head>
+  <body>
+    <div class="app">
+      <header class="topbar">
+        <div class="brand">
+          <div class="brand-mark" aria-hidden="true">ร</div>
+          <div class="brand-text">
+            <div class="brand-name">ราชาหวาย</div>
+            <div class="brand-tag">สุรินทร์ · OTOP สานมือ</div>
+          </div>
+        </div>
+        <div class="topbar-actions">
+          <a class="icon-btn" id="shop-phone-link" href="tel:0814707089" aria-label="โทร">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.8 19.8 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.12 4.18 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z" />
+            </svg>
+          </a>
+          <button type="button" class="icon-btn" data-view="cart" aria-label="ตะกร้า">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="9" cy="21" r="1" />
+              <circle cx="20" cy="21" r="1" />
+              <path d="M1 1h4l2.7 13.4a2 2 0 0 0 2 1.6h9.7a2 2 0 0 0 2-1.6L23 6H6" />
+            </svg>
+            <span class="badge-count" id="cart-badge" hidden>0</span>
+          </button>
+        </div>
+      </header>
+
+      <!-- เมนู / สินค้า -->
+      <section class="view is-active" data-view="menu">
+        <div class="hero">
+          <div class="hero-bg" id="hero-bg" role="img" aria-label="ภายในร้านราชาหวายสุรินทร์"></div>
+          <div class="hero-scrim"></div>
+          <div class="hero-content">
+            <span class="hero-kicker">OTOP · บ้านบุทม สุรินทร์</span>
+            <h1>ราชาหวายสุรินทร์</h1>
+            <p>ตะกร้าหวายสานมือจากชุมชน — เลือกสินค้า ใส่ตะกร้า ชำระ PromptPay ได้ทันที</p>
+            <div class="hero-cta">
+              <button type="button" class="btn btn-primary" id="hero-shop">ดูสินค้า</button>
+              <button type="button" class="btn btn-ghost" id="hero-contact">สั่งซื้อ / ชำระเงิน</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="section" id="menu-section">
+          <div class="section-head">
+            <div>
+              <h2>เมนูสินค้า</h2>
+              <p>กรองตามทรงและงานพิเศษ</p>
+            </div>
+          </div>
+        </div>
+        <div class="chips" id="category-chips"></div>
+        <div class="product-grid" id="product-grid"></div>
+
+        <div class="panel" style="margin-top: 8px">
+          <h3>ติดต่อร้าน</h3>
+          <p id="shop-location" style="margin: 0 0 8px; color: var(--ink-muted); font-size: 0.9rem"></p>
+          <p style="margin: 0 0 12px; color: var(--ink-faint); font-size: 0.85rem">
+            เปิด <span id="shop-hours"></span>
+          </p>
+          <div class="contact-links">
+            <a class="btn btn-primary" id="shop-line-link" href="#" target="_blank" rel="noopener">แอด LINE</a>
+            <a class="btn btn-ghost" id="shop-map-link" href="#" target="_blank" rel="noopener">เปิดแผนที่</a>
+          </div>
+        </div>
+      </section>
+
+      <!-- ตะกร้า -->
+      <section class="view" data-view="cart">
+        <div class="section">
+          <div class="section-head">
+            <div>
+              <h2>ตะกร้า</h2>
+              <p id="cart-count-label">0 รายการ</p>
+            </div>
+          </div>
+        </div>
+        <div class="panel" id="cart-lines"></div>
+        <div class="panel" id="cart-summary" hidden>
+          <div class="summary-row">
+            <span>ยอดสินค้า</span>
+            <span id="cart-subtotal">฿0</span>
+          </div>
+          <button type="button" class="btn btn-primary btn-block" data-view="pay" style="margin-top: 14px">
+            ไปชำระเงิน
+          </button>
+        </div>
+      </section>
+
+      <!-- ชำระเงิน -->
+      <section class="view" data-view="pay">
+        <div class="section">
+          <div class="section-head">
+            <div>
+              <h2>ชำระเงิน</h2>
+              <p>PromptPay + แจ้ง LINE</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel" id="pay-empty" hidden>
+          <div class="empty-state">
+            <strong>ยังไม่มีสินค้าในตะกร้า</strong>
+            กลับไปเลือกจากเมนูก่อน
+          </div>
+          <button type="button" class="btn btn-primary btn-block" data-view="menu">เลือกสินค้า</button>
+        </div>
+
+        <div id="pay-form">
+          <div class="panel">
+            <h3>สรุปยอด</h3>
+            <div class="summary-row">
+              <span>ยอดสินค้า</span>
+              <span id="pay-subtotal">฿0</span>
+            </div>
+            <div class="summary-row">
+              <span>ค่าจัดส่ง</span>
+              <span id="pay-fee">—</span>
+            </div>
+            <div class="summary-row total">
+              <span>รวมทั้งสิ้น</span>
+              <span id="pay-total">฿0</span>
+            </div>
+            <div class="pay-qr" id="pay-preview-qr" hidden></div>
+          </div>
+
+          <form class="panel" id="pay-form-el">
+            <h3>ข้อมูลจัดส่ง</h3>
+            <div class="form-grid">
+              <div class="field">
+                <label for="customer-name">ชื่อ-นามสกุล</label>
+                <input id="customer-name" name="name" required autocomplete="name" placeholder="ชื่อผู้รับ" />
+              </div>
+              <div class="field">
+                <label for="customer-phone">เบอร์โทร</label>
+                <input
+                  id="customer-phone"
+                  name="phone"
+                  required
+                  inputmode="tel"
+                  autocomplete="tel"
+                  placeholder="08x-xxx-xxxx"
+                />
+              </div>
+              <div class="field">
+                <label for="delivery-zone">โซนจัดส่ง</label>
+                <select id="delivery-zone" name="zone" required></select>
+              </div>
+              <div class="field">
+                <label for="customer-address">ที่อยู่จัดส่ง</label>
+                <textarea id="customer-address" name="address" required placeholder="บ้านเลขที่ ถนน ตำบล อำเภอ จังหวัด"></textarea>
+              </div>
+              <div class="field">
+                <label for="customer-note">หมายเหตุ (ถ้ามี)</label>
+                <textarea id="customer-note" name="note" placeholder="เช่น เวลาสะดวกรับของ"></textarea>
+              </div>
+              <button type="submit" class="btn btn-primary btn-block">ยืนยันคำสั่งซื้อ</button>
+            </div>
+          </form>
+        </div>
+
+        <div class="panel" id="pay-done" hidden>
+          <div id="pay-done-detail"></div>
+        </div>
+      </section>
+
+      <!-- แอดมิน -->
+      <section class="view" data-view="admin">
+        <div class="section">
+          <div class="section-head">
+            <div>
+              <h2>แอดมิน</h2>
+              <p>จัดการสินค้าและออเดอร์</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel admin-gate" id="admin-gate">
+          <p style="color: var(--ink-muted); margin-top: 0">ใส่ PIN 4 ตัวท้ายเบอร์ร้าน</p>
+          <form id="admin-gate-form">
+            <div class="field">
+              <label for="admin-pin">PIN</label>
+              <input id="admin-pin" inputmode="numeric" maxlength="4" pattern="[0-9]*" autocomplete="one-time-code" required />
+            </div>
+            <button type="submit" class="btn btn-primary btn-block" style="margin-top: 12px">เข้าสู่ระบบ</button>
+          </form>
+        </div>
+
+        <div id="admin-panel" hidden>
+          <div class="panel">
+            <div class="admin-toolbar">
+              <button type="button" class="btn btn-sm btn-primary" id="admin-add">+ เพิ่มสินค้า</button>
+              <button type="button" class="btn btn-sm btn-ghost" id="admin-reset">รีเซ็ตค่าเริ่มต้น</button>
+              <button type="button" class="btn btn-sm btn-danger" id="admin-lock">ล็อก</button>
+            </div>
+            <h3>สินค้า</h3>
+            <div id="admin-products"></div>
+          </div>
+          <div class="panel">
+            <h3>ออเดอร์ล่าสุด</h3>
+            <div id="admin-orders"></div>
+          </div>
+        </div>
+      </section>
+
+      <nav class="bottom-nav" aria-label="เมนูหลัก">
+        <button type="button" class="nav-item is-active" data-view="menu">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M4 6h16M4 12h16M4 18h10" />
+          </svg>
+          เมนู
+        </button>
+        <button type="button" class="nav-item" data-view="cart">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="9" cy="21" r="1" />
+            <circle cx="20" cy="21" r="1" />
+            <path d="M1 1h4l2.7 13.4a2 2 0 0 0 2 1.6h9.7a2 2 0 0 0 2-1.6L23 6H6" />
+          </svg>
+          ตะกร้า
+          <span class="nav-dot"></span>
+        </button>
+        <button type="button" class="nav-item" data-view="pay">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="2" y="5" width="20" height="14" rx="2" />
+            <path d="M2 10h20" />
+          </svg>
+          ชำระเงิน
+        </button>
+        <button type="button" class="nav-item" data-view="admin">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z" />
+            <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9c.3.6.9 1 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z" />
+          </svg>
+          แอดมิน
+        </button>
+      </nav>
+    </div>
+
+    <div class="modal" id="product-modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+      <div class="modal-sheet">
+        <button type="button" class="modal-close" id="modal-close" aria-label="ปิด">✕</button>
+        <div class="modal-media">
+          <img id="modal-img" src="" alt="" />
+        </div>
+        <div class="modal-body">
+          <h3 id="modal-title"></h3>
+          <p class="product-price" id="modal-price"></p>
+          <p class="desc" id="modal-desc"></p>
+          <button type="button" class="btn btn-primary btn-block" id="modal-add" data-add="">ใส่ตะกร้า</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="toast" id="toast" role="status"></div>
+
+    <script src="js/config.js"></script>
+    <script src="js/app.js"></script>
+  </body>
+</html>
