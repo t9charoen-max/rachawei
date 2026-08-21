@@ -17,10 +17,10 @@ export function LoyaltyBadge() {
 
   return (
     <div
-      className="flex items-center gap-1.5 rounded-xl bg-amber-50 px-2.5 py-1.5 text-xs font-semibold text-amber-800"
+      className="glass-panel flex items-center gap-1.5 rounded-xl px-2.5 py-1.5 text-xs font-semibold text-cyan-200"
       title="สะสมแต้มทุกครั้งที่สั่งซื้อ"
     >
-      <span>{tier.emoji}</span>
+      <span className="animate-pulse-glow">{tier.emoji}</span>
       <span className="hidden sm:inline">{tier.name}</span>
       <span>{points.toLocaleString('th-TH')} แต้ม</span>
     </div>

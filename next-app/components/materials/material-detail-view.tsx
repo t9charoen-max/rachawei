@@ -4,6 +4,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useState } from 'react';
 import { BRAND } from '@/lib/materials/brand';
+import { saveAdminQuote } from '@/lib/materials/admin-store';
 import { getLineDisplayId, getLineProfileUrl, openLineQuickOrder } from '@/lib/materials/line-quote';
 import { addLoyaltyPoints } from '@/lib/materials/loyalty';
 import { assetUrl } from '@/lib/materials/asset-url';
@@ -29,6 +30,27 @@ export function MaterialDetailView({ product, demo }: Props) {
   const handleQuickOrder = async () => {
     setIsOrdering(true);
     try {
+      try {
+        saveAdminQuote(
+          {
+            customer_name: '(รอติดต่อกลับ)',
+            phone: '-',
+            note: 'สั่งคลิกเดียวจากหน้ารายละเอียด — ส่งถึงหน้างาน',
+            items: [
+              {
+                product_id: product.id,
+                product_name: product.name,
+                quantity,
+                unit: product.unit,
+                unit_price: product.price,
+              },
+            ],
+          },
+          'line',
+        );
+      } catch {
+        /* admin store optional */
+      }
       await openLineQuickOrder(product, quantity);
       addLoyaltyPoints(1, product.price * quantity);
       notifyLoyaltyUpdate();
@@ -38,39 +60,51 @@ export function MaterialDetailView({ product, demo }: Props) {
   };
 
   return (
-    <div className="min-h-screen">
-      <header className="sticky top-0 z-50 border-b border-orange-100/80 glass">
+    <div className="relative min-h-screen overflow-x-hidden text-[var(--foreground)]">
+      <div className="pointer-events-none absolute inset-0 overflow-hidden">
+        <div className="light-orb animate-aurora -left-20 top-20 h-64 w-64 bg-blue-600/30" />
+        <div className="light-orb right-0 top-60 h-72 w-72 bg-cyan-500/20" />
+        <div className="pattern-dots absolute inset-0 opacity-30" />
+      </div>
+
+      <header className="glass sticky top-0 z-50 border-b border-blue-500/20">
         <div className="mx-auto flex max-w-4xl items-center justify-between gap-3 px-4 py-3">
           <Link
             href="/"
-            className="flex items-center gap-2 text-sm font-semibold text-[var(--brand-primary)] transition hover:opacity-80"
+            className="flex items-center gap-2 text-sm font-semibold text-sky-300 transition hover:text-cyan-200"
           >
             <span className="text-lg">←</span>
             กลับแคตตาล็อก
           </Link>
           <div className="flex items-center gap-2">
+            <Link
+              href="/admin/dashboard"
+              className="text-xs text-slate-500 transition hover:text-sky-300"
+            >
+              หลังบ้าน
+            </Link>
             <LoyaltyBadge />
             <a
-            href={getLineProfileUrl()}
-            target="_blank"
-            rel="noreferrer"
-            className="flex items-center gap-1.5 rounded-xl bg-[#06c755]/10 px-3 py-2 text-sm font-medium text-[#06c755]"
-          >
-            💬 Line
-          </a>
+              href={getLineProfileUrl()}
+              target="_blank"
+              rel="noreferrer"
+              className="flex items-center gap-1.5 rounded-xl border border-[#06c755]/40 bg-[#06c755]/15 px-3 py-2 text-sm font-medium text-[#06c755]"
+            >
+              💬 Line
+            </a>
           </div>
         </div>
       </header>
 
-      <div className="mx-auto max-w-4xl px-4 py-6 pb-36">
+      <div className="relative mx-auto max-w-4xl px-4 py-6 pb-36">
         {demo ? (
-          <p className="mb-4 rounded-2xl border border-amber-200 bg-gradient-to-r from-amber-50 to-orange-50 px-4 py-3 text-sm text-amber-900">
+          <p className="glass-panel mb-4 rounded-2xl border-cyan-400/20 px-4 py-3 text-sm text-cyan-100">
             ✨ โหมดตัวอย่าง — กด &quot;สั่งเลย&quot; เพื่อส่งออเดอร์ผ่าน Line ทันที
           </p>
         ) : null}
 
-        <article className="overflow-hidden rounded-3xl border border-orange-100/80 bg-white shadow-[var(--shadow-card)]">
-          <div className="relative aspect-[4/3] overflow-hidden bg-gradient-to-br from-orange-50 to-amber-50 sm:aspect-[16/10]">
+        <article className="glass-panel light-sweep overflow-hidden rounded-3xl">
+          <div className="relative aspect-[4/3] overflow-hidden bg-gradient-to-br from-slate-900 to-blue-950 sm:aspect-[16/10]">
             <Image
               src={assetUrl(product.image_url)}
               alt={product.name}
@@ -79,18 +113,18 @@ export function MaterialDetailView({ product, demo }: Props) {
               className="object-cover"
               sizes="(max-width: 768px) 100vw, 800px"
             />
-            <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/50 to-transparent p-5 sm:p-6">
+            <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-[#07111f] via-[#07111f]/70 to-transparent p-5 sm:p-6">
               <div className="flex flex-wrap items-center gap-2">
                 <span
-                  className={`rounded-full px-3 py-1 text-sm font-medium ${catStyle.bg} ${catStyle.text}`}
+                  className={`rounded-full px-3 py-1 text-sm font-medium backdrop-blur-sm ${catStyle.bg} ${catStyle.text}`}
                 >
                   {product.category}
                 </span>
                 <span
                   className={`rounded-full px-3 py-1 text-sm font-semibold ${
                     product.stock_status === 'พร้อมส่ง'
-                      ? 'bg-green-500 text-white'
-                      : 'bg-amber-400 text-amber-950'
+                      ? 'bg-emerald-500/90 text-white'
+                      : 'bg-amber-400/90 text-amber-950'
                   }`}
                 >
                   {product.stock_status}
@@ -101,48 +135,51 @@ export function MaterialDetailView({ product, demo }: Props) {
 
           <div className="space-y-5 p-5 sm:p-8">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900 sm:text-3xl">{product.name}</h1>
-              <p className="mt-2 text-base text-gray-500">{product.spec}</p>
+              <h1 className="text-2xl font-bold text-sky-50 sm:text-3xl">{product.name}</h1>
+              <p className="mt-2 text-base text-slate-400">{product.spec}</p>
             </div>
 
-            <p className="leading-relaxed text-gray-700">{product.description}</p>
+            <p className="leading-relaxed text-slate-300">{product.description}</p>
 
             <StockIndicator product={product} />
 
-            <div className="rounded-2xl border border-teal-100 bg-teal-50 px-4 py-3 text-sm text-teal-800">
+            <div className="rounded-2xl border border-cyan-500/25 bg-cyan-500/10 px-4 py-3 text-sm text-cyan-100">
               🚚 <strong>ส่งถึงหน้างาน</strong> — สุรินทร์และพื้นที่ใกล้เคียง • ปรึกษาค่าส่งฟรีผ่าน Line
             </div>
 
-            <div className="rounded-2xl bg-gradient-to-r from-orange-50 to-amber-50 p-5">
+            <div className="rounded-2xl bg-gradient-to-r from-blue-600/20 to-cyan-600/15 p-5 ring-1 ring-sky-500/20">
               <div className="flex flex-wrap items-baseline gap-2">
-                <span className="text-4xl font-extrabold text-[var(--brand-primary)]">
+                <span className="text-4xl font-extrabold text-sky-300">
                   ฿{product.price.toLocaleString('th-TH')}
                 </span>
-                <span className="text-lg text-gray-500">/ {product.unit}</span>
+                <span className="text-lg text-slate-400">/ {product.unit}</span>
               </div>
+              <p className="mt-1 text-xs text-slate-500">{BRAND.shopName}</p>
             </div>
 
-            <div className="flex items-center gap-3">
-              <label className="text-sm font-medium text-gray-600">จำนวน</label>
-              <div className="flex items-center rounded-2xl border-2 border-orange-100 bg-white">
+            <div className="flex flex-wrap items-center gap-3">
+              <label className="text-sm font-medium text-slate-400">จำนวน</label>
+              <div className="glass-panel flex items-center rounded-2xl">
                 <button
                   type="button"
                   onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-                  className="px-4 py-2.5 text-lg font-bold text-[var(--brand-primary)] transition hover:bg-orange-50"
+                  className="px-4 py-2.5 text-lg font-bold text-sky-300 transition hover:bg-sky-500/10"
                 >
                   −
                 </button>
-                <span className="min-w-[3rem] text-center text-lg font-bold">{quantity}</span>
+                <span className="min-w-[3rem] text-center text-lg font-bold text-slate-100">
+                  {quantity}
+                </span>
                 <button
                   type="button"
                   onClick={() => setQuantity((q) => q + 1)}
-                  className="px-4 py-2.5 text-lg font-bold text-[var(--brand-primary)] transition hover:bg-orange-50"
+                  className="px-4 py-2.5 text-lg font-bold text-sky-300 transition hover:bg-sky-500/10"
                 >
                   +
                 </button>
               </div>
-              <span className="text-sm text-gray-500">{product.unit}</span>
-              <span className="ml-auto text-sm font-semibold text-[var(--brand-primary)]">
+              <span className="text-sm text-slate-500">{product.unit}</span>
+              <span className="ml-auto text-sm font-semibold text-sky-300">
                 รวม ฿{(product.price * quantity).toLocaleString('th-TH')}
               </span>
             </div>
@@ -152,7 +189,7 @@ export function MaterialDetailView({ product, demo }: Props) {
                 type="button"
                 onClick={handleQuickOrder}
                 disabled={isOrdering}
-                className="btn-shine flex items-center justify-center gap-2 rounded-2xl bg-[#06c755] py-4 text-lg font-bold text-white shadow-lg transition hover:bg-[#05b34c] disabled:opacity-70"
+                className="btn-shine flex items-center justify-center gap-2 rounded-2xl bg-[#06c755] py-4 text-lg font-bold text-white shadow-lg shadow-[#06c755]/25 transition hover:bg-[#05b34c] disabled:opacity-70"
               >
                 {isOrdering ? (
                   'กำลังเปิด Line...'
@@ -166,7 +203,7 @@ export function MaterialDetailView({ product, demo }: Props) {
               <button
                 type="button"
                 onClick={() => setModalOpen(true)}
-                className="rounded-2xl border-2 border-orange-200 py-4 text-center font-semibold text-[var(--brand-primary)] transition hover:bg-orange-50"
+                className="glass-panel rounded-2xl py-4 text-center font-semibold text-sky-300 transition hover:border-sky-400/50"
               >
                 📋 ขอใบเสนอราคา
               </button>
@@ -176,7 +213,7 @@ export function MaterialDetailView({ product, demo }: Props) {
               href={getLineProfileUrl()}
               target="_blank"
               rel="noreferrer"
-              className="flex items-center justify-center gap-2 rounded-2xl bg-gray-50 py-3 text-sm font-medium text-gray-600 transition hover:bg-gray-100"
+              className="flex items-center justify-center gap-2 rounded-2xl border border-blue-500/20 bg-slate-900/40 py-3 text-sm font-medium text-slate-400 transition hover:border-sky-500/30 hover:text-sky-300"
             >
               หรือแชทถามร้านโดยตรง — Line {getLineDisplayId()}
             </a>
@@ -184,8 +221,8 @@ export function MaterialDetailView({ product, demo }: Props) {
         </article>
       </div>
 
-      {count > 0 && (
-        <div className="fixed right-4 bottom-4 left-4 z-50 sm:left-auto sm:max-w-sm">
+      <div className="glass fixed right-0 bottom-0 left-0 z-50 border-t border-blue-500/25 p-3 sm:right-4 sm:bottom-4 sm:left-auto sm:max-w-sm sm:rounded-2xl sm:border">
+        {count > 0 ? (
           <button
             type="button"
             onClick={() => submitAll()}
@@ -194,8 +231,17 @@ export function MaterialDetailView({ product, demo }: Props) {
           >
             {isSubmitting ? 'กำลังเปิด Line...' : `ส่งใบเสนอราคา ${count} รายการ →`}
           </button>
-        </div>
-      )}
+        ) : (
+          <button
+            type="button"
+            onClick={handleQuickOrder}
+            disabled={isOrdering}
+            className="btn-shine w-full rounded-2xl bg-[#06c755] px-5 py-3.5 text-base font-bold text-white shadow-xl disabled:opacity-60"
+          >
+            {isOrdering ? 'กำลังเปิด Line...' : '💬 สั่งเลยผ่าน Line'}
+          </button>
+        )}
+      </div>
 
       <QuoteModal
         product={product}
