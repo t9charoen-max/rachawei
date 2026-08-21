@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, type FormEvent } from 'react';
+import Image from 'next/image';
 import { isAdminAuthed, loginAdmin } from '@/lib/materials/admin-store';
 import { BRAND } from '@/lib/materials/brand';
 
@@ -28,27 +29,30 @@ export function AdminAuthGate({ children }: { children: React.ReactNode }) {
 
   if (!ready) {
     return (
-      <div className="flex min-h-dvh items-center justify-center text-blue-100/80">
-        กำลังโหลด...
-      </div>
+      <div className="flex min-h-dvh items-center justify-center text-amber-100/70">กำลังโหลด...</div>
     );
   }
 
   if (!authed) {
     return (
       <div className="relative flex min-h-dvh items-center justify-center overflow-hidden p-4">
-        <div className="light-orb left-[-10%] top-[-10%] h-72 w-72 bg-blue-600/40" />
-        <div className="light-orb right-[-5%] bottom-[-10%] h-64 w-64 bg-cyan-500/30" />
+        <div className="light-orb left-[-10%] top-[-10%] h-72 w-72 bg-amber-500/30" />
+        <div className="light-orb right-[-5%] bottom-[-10%] h-64 w-64 bg-yellow-500/20" />
 
         <form
           onSubmit={handleSubmit}
-          className="glass-panel relative z-10 w-full max-w-sm rounded-2xl p-6 shadow-[0_20px_60px_rgba(0,0,0,0.45)]"
+          className="glass-panel gold-frame relative z-10 w-full max-w-sm rounded-2xl p-6 shadow-[0_20px_60px_rgba(0,0,0,0.55)]"
         >
-          <p className="text-xs tracking-wide text-cyan-300/90 uppercase">Admin Login</p>
-          <h1 className="mt-2 text-2xl font-semibold text-white">{BRAND.shopName}</h1>
-          <p className="mt-1 text-sm text-blue-100/70">เข้าสู่ระบบจัดการวัสดุ</p>
+          <div className="flex items-center gap-3">
+            <Image src={BRAND.logoPath} alt="" width={44} height={44} className="rounded-xl" />
+            <div>
+              <p className="text-[11px] tracking-wide text-amber-300/80 uppercase">Admin</p>
+              <h1 className="font-display text-xl font-semibold gold-text">{BRAND.shopName}</h1>
+            </div>
+          </div>
+          <p className="mt-3 text-sm text-amber-100/65">เข้าสู่ระบบจัดการวัสดุ</p>
 
-          <label className="mt-6 block text-sm text-blue-100/90" htmlFor="admin-pin">
+          <label className="mt-6 block text-sm text-amber-100/80" htmlFor="admin-pin">
             รหัสผ่าน / PIN
           </label>
           <input
@@ -57,16 +61,16 @@ export function AdminAuthGate({ children }: { children: React.ReactNode }) {
             autoComplete="current-password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="mt-2 w-full rounded-lg border border-blue-400/30 bg-[#0a1628]/80 px-3 py-2.5 text-white outline-none ring-cyan-400/40 placeholder:text-blue-200/40 focus:ring-2"
+            className="mt-2 w-full rounded-lg border border-amber-400/30 bg-[#0a1628]/80 px-3 py-2.5 text-amber-50 outline-none placeholder:text-amber-100/35 focus:ring-2 focus:ring-amber-400/40"
             placeholder="กรอกรหัส"
           />
 
-          <p className="mt-2 text-xs text-cyan-200/80">รหัสทดสอบ: 1234</p>
+          <p className="mt-2 text-xs text-amber-200/70">รหัสทดสอบ: 1234</p>
           {error ? <p className="mt-2 text-sm text-rose-300">{error}</p> : null}
 
           <button
             type="submit"
-            className="mt-5 w-full rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-medium text-white shadow-[0_8px_24px_rgba(37,99,235,0.45)] transition hover:bg-blue-500"
+            className="btn-shine mt-5 w-full rounded-lg bg-gold-gradient px-4 py-2.5 text-sm font-bold text-[#0a1628] shadow-[0_8px_24px_rgba(212,175,55,0.4)] transition hover:opacity-95"
           >
             เข้าสู่ระบบ
           </button>

@@ -111,36 +111,36 @@ export function MaterialsCatalog({ products, demo }: Props) {
   return (
     <div className="relative min-h-screen overflow-x-hidden text-[var(--foreground)]">
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="light-orb animate-aurora -left-24 top-10 h-72 w-72 bg-blue-600/35" />
-        <div className="light-orb animate-aurora right-0 top-40 h-80 w-80 bg-cyan-500/25 [animation-delay:2s]" />
-        <div className="light-orb bottom-20 left-1/3 h-64 w-64 bg-sky-500/20" />
+        <div className="light-orb animate-aurora -left-24 top-10 h-72 w-72 bg-amber-500/25" />
+        <div className="light-orb animate-aurora right-0 top-40 h-80 w-80 bg-amber-400/20 [animation-delay:2s]" />
+        <div className="light-orb bottom-20 left-1/3 h-64 w-64 bg-yellow-400/15" />
         <div className="pattern-dots absolute inset-0 opacity-40" />
       </div>
 
-      <header className="glass sticky top-0 z-50 border-b border-blue-500/20">
+      <header className="glass sticky top-0 z-50 border-b border-amber-500/25">
         <div className="relative mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3">
           <Link href="/" className="group flex min-w-0 items-center gap-3">
             <div className="relative shrink-0">
-              <div className="absolute -inset-1 rounded-2xl bg-brand-gradient opacity-40 blur-sm transition group-hover:opacity-70" />
+              <div className="absolute -inset-1 rounded-2xl bg-gold-gradient opacity-40 blur-sm transition group-hover:opacity-70" />
               <Image
                 src={BRAND.logoPath}
                 alt=""
                 width={48}
                 height={48}
-                className="relative rounded-xl ring-1 ring-sky-400/30"
+                className="relative rounded-xl ring-1 ring-amber-400/40"
               />
             </div>
             <div className="min-w-0">
-              <h1 className="truncate text-lg font-bold text-sky-300 sm:text-xl">
+              <h1 className="font-display truncate text-lg font-bold gold-text sm:text-xl">
                 {BRAND.shopName}
               </h1>
-              <p className="truncate text-xs text-slate-400 sm:text-sm">{BRAND.location}</p>
+              <p className="truncate text-xs text-amber-100/50 sm:text-sm">{BRAND.location}</p>
             </div>
           </Link>
           <div className="flex shrink-0 items-center gap-2">
             <Link
               href="/admin/dashboard"
-              className="hidden text-xs text-slate-500 transition hover:text-sky-300 sm:inline"
+              className="hidden text-xs text-amber-100/40 transition hover:text-amber-200 sm:inline"
             >
               หลังบ้าน
             </Link>
@@ -159,7 +159,7 @@ export function MaterialsCatalog({ products, demo }: Props) {
                 type="button"
                 onClick={() => submitAll()}
                 disabled={isSubmitting}
-                className="btn-shine rounded-xl bg-brand-gradient px-3 py-2 text-sm font-semibold text-white shadow-md transition hover:opacity-90 disabled:opacity-60"
+                className="btn-shine rounded-xl bg-gold-gradient px-3 py-2 text-sm font-semibold text-[#0a1628] shadow-md transition hover:opacity-90 disabled:opacity-60"
               >
                 ขอราคา ({count})
               </button>
@@ -168,23 +168,26 @@ export function MaterialsCatalog({ products, demo }: Props) {
         </div>
       </header>
 
-      <section className="light-sweep relative overflow-hidden py-12 sm:py-16">
-        <div className="absolute inset-0 bg-brand-gradient opacity-90" />
-        <div className="pattern-dots absolute inset-0 opacity-50" />
-        <div className="light-orb -right-16 -top-16 h-56 w-56 bg-cyan-300/30" />
-        <div className="light-orb -bottom-20 -left-10 h-48 w-48 bg-blue-400/25" />
+      <section className="light-sweep relative overflow-hidden py-14 sm:py-20">
+        <div className="absolute inset-0 bg-brand-gradient opacity-95" />
+        <div className="pattern-dots absolute inset-0 opacity-40" />
+        <div className="light-orb animate-aurora -right-10 -top-10 h-72 w-72 bg-amber-400/35" />
+        <div className="light-orb animate-window-glow bottom-0 left-1/4 h-40 w-56 bg-amber-300/30" />
+        <div className="light-orb -bottom-16 -left-8 h-48 w-48 bg-yellow-500/20" />
 
         <div className="relative mx-auto max-w-7xl px-4 text-center">
-          <span className="glass-panel inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-sm font-medium text-sky-100">
-            <span className="animate-pulse-glow inline-block h-2 w-2 rounded-full bg-cyan-300" />
-            เปิดให้บริการ • สุรินทร์และใกล้เคียง
+          <span className="glass-window inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-sm font-medium text-amber-100">
+            <span className="animate-pulse-glow inline-block h-2 w-2 rounded-full bg-amber-300" />
+            ราชาวัสดุ • สุรินทร์และใกล้เคียง
           </span>
-          <h2 className="mt-4 text-3xl leading-tight font-bold text-white sm:text-5xl">
-            วัสดุก่อสร้างคุณภาพ
+          <h2 className="font-display mt-5 text-3xl leading-tight font-bold sm:text-5xl">
+            <span className="gold-text">{BRAND.shopName}</span>
             <br />
-            <span className="text-cyan-200">ส่งตรงถึงหน้างาน</span>
+            <span className="mt-2 inline-block text-amber-50">วัสดุก่อสร้างคุณภาพ</span>
+            <br />
+            <span className="text-amber-200">ส่งตรงถึงหน้างาน</span>
           </h2>
-          <p className="mx-auto mt-4 max-w-2xl text-base text-sky-100/90 sm:text-lg">
+          <p className="mx-auto mt-4 max-w-2xl text-base text-amber-50/80 sm:text-lg">
             {BRAND.tagline} — คลิกเดียวสั่งผ่าน Line ได้เลย
           </p>
 
@@ -203,18 +206,18 @@ export function MaterialsCatalog({ products, demo }: Props) {
               onClick={() => {
                 document.getElementById('products')?.scrollIntoView({ behavior: 'smooth' });
               }}
-              className="glass-panel rounded-2xl px-6 py-3.5 text-base font-semibold text-sky-100 transition hover:border-sky-400/40"
+              className="gold-frame rounded-2xl bg-amber-500/10 px-6 py-3.5 text-base font-semibold text-amber-100 transition hover:bg-amber-500/20"
             >
               ดูสินค้าทั้งหมด ↓
             </button>
           </div>
 
           {demo ? (
-            <p className="glass-panel mt-5 inline-block rounded-full px-4 py-1.5 text-xs text-sky-100/90">
+            <p className="glass-panel mt-5 inline-block rounded-full px-4 py-1.5 text-xs text-amber-50/90">
               กด &quot;สั่งเลย&quot; → เปิด Line ส่งออเดอร์ทันที
             </p>
           ) : (
-            <p className="glass-panel mt-5 inline-block rounded-full px-4 py-1.5 text-xs text-sky-100/90">
+            <p className="glass-panel mt-5 inline-block rounded-full px-4 py-1.5 text-xs text-amber-50/90">
               เชื่อม Supabase แล้ว • บันทึกออเดอร์อัตโนมัติ
             </p>
           )}
@@ -224,14 +227,14 @@ export function MaterialsCatalog({ products, demo }: Props) {
       <div className="relative mx-auto -mt-6 max-w-7xl px-4">
         <div className="glass-panel grid grid-cols-2 gap-3 rounded-3xl p-4 sm:grid-cols-4 sm:gap-4 sm:p-6">
           {[
-            { value: catalogProducts.length, label: 'รายการสินค้า', color: 'text-sky-300' },
+            { value: catalogProducts.length, label: 'รายการสินค้า', color: 'text-amber-200' },
             {
               value: MATERIAL_CATEGORIES.length - 1,
               label: 'หมวดหมู่',
-              color: 'text-cyan-300',
+              color: 'text-amber-200',
             },
             { value: `${readyPercent}%`, label: 'สต็อกพร้อมส่ง', color: 'text-emerald-400' },
-            { value: 'ฟรี', label: 'ปรึกษาราคาโครงการ', color: 'text-blue-300' },
+            { value: 'ฟรี', label: 'ปรึกษาราคาโครงการ', color: 'text-amber-200' },
           ].map((stat) => (
             <div key={stat.label} className="text-center">
               <div className={`text-2xl font-bold sm:text-3xl ${stat.color}`}>{stat.value}</div>
@@ -278,7 +281,7 @@ export function MaterialsCatalog({ products, demo }: Props) {
           <input
             type="search"
             placeholder="ค้นหาสินค้า เช่น ปูน, เหล็ก, เมทัลชีท..."
-            className="glass-panel w-full rounded-2xl py-3.5 pr-4 pl-11 text-base text-slate-100 placeholder:text-slate-500 transition focus:border-sky-400/50 focus:ring-4 focus:ring-blue-500/20 focus:outline-none"
+            className="glass-panel w-full rounded-2xl py-3.5 pr-4 pl-11 text-base text-slate-100 placeholder:text-slate-500 transition focus:border-amber-400/50 focus:ring-4 focus:ring-amber-500/25 focus:outline-none"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
@@ -295,7 +298,7 @@ export function MaterialsCatalog({ products, demo }: Props) {
                 className={`flex shrink-0 items-center gap-1.5 rounded-full px-4 py-2.5 text-sm font-medium transition-all ${
                   active
                     ? 'bg-brand-gradient text-white shadow-[0_0_24px_rgba(59,130,246,0.45)]'
-                    : 'glass-panel text-slate-300 hover:border-sky-400/40 hover:text-sky-200'
+                    : 'glass-panel text-slate-300 hover:border-amber-400/40 hover:text-amber-100'
                 }`}
               >
                 <span>{CATEGORY_ICONS[cat] ?? '📦'}</span>
@@ -311,7 +314,7 @@ export function MaterialsCatalog({ products, demo }: Props) {
           onAddItems={addMany}
         />
 
-        <h2 className="mb-4 text-lg font-bold text-sky-100">สินค้าทั้งหมด</h2>
+        <h2 className="mb-4 text-lg font-bold text-amber-50">สินค้าทั้งหมด</h2>
 
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {filteredProducts.map((product) => {
@@ -324,7 +327,7 @@ export function MaterialsCatalog({ products, demo }: Props) {
                 className="card-lift glass-panel group overflow-hidden rounded-3xl"
               >
                 <Link href={`/products/${product.id}`} className="relative block">
-                  <div className="relative aspect-[4/3] overflow-hidden bg-gradient-to-br from-slate-900 to-blue-950">
+                  <div className="relative aspect-[4/3] overflow-hidden bg-gradient-to-br from-[#06101f] to-[#12233a]">
                     <Image
                       src={assetUrl(product.image_url)}
                       alt={product.name}
@@ -356,7 +359,7 @@ export function MaterialsCatalog({ products, demo }: Props) {
 
                 <div className="p-4">
                   <Link href={`/products/${product.id}`}>
-                    <h3 className="font-bold leading-snug text-slate-100 transition group-hover:text-sky-300">
+                    <h3 className="font-bold leading-snug text-slate-100 transition group-hover:text-amber-200">
                       {product.name}
                     </h3>
                   </Link>
@@ -368,14 +371,14 @@ export function MaterialsCatalog({ products, demo }: Props) {
 
                   <div className="mt-3 flex items-end justify-between">
                     <div>
-                      <span className="text-2xl font-extrabold text-sky-300">
+                      <span className="text-2xl font-extrabold text-amber-200">
                         ฿{product.price.toLocaleString('th-TH')}
                       </span>
                       <span className="ml-1 text-sm text-slate-500">/ {product.unit}</span>
                     </div>
                   </div>
 
-                  <p className="mt-2 text-xs font-medium text-cyan-400">🚚 ส่งถึงหน้างาน</p>
+                  <p className="mt-2 text-xs font-medium text-amber-300">🚚 ส่งถึงหน้างาน</p>
 
                   <div className="mt-3 grid grid-cols-[1fr_auto] gap-2">
                     <button
@@ -396,7 +399,7 @@ export function MaterialsCatalog({ products, demo }: Props) {
                     <button
                       type="button"
                       onClick={() => setModalProduct(product)}
-                      className="glass-panel rounded-2xl px-3 py-3 text-sm font-medium text-sky-300 transition hover:border-sky-400/50"
+                      className="glass-panel rounded-2xl px-3 py-3 text-sm font-medium text-amber-200 transition hover:border-amber-400/50"
                       title="ขอใบเสนอราคา"
                     >
                       📋
@@ -404,7 +407,7 @@ export function MaterialsCatalog({ products, demo }: Props) {
                   </div>
                   <Link
                     href={`/products/${product.id}`}
-                    className="mt-2 block text-center text-xs font-medium text-slate-500 transition hover:text-sky-300"
+                    className="mt-2 block text-center text-xs font-medium text-slate-500 transition hover:text-amber-200"
                   >
                     ดูรายละเอียด →
                   </Link>
@@ -422,7 +425,7 @@ export function MaterialsCatalog({ products, demo }: Props) {
         )}
       </div>
 
-      <div className="glass fixed right-0 bottom-0 left-0 z-50 border-t border-blue-500/25 p-3 sm:right-6 sm:bottom-6 sm:left-auto sm:max-w-sm sm:rounded-2xl sm:border sm:shadow-2xl sm:shadow-blue-900/50">
+      <div className="glass fixed right-0 bottom-0 left-0 z-50 border-t border-amber-500/30 p-3 sm:right-6 sm:bottom-6 sm:left-auto sm:max-w-sm sm:rounded-2xl sm:border sm:shadow-2xl sm:shadow-amber-900/40">
         {count > 0 ? (
           <button
             type="button"
@@ -445,9 +448,9 @@ export function MaterialsCatalog({ products, demo }: Props) {
         )}
       </div>
 
-      <footer className="relative border-t border-blue-500/20 py-10 text-center">
+      <footer className="relative border-t border-amber-500/25 py-10 text-center">
         <div className="mx-auto max-w-7xl px-4">
-          <p className="text-lg font-bold text-sky-300">{BRAND.shopName}</p>
+          <p className="text-lg font-bold text-amber-200">{BRAND.shopName}</p>
           <p className="mt-1 text-sm text-slate-400">{BRAND.tagline}</p>
           <p className="mt-2 text-xs text-slate-500">{BRAND.location}</p>
           <div className="mt-4 flex flex-wrap items-center justify-center gap-3">
@@ -461,7 +464,7 @@ export function MaterialsCatalog({ products, demo }: Props) {
             </a>
             <Link
               href="/admin/dashboard"
-              className="text-xs text-slate-500 transition hover:text-sky-300"
+              className="text-xs text-slate-500 transition hover:text-amber-200"
             >
               หลังบ้าน
             </Link>

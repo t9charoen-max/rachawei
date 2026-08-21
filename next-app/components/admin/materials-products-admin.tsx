@@ -69,20 +69,20 @@ export function MaterialsProductsAdmin() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-semibold text-white">สินค้า</h1>
-        <p className="mt-1 text-sm text-blue-200/70">
+        <p className="mt-1 text-sm text-amber-100/70">
           แก้ไขราคาและสต็อก (บันทึกในเครื่อง — localStorage)
         </p>
       </div>
 
       <div className="glass-panel overflow-hidden rounded-xl">
-        <div className="border-b border-blue-400/20 px-4 py-3 sm:px-5">
-          <p className="text-sm text-blue-100/80">ทั้งหมด {count} รายการ</p>
+        <div className="border-b border-amber-400/25 px-4 py-3 sm:px-5">
+          <p className="text-sm text-amber-50/80">ทั้งหมด {count} รายการ</p>
         </div>
 
         <div className="overflow-x-auto">
           <table className="w-full min-w-[820px] text-left text-sm">
             <thead>
-              <tr className="border-b border-blue-400/15 text-blue-200/70">
+              <tr className="border-b border-amber-400/20 text-amber-100/70">
                 <th className="px-4 py-3 font-medium sm:px-5">ชื่อสินค้า</th>
                 <th className="px-3 py-3 font-medium">หมวด</th>
                 <th className="px-3 py-3 font-medium">ราคา</th>
@@ -95,12 +95,12 @@ export function MaterialsProductsAdmin() {
               {products.map((product) => {
                 const draft = drafts[product.id] ?? toDraft(product);
                 return (
-                  <tr key={product.id} className="border-b border-blue-400/10 last:border-0">
+                  <tr key={product.id} className="border-b border-amber-400/10 last:border-0">
                     <td className="px-4 py-3 sm:px-5">
                       <p className="font-medium text-white">{product.name}</p>
-                      <p className="text-xs text-blue-200/55">{product.spec}</p>
+                      <p className="text-xs text-amber-100/70">{product.spec}</p>
                     </td>
-                    <td className="px-3 py-3 text-blue-100/80">{product.category}</td>
+                    <td className="px-3 py-3 text-amber-50/80">{product.category}</td>
                     <td className="px-3 py-3">
                       <input
                         type="number"
@@ -108,9 +108,9 @@ export function MaterialsProductsAdmin() {
                         step={1}
                         value={draft.price}
                         onChange={(e) => updateDraft(product.id, { price: e.target.value })}
-                        className="w-24 rounded-md border border-blue-400/25 bg-[#0a1628]/80 px-2 py-1.5 text-white outline-none focus:ring-2 focus:ring-cyan-400/40"
+                        className="w-24 rounded-md border border-amber-400/30 bg-[#0a1628]/80 px-2 py-1.5 text-white outline-none focus:ring-2 focus:ring-amber-400/40"
                       />
-                      <span className="ml-1 text-xs text-blue-200/50">/{product.unit}</span>
+                      <span className="ml-1 text-xs text-amber-100/70">/{product.unit}</span>
                     </td>
                     <td className="px-3 py-3">
                       <input
@@ -119,7 +119,7 @@ export function MaterialsProductsAdmin() {
                         step={1}
                         value={draft.stock}
                         onChange={(e) => updateDraft(product.id, { stock: e.target.value })}
-                        className="w-24 rounded-md border border-blue-400/25 bg-[#0a1628]/80 px-2 py-1.5 text-white outline-none focus:ring-2 focus:ring-cyan-400/40"
+                        className="w-24 rounded-md border border-amber-400/30 bg-[#0a1628]/80 px-2 py-1.5 text-white outline-none focus:ring-2 focus:ring-amber-400/40"
                       />
                     </td>
                     <td className="px-3 py-3">
@@ -130,7 +130,7 @@ export function MaterialsProductsAdmin() {
                             stock_status: e.target.value as StockStatus,
                           })
                         }
-                        className="rounded-md border border-blue-400/25 bg-[#0a1628]/80 px-2 py-1.5 text-white outline-none focus:ring-2 focus:ring-cyan-400/40"
+                        className="rounded-md border border-amber-400/30 bg-[#0a1628]/80 px-2 py-1.5 text-white outline-none focus:ring-2 focus:ring-amber-400/40"
                       >
                         <option value="พร้อมส่ง">พร้อมส่ง</option>
                         <option value="เหลือน้อย">เหลือน้อย</option>
@@ -140,11 +140,11 @@ export function MaterialsProductsAdmin() {
                       <button
                         type="button"
                         onClick={() => handleSave(product.id)}
-                        className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-500"
+                        className="rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-amber-500"
                       >
                         {savedId === product.id ? 'บันทึกแล้ว' : 'บันทึก'}
                       </button>
-                      <p className="mt-1 text-[10px] text-blue-200/45">
+                      <p className="mt-1 text-[10px] text-amber-100/70">
                         ปัจจุบัน {formatPrice(product.price)}
                       </p>
                     </td>

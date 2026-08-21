@@ -9,6 +9,6 @@ export const BRAND = {
   lineIdDisplay: '@O0v-jM9X-A',
   /** ช่องทางหลักคือ Line — เบอร์สำรองแสดงเมื่อมีค่าจริง */
   phone: '',
-  themeColor: '#1d4ed8',
+  themeColor: '#0a1628',
   logoPath: '/brand/rachawatsadu-logo.svg',
 } as const;

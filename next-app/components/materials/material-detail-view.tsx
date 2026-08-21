@@ -68,16 +68,16 @@ export function MaterialDetailView({ product: initialProduct, demo }: Props) {
   return (
     <div className="relative min-h-screen overflow-x-hidden text-[var(--foreground)]">
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="light-orb animate-aurora -left-20 top-20 h-64 w-64 bg-blue-600/30" />
-        <div className="light-orb right-0 top-60 h-72 w-72 bg-cyan-500/20" />
+        <div className="light-orb animate-aurora -left-20 top-20 h-64 w-64 bg-amber-600/30" />
+        <div className="light-orb right-0 top-60 h-72 w-72 bg-amber-500/20" />
         <div className="pattern-dots absolute inset-0 opacity-30" />
       </div>
 
-      <header className="glass sticky top-0 z-50 border-b border-blue-500/20">
+      <header className="glass sticky top-0 z-50 border-b border-amber-500/25">
         <div className="mx-auto flex max-w-4xl items-center justify-between gap-3 px-4 py-3">
           <Link
             href="/"
-            className="flex items-center gap-2 text-sm font-semibold text-sky-300 transition hover:text-cyan-200"
+            className="flex items-center gap-2 text-sm font-semibold text-amber-200 transition hover:text-amber-100"
           >
             <span className="text-lg">←</span>
             กลับแคตตาล็อก
@@ -85,7 +85,7 @@ export function MaterialDetailView({ product: initialProduct, demo }: Props) {
           <div className="flex items-center gap-2">
             <Link
               href="/admin/dashboard"
-              className="text-xs text-slate-500 transition hover:text-sky-300"
+              className="text-xs text-slate-500 transition hover:text-amber-200"
             >
               หลังบ้าน
             </Link>
@@ -104,13 +104,13 @@ export function MaterialDetailView({ product: initialProduct, demo }: Props) {
 
       <div className="relative mx-auto max-w-4xl px-4 py-6 pb-36">
         {demo ? (
-          <p className="glass-panel mb-4 rounded-2xl border-cyan-400/20 px-4 py-3 text-sm text-cyan-100">
+          <p className="glass-panel mb-4 rounded-2xl border-amber-400/25 px-4 py-3 text-sm text-amber-50">
             ✨ โหมดตัวอย่าง — กด &quot;สั่งเลย&quot; เพื่อส่งออเดอร์ผ่าน Line ทันที
           </p>
         ) : null}
 
         <article className="glass-panel light-sweep overflow-hidden rounded-3xl">
-          <div className="relative aspect-[4/3] overflow-hidden bg-gradient-to-br from-slate-900 to-blue-950 sm:aspect-[16/10]">
+          <div className="relative aspect-[4/3] overflow-hidden bg-gradient-to-br from-[#06101f] to-[#12233a] sm:aspect-[16/10]">
             <Image
               src={assetUrl(product.image_url)}
               alt={product.name}
@@ -141,7 +141,7 @@ export function MaterialDetailView({ product: initialProduct, demo }: Props) {
 
           <div className="space-y-5 p-5 sm:p-8">
             <div>
-              <h1 className="text-2xl font-bold text-sky-50 sm:text-3xl">{product.name}</h1>
+              <h1 className="text-2xl font-bold text-amber-50 sm:text-3xl">{product.name}</h1>
               <p className="mt-2 text-base text-slate-400">{product.spec}</p>
             </div>
 
@@ -149,13 +149,13 @@ export function MaterialDetailView({ product: initialProduct, demo }: Props) {
 
             <StockIndicator product={product} />
 
-            <div className="rounded-2xl border border-cyan-500/25 bg-cyan-500/10 px-4 py-3 text-sm text-cyan-100">
+            <div className="rounded-2xl border border-amber-500/25 bg-amber-500/10 px-4 py-3 text-sm text-amber-50">
               🚚 <strong>ส่งถึงหน้างาน</strong> — สุรินทร์และพื้นที่ใกล้เคียง • ปรึกษาค่าส่งฟรีผ่าน Line
             </div>
 
-            <div className="rounded-2xl bg-gradient-to-r from-blue-600/20 to-cyan-600/15 p-5 ring-1 ring-sky-500/20">
+            <div className="rounded-2xl bg-gradient-to-r from-amber-700/20 to-yellow-600/15 p-5 ring-1 ring-amber-500/20">
               <div className="flex flex-wrap items-baseline gap-2">
-                <span className="text-4xl font-extrabold text-sky-300">
+                <span className="text-4xl font-extrabold text-amber-200">
                   ฿{product.price.toLocaleString('th-TH')}
                 </span>
                 <span className="text-lg text-slate-400">/ {product.unit}</span>
@@ -169,7 +169,7 @@ export function MaterialDetailView({ product: initialProduct, demo }: Props) {
                 <button
                   type="button"
                   onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-                  className="px-4 py-2.5 text-lg font-bold text-sky-300 transition hover:bg-sky-500/10"
+                  className="px-4 py-2.5 text-lg font-bold text-amber-200 transition hover:bg-amber-500/10"
                 >
                   −
                 </button>
@@ -179,13 +179,13 @@ export function MaterialDetailView({ product: initialProduct, demo }: Props) {
                 <button
                   type="button"
                   onClick={() => setQuantity((q) => q + 1)}
-                  className="px-4 py-2.5 text-lg font-bold text-sky-300 transition hover:bg-sky-500/10"
+                  className="px-4 py-2.5 text-lg font-bold text-amber-200 transition hover:bg-amber-500/10"
                 >
                   +
                 </button>
               </div>
               <span className="text-sm text-slate-500">{product.unit}</span>
-              <span className="ml-auto text-sm font-semibold text-sky-300">
+              <span className="ml-auto text-sm font-semibold text-amber-200">
                 รวม ฿{(product.price * quantity).toLocaleString('th-TH')}
               </span>
             </div>
@@ -209,7 +209,7 @@ export function MaterialDetailView({ product: initialProduct, demo }: Props) {
               <button
                 type="button"
                 onClick={() => setModalOpen(true)}
-                className="glass-panel rounded-2xl py-4 text-center font-semibold text-sky-300 transition hover:border-sky-400/50"
+                className="glass-panel rounded-2xl py-4 text-center font-semibold text-amber-200 transition hover:border-amber-400/50"
               >
                 📋 ขอใบเสนอราคา
               </button>
@@ -219,7 +219,7 @@ export function MaterialDetailView({ product: initialProduct, demo }: Props) {
               href={getLineProfileUrl()}
               target="_blank"
               rel="noreferrer"
-              className="flex items-center justify-center gap-2 rounded-2xl border border-blue-500/20 bg-slate-900/40 py-3 text-sm font-medium text-slate-400 transition hover:border-sky-500/30 hover:text-sky-300"
+              className="flex items-center justify-center gap-2 rounded-2xl border border-amber-500/25 bg-slate-900/40 py-3 text-sm font-medium text-slate-400 transition hover:border-amber-500/30 hover:text-amber-200"
             >
               หรือแชทถามร้านโดยตรง — Line {getLineDisplayId()}
             </a>
@@ -227,7 +227,7 @@ export function MaterialDetailView({ product: initialProduct, demo }: Props) {
         </article>
       </div>
 
-      <div className="glass fixed right-0 bottom-0 left-0 z-50 border-t border-blue-500/25 p-3 sm:right-4 sm:bottom-4 sm:left-auto sm:max-w-sm sm:rounded-2xl sm:border">
+      <div className="glass fixed right-0 bottom-0 left-0 z-50 border-t border-amber-500/30 p-3 sm:right-4 sm:bottom-4 sm:left-auto sm:max-w-sm sm:rounded-2xl sm:border">
         {count > 0 ? (
           <button
             type="button"

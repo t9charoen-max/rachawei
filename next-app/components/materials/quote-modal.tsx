@@ -83,7 +83,7 @@ export function QuoteModal({ product, open, onClose, onSubmit }: QuoteModalProps
   };
 
   const fieldClass =
-    'w-full rounded-xl border border-blue-500/25 bg-slate-950/50 px-4 py-3 text-slate-100 placeholder:text-slate-500 transition focus:border-sky-400/60 focus:outline-none focus:ring-2 focus:ring-sky-500/20';
+    'w-full rounded-xl border border-amber-500/30 bg-slate-950/50 px-4 py-3 text-slate-100 placeholder:text-slate-500 transition focus:border-amber-400/60 focus:outline-none focus:ring-2 focus:ring-amber-500/20';
 
   return (
     <div
@@ -91,18 +91,18 @@ export function QuoteModal({ product, open, onClose, onSubmit }: QuoteModalProps
       onClick={onClose}
     >
       <div
-        className="glass-panel light-sweep max-h-[90vh] w-full max-w-md overflow-y-auto rounded-3xl shadow-2xl shadow-blue-950/60"
+        className="glass-panel light-sweep max-h-[90vh] w-full max-w-md overflow-y-auto rounded-3xl shadow-2xl shadow-black/60"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="relative overflow-hidden bg-brand-gradient px-6 py-5 text-white">
-          <div className="light-orb -right-8 -top-8 h-28 w-28 bg-cyan-300/40" />
+          <div className="light-orb -right-8 -top-8 h-28 w-28 bg-amber-300/40" />
           <div className="pattern-dots absolute inset-0 opacity-40" />
           <div className="relative">
             <h3 className="text-xl font-bold">📋 ขอใบเสนอราคา</h3>
-            <p className="mt-1 font-medium text-sky-100">{product.name}</p>
+            <p className="mt-1 font-medium text-amber-50">{product.name}</p>
             <p className="mt-2 text-2xl font-extrabold">
               ฿{product.price.toLocaleString('th-TH')}
-              <span className="text-base font-normal text-sky-100"> / {product.unit}</span>
+              <span className="text-base font-normal text-amber-50"> / {product.unit}</span>
             </p>
           </div>
         </div>
@@ -140,7 +140,7 @@ export function QuoteModal({ product, open, onClose, onSubmit }: QuoteModalProps
                   setForm({ ...form, quantity: Math.max(1, parseInt(e.target.value, 10) || 1) })
                 }
               />
-              <div className="flex items-center rounded-xl border border-blue-500/25 bg-blue-500/10 px-4 font-medium text-slate-300">
+              <div className="flex items-center rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 font-medium text-slate-300">
                 {product.unit}
               </div>
             </div>
@@ -173,7 +173,7 @@ export function QuoteModal({ product, open, onClose, onSubmit }: QuoteModalProps
                 <button
                   type="button"
                   onClick={addToList}
-                  className="rounded-2xl border border-sky-500/35 py-3 text-sm font-semibold text-sky-300 transition hover:bg-sky-500/10"
+                  className="rounded-2xl border border-amber-500/35 py-3 text-sm font-semibold text-amber-200 transition hover:bg-amber-500/10"
                 >
                   + เพิ่มรายการอื่นก่อนส่ง
                 </button>

@@ -43,14 +43,14 @@ export function ImageSearchPanel({ products, onResults, onClear }: Props) {
   };
 
   return (
-    <div className="glass-panel light-sweep relative mb-6 overflow-hidden rounded-2xl border-dashed border-sky-500/35 p-4">
-      <div className="light-orb -right-6 -top-6 h-24 w-24 bg-sky-400/25" />
+    <div className="glass-panel light-sweep relative mb-6 overflow-hidden rounded-2xl border-dashed border-amber-500/35 p-4">
+      <div className="light-orb -right-6 -top-6 h-24 w-24 bg-amber-400/25" />
       <div className="relative flex flex-wrap items-center gap-3">
-        <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-brand-gradient text-2xl text-white shadow shadow-blue-500/30">
+        <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-brand-gradient text-2xl text-white shadow shadow-amber-500/30">
           🤖
         </div>
         <div className="min-w-0 flex-1">
-          <h3 className="font-bold text-sky-100">ค้นหาด้วยภาพ AI</h3>
+          <h3 className="font-bold text-amber-50">ค้นหาด้วยภาพ AI</h3>
           <p className="text-sm text-slate-400">ถ่ายรูปวัสดุ → AI หาสินค้าใกล้เคียงให้</p>
         </div>
         <div className="flex gap-2">
@@ -77,7 +77,7 @@ export function ImageSearchPanel({ products, onResults, onClear }: Props) {
             <button
               type="button"
               onClick={clear}
-              className="rounded-xl border border-sky-500/30 px-3 py-2.5 text-sm text-sky-300 hover:bg-sky-500/10"
+              className="rounded-xl border border-amber-500/30 px-3 py-2.5 text-sm text-amber-200 hover:bg-amber-500/10"
             >
               ล้าง
             </button>
@@ -92,10 +92,10 @@ export function ImageSearchPanel({ products, onResults, onClear }: Props) {
             <img
               src={preview}
               alt=""
-              className="h-14 w-14 rounded-lg object-cover ring-2 ring-sky-400/40"
+              className="h-14 w-14 rounded-lg object-cover ring-2 ring-amber-400/40"
             />
           )}
-          {message && <p className="text-sm font-medium text-cyan-200">{message}</p>}
+          {message && <p className="text-sm font-medium text-amber-100">{message}</p>}
         </div>
       )}
     </div>

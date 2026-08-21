@@ -89,7 +89,7 @@ export function ProjectLists({ products, quoteItems, onAddItems }: Props) {
     <section className="relative py-8">
       <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h2 className="text-xl font-bold text-sky-100 sm:text-2xl">📁 รายการวัสดุตามโปรเจกต์</h2>
+          <h2 className="text-xl font-bold text-amber-50 sm:text-2xl">📁 รายการวัสดุตามโปรเจกต์</h2>
           <p className="mt-1 text-sm text-slate-400">
             เลือกชุดวัสดุสำเร็จรูป หรือสร้างโปรเจกต์ของคุณ — ส่งขอราคาคลิกเดียว
           </p>
@@ -98,7 +98,7 @@ export function ProjectLists({ products, quoteItems, onAddItems }: Props) {
           <button
             type="button"
             onClick={handleSaveCurrent}
-            className="glass-panel rounded-xl px-4 py-2 text-sm font-semibold text-sky-300 transition hover:border-sky-400/50"
+            className="glass-panel rounded-xl px-4 py-2 text-sm font-semibold text-amber-200 transition hover:border-amber-400/50"
           >
             + บันทึกโปรเจกต์ ({quoteItems.length} รายการ)
           </button>
@@ -117,11 +117,11 @@ export function ProjectLists({ products, quoteItems, onAddItems }: Props) {
               key={key}
               className="card-lift glass-panel overflow-hidden rounded-2xl"
             >
-              <div className="relative overflow-hidden bg-gradient-to-r from-blue-600/25 to-cyan-600/15 p-4">
-                <div className="light-orb -right-8 -top-8 h-24 w-24 bg-sky-400/20" />
+              <div className="relative overflow-hidden bg-gradient-to-r from-amber-700/25 to-yellow-600/15 p-4">
+                <div className="light-orb -right-8 -top-8 h-24 w-24 bg-amber-400/20" />
                 <div className="relative flex items-start justify-between gap-2">
                   <div>
-                    <h3 className="font-bold text-sky-50">{project.name}</h3>
+                    <h3 className="font-bold text-amber-50">{project.name}</h3>
                     {'description' in project && project.description && (
                       <p className="mt-0.5 text-xs text-slate-400">{project.description}</p>
                     )}
@@ -132,7 +132,7 @@ export function ProjectLists({ products, quoteItems, onAddItems }: Props) {
                     </span>
                   )}
                 </div>
-                <p className="relative mt-2 text-lg font-extrabold text-sky-300">
+                <p className="relative mt-2 text-lg font-extrabold text-amber-200">
                   ฿{total.toLocaleString('th-TH')}
                   <span className="text-xs font-normal text-slate-500"> ประมาณ</span>
                 </p>
@@ -143,7 +143,7 @@ export function ProjectLists({ products, quoteItems, onAddItems }: Props) {
                 <button
                   type="button"
                   onClick={() => setExpanded(isOpen ? null : key)}
-                  className="mb-3 text-sm font-medium text-sky-300"
+                  className="mb-3 text-sm font-medium text-amber-200"
                 >
                   {isOpen ? 'ซ่อนรายการ ▲' : 'ดูรายการ ▼'}
                 </button>
@@ -165,7 +165,7 @@ export function ProjectLists({ products, quoteItems, onAddItems }: Props) {
                   <button
                     type="button"
                     onClick={() => onAddItems(items)}
-                    className="rounded-xl border border-sky-500/30 py-2.5 text-sm font-medium text-sky-300 transition hover:bg-sky-500/10"
+                    className="rounded-xl border border-amber-500/30 py-2.5 text-sm font-medium text-amber-200 transition hover:bg-amber-500/10"
                   >
                     เพิ่มลงรายการ
                   </button>

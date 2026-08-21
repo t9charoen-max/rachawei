@@ -54,15 +54,15 @@ export function MaterialsDashboard() {
     <div className="space-y-8">
       <div>
         <h1 className="text-2xl font-semibold text-white">แดชบอร์ด</h1>
-        <p className="mt-1 text-sm text-blue-200/70">ภาพรวมร้านราชาวัสดุ</p>
+        <p className="mt-1 text-sm text-amber-100/70">ภาพรวมร้านราชาวัสดุ</p>
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
         {cards.map((card) => (
           <div key={card.label} className="glass-panel rounded-xl p-4">
-            <p className="text-xs text-blue-200/70">{card.label}</p>
+            <p className="text-xs text-amber-100/70">{card.label}</p>
             <p className="mt-2 text-2xl font-semibold text-white">{card.value}</p>
-            <p className="mt-1 text-[11px] text-cyan-300/70">{card.hint}</p>
+            <p className="mt-1 text-[11px] text-amber-200/70">{card.hint}</p>
           </div>
         ))}
       </div>
@@ -71,26 +71,26 @@ export function MaterialsDashboard() {
         <div className="glass-panel rounded-xl p-5">
           <div className="flex items-center justify-between gap-3">
             <h2 className="text-lg font-medium text-white">ใบเสนอราคาล่าสุด</h2>
-            <Link href="/admin/quotes" className="text-sm text-cyan-300 hover:text-cyan-200">
+            <Link href="/admin/quotes" className="text-sm text-amber-200 hover:text-amber-100">
               ดูทั้งหมด
             </Link>
           </div>
 
           {recent.length === 0 ? (
-            <p className="mt-6 text-sm text-blue-200/60">ยังไม่มีใบเสนอราคา</p>
+            <p className="mt-6 text-sm text-amber-100/70">ยังไม่มีใบเสนอราคา</p>
           ) : (
-            <ul className="mt-4 divide-y divide-blue-400/15">
+            <ul className="mt-4 divide-y divide-amber-400/20">
               {recent.map((q) => (
                 <li key={q.id} className="flex items-start justify-between gap-3 py-3">
                   <div>
                     <p className="font-medium text-white">{q.customer_name}</p>
-                    <p className="text-xs text-blue-200/65">
+                    <p className="text-xs text-amber-100/70">
                       {q.phone} · {q.items.length} รายการ
                     </p>
                   </div>
                   <div className="text-right">
-                    <p className="text-sm font-medium text-cyan-200">{formatPrice(q.total_estimate)}</p>
-                    <p className="text-[11px] text-blue-200/60">{STATUS_LABEL[q.status]}</p>
+                    <p className="text-sm font-medium text-amber-100">{formatPrice(q.total_estimate)}</p>
+                    <p className="text-[11px] text-amber-100/70">{STATUS_LABEL[q.status]}</p>
                   </div>
                 </li>
               ))}
@@ -105,10 +105,10 @@ export function MaterialsDashboard() {
               <li key={link.href}>
                 <Link
                   href={link.href}
-                  className="block rounded-lg border border-blue-400/20 bg-white/5 px-4 py-3 transition hover:border-cyan-400/30 hover:bg-cyan-500/10"
+                  className="block rounded-lg border border-amber-400/25 bg-white/5 px-4 py-3 transition hover:border-amber-400/35 hover:bg-amber-500/10"
                 >
                   <p className="text-sm font-medium text-white">{link.label}</p>
-                  <p className="text-xs text-blue-200/65">{link.desc}</p>
+                  <p className="text-xs text-amber-100/70">{link.desc}</p>
                 </Link>
               </li>
             ))}

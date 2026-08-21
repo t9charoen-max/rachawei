@@ -57,7 +57,7 @@ export function StockIndicator({ product, compact }: Props) {
         <span className="text-slate-500">
           คงเหลือ {product.stock.toLocaleString('th-TH')} {product.unit}
         </span>
-        <span className="font-medium text-cyan-300">🚚 {eta}</span>
+        <span className="font-medium text-amber-200">🚚 {eta}</span>
       </div>
     </div>
   );

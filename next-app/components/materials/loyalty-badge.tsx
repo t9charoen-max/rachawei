@@ -17,7 +17,7 @@ export function LoyaltyBadge() {
 
   return (
     <div
-      className="glass-panel flex items-center gap-1.5 rounded-xl px-2.5 py-1.5 text-xs font-semibold text-cyan-200"
+      className="glass-panel flex items-center gap-1.5 rounded-xl px-2.5 py-1.5 text-xs font-semibold text-amber-100"
       title="สะสมแต้มทุกครั้งที่สั่งซื้อ"
     >
       <span className="animate-pulse-glow">{tier.emoji}</span>

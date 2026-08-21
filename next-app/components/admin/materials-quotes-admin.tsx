@@ -44,19 +44,19 @@ export function MaterialsQuotesAdmin() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-semibold text-white">ใบเสนอราคา</h1>
-        <p className="mt-1 text-sm text-blue-200/70">คำขอจากลูกค้า — อัปเดตสถานะการติดตาม</p>
+        <p className="mt-1 text-sm text-amber-100/70">คำขอจากลูกค้า — อัปเดตสถานะการติดตาม</p>
       </div>
 
       {quotes.length === 0 ? (
         <div className="glass-panel rounded-xl p-8 text-center">
           <p className="text-lg text-white">ยังไม่มีใบเสนอราคา</p>
-          <p className="mt-2 text-sm text-blue-200/65">
+          <p className="mt-2 text-sm text-amber-100/70">
             เมื่อลูกค้าส่งคำขอจากหน้าร้าน รายการจะแสดงที่นี่
           </p>
           <button
             type="button"
             onClick={handleSeed}
-            className="mt-5 rounded-lg bg-cyan-600/90 px-4 py-2 text-sm font-medium text-white hover:bg-cyan-500"
+            className="mt-5 rounded-lg bg-amber-600/90 px-4 py-2 text-sm font-medium text-white hover:bg-amber-500"
           >
             โหลดข้อมูลตัวอย่าง
           </button>
@@ -68,29 +68,29 @@ export function MaterialsQuotesAdmin() {
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
                   <p className="text-lg font-medium text-white">{quote.customer_name}</p>
-                  <p className="text-sm text-blue-200/75">{quote.phone}</p>
+                  <p className="text-sm text-amber-100/70">{quote.phone}</p>
                   {quote.address ? (
-                    <p className="mt-1 text-sm text-blue-200/60">{quote.address}</p>
+                    <p className="mt-1 text-sm text-amber-100/70">{quote.address}</p>
                   ) : null}
                   {quote.note ? (
-                    <p className="mt-1 text-sm text-cyan-200/70">หมายเหตุ: {quote.note}</p>
+                    <p className="mt-1 text-sm text-amber-100/70">หมายเหตุ: {quote.note}</p>
                   ) : null}
                 </div>
                 <div className="text-right">
-                  <p className="text-xl font-semibold text-cyan-200">
+                  <p className="text-xl font-semibold text-amber-100">
                     {formatPrice(quote.total_estimate)}
                   </p>
-                  <p className="text-xs text-blue-200/55">
+                  <p className="text-xs text-amber-100/70">
                     {new Date(quote.created_at).toLocaleString('th-TH')} · {quote.source}
                   </p>
-                  <p className="mt-1 text-xs text-blue-100/80">{STATUS_LABEL[quote.status]}</p>
+                  <p className="mt-1 text-xs text-amber-50/80">{STATUS_LABEL[quote.status]}</p>
                 </div>
               </div>
 
-              <div className="mt-4 overflow-x-auto rounded-lg border border-blue-400/15">
+              <div className="mt-4 overflow-x-auto rounded-lg border border-amber-400/20">
                 <table className="w-full min-w-[480px] text-left text-sm">
                   <thead>
-                    <tr className="border-b border-blue-400/15 text-blue-200/65">
+                    <tr className="border-b border-amber-400/20 text-amber-100/70">
                       <th className="px-3 py-2 font-medium">สินค้า</th>
                       <th className="px-3 py-2 font-medium">จำนวน</th>
                       <th className="px-3 py-2 font-medium">ราคา/หน่วย</th>
@@ -99,13 +99,13 @@ export function MaterialsQuotesAdmin() {
                   </thead>
                   <tbody>
                     {quote.items.map((item, idx) => (
-                      <tr key={`${quote.id}-${item.product_id}-${idx}`} className="border-b border-blue-400/10 last:border-0">
+                      <tr key={`${quote.id}-${item.product_id}-${idx}`} className="border-b border-amber-400/10 last:border-0">
                         <td className="px-3 py-2 text-white">{item.product_name}</td>
-                        <td className="px-3 py-2 text-blue-100/80">
+                        <td className="px-3 py-2 text-amber-50/80">
                           {item.quantity} {item.unit}
                         </td>
-                        <td className="px-3 py-2 text-blue-100/80">{formatPrice(item.unit_price)}</td>
-                        <td className="px-3 py-2 text-cyan-100">
+                        <td className="px-3 py-2 text-amber-50/80">{formatPrice(item.unit_price)}</td>
+                        <td className="px-3 py-2 text-amber-50">
                           {formatPrice(item.quantity * item.unit_price)}
                         </td>
                       </tr>
@@ -123,8 +123,8 @@ export function MaterialsQuotesAdmin() {
                     className={cn(
                       'rounded-lg border px-3 py-1.5 text-xs transition',
                       quote.status === status
-                        ? 'border-cyan-400/50 bg-cyan-500/25 text-white'
-                        : 'border-blue-400/20 bg-white/5 text-blue-100/80 hover:bg-white/10',
+                        ? 'border-amber-400/50 bg-amber-400/20 text-white'
+                        : 'border-amber-400/25 bg-white/5 text-amber-50/80 hover:bg-white/10',
                     )}
                   >
                     {STATUS_LABEL[status]}
