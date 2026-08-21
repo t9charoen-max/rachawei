@@ -497,6 +497,13 @@
 
     initInstallBanner();
 
+    // Register SW so installed app / icons refresh with cache version bumps
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js').catch(() => {});
+      });
+    }
+
 
     // ========== PRODUCT DETAIL ==========
     let pdImages = [];
