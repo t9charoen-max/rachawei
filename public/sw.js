@@ -72,3 +72,4 @@ self.addEventListener('fetch', (event) => {
     );
   }
 });
+/* pwa icon rebuild 20260821135639 */
