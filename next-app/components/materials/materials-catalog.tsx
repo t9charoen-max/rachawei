@@ -2,10 +2,10 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { BRAND } from '@/lib/materials/brand';
 import { assetUrl } from '@/lib/materials/asset-url';
-import { saveAdminQuote } from '@/lib/materials/admin-store';
+import { getAdminProducts, saveAdminQuote } from '@/lib/materials/admin-store';
 import { getLineDisplayId, getLineProfileUrl, openLineQuickOrder } from '@/lib/materials/line-quote';
 import { addLoyaltyPoints } from '@/lib/materials/loyalty';
 import { MATERIAL_CATEGORIES } from '@/lib/materials/demo-data';
@@ -37,6 +37,7 @@ const CATEGORY_ICONS: Record<string, string> = {
 };
 
 export function MaterialsCatalog({ products, demo }: Props) {
+  const [catalogProducts, setCatalogProducts] = useState(products);
   const [selectedCategory, setSelectedCategory] = useState('ทั้งหมด');
   const [searchTerm, setSearchTerm] = useState('');
   const [modalProduct, setModalProduct] = useState<MaterialProduct | null>(null);
@@ -44,8 +45,12 @@ export function MaterialsCatalog({ products, demo }: Props) {
   const [aiMatches, setAiMatches] = useState<MaterialProduct[] | null>(null);
   const { quoteList, addItem, addMany, submitAll, count, isSubmitting } = useQuoteList();
 
+  useEffect(() => {
+    setCatalogProducts(getAdminProducts(products));
+  }, [products]);
+
   const filteredProducts = useMemo(() => {
-    const base = products.filter((product) => {
+    const base = catalogProducts.filter((product) => {
       const matchCategory =
         selectedCategory === 'ทั้งหมด' || product.category === selectedCategory;
       const q = searchTerm.toLowerCase();
@@ -54,7 +59,7 @@ export function MaterialsCatalog({ products, demo }: Props) {
         product.name.toLowerCase().includes(q) ||
         product.spec.toLowerCase().includes(q) ||
         product.category.toLowerCase().includes(q);
-      return matchCategory && matchSearch;
+      return matchCategory && matchSearch && product.is_active;
     });
 
     if (aiMatches?.length) {
@@ -63,13 +68,13 @@ export function MaterialsCatalog({ products, demo }: Props) {
       return matched.length ? matched : base;
     }
     return base;
-  }, [products, selectedCategory, searchTerm, aiMatches]);
+  }, [catalogProducts, selectedCategory, searchTerm, aiMatches]);
 
   const readyPercent = useMemo(() => {
-    if (!products.length) return 0;
-    const ready = products.filter((p) => p.stock_status === 'พร้อมส่ง').length;
-    return Math.round((ready / products.length) * 100);
-  }, [products]);
+    if (!catalogProducts.length) return 0;
+    const ready = catalogProducts.filter((p) => p.stock_status === 'พร้อมส่ง').length;
+    return Math.round((ready / catalogProducts.length) * 100);
+  }, [catalogProducts]);
 
   const handleQuickOrder = async (product: MaterialProduct) => {
     setOrderingId(product.id);
@@ -219,7 +224,7 @@ export function MaterialsCatalog({ products, demo }: Props) {
       <div className="relative mx-auto -mt-6 max-w-7xl px-4">
         <div className="glass-panel grid grid-cols-2 gap-3 rounded-3xl p-4 sm:grid-cols-4 sm:gap-4 sm:p-6">
           {[
-            { value: products.length, label: 'รายการสินค้า', color: 'text-sky-300' },
+            { value: catalogProducts.length, label: 'รายการสินค้า', color: 'text-sky-300' },
             {
               value: MATERIAL_CATEGORIES.length - 1,
               label: 'หมวดหมู่',
@@ -261,7 +266,7 @@ export function MaterialsCatalog({ products, demo }: Props) {
 
       <div id="products" className="relative mx-auto mt-6 max-w-7xl px-4 pb-32">
         <ImageSearchPanel
-          products={products}
+          products={catalogProducts}
           onResults={setAiMatches}
           onClear={() => setAiMatches(null)}
         />
@@ -289,7 +294,7 @@ export function MaterialsCatalog({ products, demo }: Props) {
                 onClick={() => setSelectedCategory(cat)}
                 className={`flex shrink-0 items-center gap-1.5 rounded-full px-4 py-2.5 text-sm font-medium transition-all ${
                   active
-                    ? 'bg-brand-gradient text-white shadow-md shadow-blue-500/30'
+                    ? 'bg-brand-gradient text-white shadow-[0_0_24px_rgba(59,130,246,0.45)]'
                     : 'glass-panel text-slate-300 hover:border-sky-400/40 hover:text-sky-200'
                 }`}
               >
@@ -301,7 +306,7 @@ export function MaterialsCatalog({ products, demo }: Props) {
         </div>
 
         <ProjectLists
-          products={products}
+          products={catalogProducts}
           quoteItems={quoteList.map(({ product_id, quantity }) => ({ product_id, quantity }))}
           onAddItems={addMany}
         />

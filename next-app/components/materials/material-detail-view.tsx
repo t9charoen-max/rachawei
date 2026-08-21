@@ -2,9 +2,9 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { BRAND } from '@/lib/materials/brand';
-import { saveAdminQuote } from '@/lib/materials/admin-store';
+import { getAdminProducts, saveAdminQuote } from '@/lib/materials/admin-store';
 import { getLineDisplayId, getLineProfileUrl, openLineQuickOrder } from '@/lib/materials/line-quote';
 import { addLoyaltyPoints } from '@/lib/materials/loyalty';
 import { assetUrl } from '@/lib/materials/asset-url';
@@ -20,12 +20,18 @@ type Props = {
   demo: boolean;
 };
 
-export function MaterialDetailView({ product, demo }: Props) {
+export function MaterialDetailView({ product: initialProduct, demo }: Props) {
+  const [product, setProduct] = useState(initialProduct);
   const [modalOpen, setModalOpen] = useState(false);
   const [quantity, setQuantity] = useState(1);
   const [isOrdering, setIsOrdering] = useState(false);
   const { addItem, submitAll, count, isSubmitting } = useQuoteList();
   const catStyle = getCategoryStyle(product.category);
+
+  useEffect(() => {
+    const merged = getAdminProducts([initialProduct])[0];
+    if (merged) setProduct(merged);
+  }, [initialProduct]);
 
   const handleQuickOrder = async () => {
     setIsOrdering(true);
