@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/client';
+import { saveAdminQuote } from '@/lib/materials/admin-store';
 import { isPublicSupabaseReady } from '@/lib/materials/env';
 import { formatQuoteText, openLineWithQuote } from '@/lib/materials/line-quote';
 import type { QuoteRequestPayload } from '@/types/material';
@@ -15,6 +16,13 @@ export type SubmitQuoteResult = {
 export async function submitQuoteRequest(
   payload: QuoteRequestPayload,
 ): Promise<SubmitQuoteResult> {
+  // บันทึกในเครื่องเสมอ — ให้หลังบ้านเห็นได้แม้ไม่มี Supabase
+  try {
+    saveAdminQuote(payload, 'form');
+  } catch {
+    /* ignore storage errors */
+  }
+
   if (!isPublicSupabaseReady()) {
     await openLineWithQuote(payload);
     return {

@@ -1,11 +1,11 @@
 import type { Metadata } from 'next';
+import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { formatPrice } from '@/lib/format';
 import { getOrders } from '@/lib/orders';
 
 export const metadata: Metadata = {
-  title: 'ออเดอร์ | Admin',
+  title: 'ออเดอร์ | ราชาวัสดุ',
 };
 
 function statusVariant(status: string): 'default' | 'secondary' | 'outline' {
@@ -20,20 +20,26 @@ export default async function AdminOrdersPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold">ออเดอร์</h1>
-        <p className="text-sm text-muted-foreground">รายการสั่งซื้อล่าสุด</p>
+        <h1 className="text-2xl font-semibold text-white">ออเดอร์</h1>
+        <p className="mt-1 text-sm text-blue-200/70">
+          รายการสั่งซื้อเดิม — ร้านวัสดุใช้{' '}
+          <Link href="/admin/quotes" className="text-cyan-300 hover:text-cyan-200">
+            ใบเสนอราคา
+          </Link>{' '}
+          เป็นหลัก
+        </p>
       </div>
 
-      {error ? <p className="text-sm text-destructive">{error}</p> : null}
+      {error ? <p className="text-sm text-rose-300">{error}</p> : null}
 
-      <Card>
-        <CardHeader>
-          <CardTitle>ทั้งหมด {orders.length} ออเดอร์</CardTitle>
-        </CardHeader>
-        <CardContent className="overflow-x-auto">
+      <div className="glass-panel overflow-hidden rounded-xl">
+        <div className="border-b border-blue-400/20 px-4 py-3 sm:px-5">
+          <p className="text-sm text-blue-100/80">ทั้งหมด {orders.length} ออเดอร์</p>
+        </div>
+        <div className="overflow-x-auto p-4 sm:p-5">
           <table className="w-full min-w-[760px] text-left text-sm">
             <thead>
-              <tr className="border-b text-muted-foreground">
+              <tr className="border-b border-blue-400/15 text-blue-200/70">
                 <th className="py-2 pr-4 font-medium">เลขออเดอร์</th>
                 <th className="py-2 pr-4 font-medium">ลูกค้า</th>
                 <th className="py-2 pr-4 font-medium">โซนจัดส่ง</th>
@@ -44,26 +50,37 @@ export default async function AdminOrdersPage() {
             </thead>
             <tbody>
               {orders.map((order) => (
-                <tr key={order.id} className="border-b last:border-0">
-                  <td className="py-3 pr-4 font-mono text-xs">{order.id.slice(0, 8)}...</td>
-                  <td className="py-3 pr-4">
-                    <p className="font-medium">{order.customer_name}</p>
-                    <p className="text-muted-foreground">{order.customer_phone}</p>
+                <tr key={order.id} className="border-b border-blue-400/10 last:border-0">
+                  <td className="py-3 pr-4 font-mono text-xs text-blue-100/80">
+                    {order.id.slice(0, 8)}...
                   </td>
-                  <td className="py-3 pr-4">{order.delivery_zones?.name ?? '-'}</td>
-                  <td className="py-3 pr-4 font-medium">{formatPrice(order.total)}</td>
+                  <td className="py-3 pr-4">
+                    <p className="font-medium text-white">{order.customer_name}</p>
+                    <p className="text-blue-200/60">{order.customer_phone}</p>
+                  </td>
+                  <td className="py-3 pr-4 text-blue-100/80">
+                    {order.delivery_zones?.name ?? '-'}
+                  </td>
+                  <td className="py-3 pr-4 font-medium text-cyan-200">
+                    {formatPrice(order.total)}
+                  </td>
                   <td className="py-3 pr-4">
                     <Badge variant={statusVariant(order.status)}>{order.status}</Badge>
                   </td>
-                  <td className="py-3">
+                  <td className="py-3 text-blue-100/70">
                     {new Date(order.created_at).toLocaleString('th-TH')}
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
-        </CardContent>
-      </Card>
+          {orders.length === 0 ? (
+            <p className="py-6 text-center text-sm text-blue-200/60">
+              ไม่มีออเดอร์ — ใช้หน้าใบเสนอราคาสำหรับคำขอวัสดุ
+            </p>
+          ) : null}
+        </div>
+      </div>
     </div>
   );
 }
