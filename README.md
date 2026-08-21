@@ -40,6 +40,25 @@ npm run dev
 
 เปิด [http://localhost:5173](http://localhost:5173) ในเบราว์เซอร์
 
+## Grokbot — จุดเชื่อมเพิ่มภาพ / ข้อมูล
+
+ให้เอเจนต์ (grokbot) เพิ่มสินค้าและรูปผ่านโฟลเดอร์ inbox:
+
+```bash
+# วางงานที่ grokbot/inbox/*.json และรูปที่ grokbot/inbox/images/
+npm run grokbot:apply
+npm run grokbot:validate
+```
+
+คู่มือเต็ม: [grokbot/README.md](grokbot/README.md)
+
+ปลายทางข้อมูลหลัก:
+
+- `public/catalog/products.json`
+- `public/catalog/site.json`
+- `public/products/` (รูปสินค้า)
+- `public/images/shop/` (ฮีโร่ / เกี่ยวกับเรา)
+
 ## Build
 
 ```bash

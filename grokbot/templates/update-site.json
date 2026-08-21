@@ -1,0 +1,23 @@
+{
+  "type": "update-site",
+  "summary": "อัปเดตข้อความร้านและฮีโร่",
+  "requestedBy": "grokbot",
+  "site": {
+    "heroCover": "/images/shop/hero-slide-01.jpg",
+    "heroCoverAlt": "ตะกร้าหวายสานมือภายในร้านราชาหวายสุรินทร์",
+    "heroCovers": [
+      "/images/shop/hero-slide-01.jpg",
+      "/images/shop/hero-slide-02.jpg",
+      "/images/shop/hero-slide-03.jpg",
+      "/images/shop/hero-slide-04.jpg"
+    ],
+    "aboutImage": "/images/shop/hero-slide-01.jpg",
+    "aboutImageAlt": "ช่างสานหวายราชาหวายสุรินทร์",
+    "shopName": "ราชาหวายสุรินทร์",
+    "story": "ราชาหวายสุรินทร์ ตั้งอยู่หมู่บ้านจักสานบ้านบุทม ตำบลเมืองที จังหวัดสุรินทร์",
+    "location": "126 หมู่ 4 บ้านบุทม ต.เมืองที อ.เมือง จ.สุรินทร์ 32000",
+    "hours": "ทุกวัน 06:00–21:00",
+    "phone": "081-470-7089"
+  },
+  "siteImages": []
+}

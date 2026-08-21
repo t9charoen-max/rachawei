@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rachawei.vercel.app/schemas/grokbot-task.json",
+  "title": "GrokbotInboxTask",
+  "type": "object",
+  "required": ["type", "summary"],
+  "properties": {
+    "type": {
+      "type": "string",
+      "enum": ["add-product", "update-product", "add-images", "update-site", "replace-catalog"]
+    },
+    "summary": { "type": "string", "minLength": 1 },
+    "requestedBy": { "type": "string" },
+    "product": { "$ref": "product.schema.json" },
+    "productId": { "type": "string" },
+    "images": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "ชื่อไฟล์ใน grokbot/inbox/images/ ที่จะคัดลอกไป public/products/"
+    },
+    "site": { "$ref": "site.schema.json" },
+    "siteImages": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "ชื่อไฟล์ใน grokbot/inbox/images/ ที่จะคัดลอกไป public/images/shop/"
+    },
+    "catalog": {
+      "type": "array",
+      "description": "ใช้กับ replace-catalog — แทนที่ products.json ทั้งไฟล์",
+      "items": { "$ref": "product.schema.json" }
+    }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "type": { "const": "add-product" } } },
+      "then": { "required": ["product"] }
+    },
+    {
+      "if": { "properties": { "type": { "const": "update-product" } } },
+      "then": { "required": ["productId", "product"] }
+    },
+    {
+      "if": { "properties": { "type": { "const": "add-images" } } },
+      "then": { "required": ["productId", "images"] }
+    },
+    {
+      "if": { "properties": { "type": { "const": "update-site" } } },
+      "then": { "required": ["site"] }
+    },
+    {
+      "if": { "properties": { "type": { "const": "replace-catalog" } } },
+      "then": { "required": ["catalog"] }
+    }
+  ]
+}
