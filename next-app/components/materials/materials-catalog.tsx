@@ -123,8 +123,8 @@ export function MaterialsCatalog({ products, demo }: Props) {
             <div className="relative shrink-0">
               <div className="absolute -inset-1 rounded-2xl bg-gold-gradient opacity-40 blur-sm transition group-hover:opacity-70" />
               <Image
-                src={BRAND.logoPath}
-                alt=""
+                src={assetUrl(BRAND.logoPath)}
+                alt={BRAND.shopName}
                 width={48}
                 height={48}
                 className="relative rounded-xl ring-1 ring-amber-400/40"

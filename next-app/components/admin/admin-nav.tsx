@@ -4,6 +4,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
 import { logoutAdmin } from '@/lib/materials/admin-store';
+import { assetUrl } from '@/lib/materials/asset-url';
 import { BRAND } from '@/lib/materials/brand';
 import { cn } from '@/lib/utils';
 
@@ -29,7 +30,7 @@ export function AdminNav() {
       <aside className="glass-panel pylon-rail hidden border-b border-amber-400/25 lg:sticky lg:top-0 lg:flex lg:h-dvh lg:w-64 lg:flex-col lg:border-b-0 lg:border-r">
         <div className="flex h-full flex-col gap-5 p-5">
           <div className="flex items-center gap-3">
-            <Image src={BRAND.logoPath} alt="" width={48} height={48} className="rounded-xl" />
+            <Image src={assetUrl(BRAND.logoPath)} alt={BRAND.shopName} width={48} height={48} className="rounded-xl" />
             <div>
               <p className="text-[11px] tracking-wide text-amber-300/80 uppercase">หลังบ้าน</p>
               <p className="font-display text-lg font-semibold gold-text">{BRAND.shopName}</p>
@@ -80,7 +81,7 @@ export function AdminNav() {
       <header className="glass sticky top-0 z-40 border-b border-amber-400/25 lg:hidden">
         <div className="flex items-center justify-between gap-3 px-4 py-3">
           <div className="flex min-w-0 items-center gap-2.5">
-            <Image src={BRAND.logoPath} alt="" width={40} height={40} className="rounded-lg" />
+            <Image src={assetUrl(BRAND.logoPath)} alt={BRAND.shopName} width={40} height={40} className="rounded-lg" />
             <div className="min-w-0">
               <p className="font-display truncate text-base font-semibold gold-text">{BRAND.shopName}</p>
               <p className="text-[11px] text-amber-100/55">หลังบ้าน · วัสดุก่อสร้าง</p>
