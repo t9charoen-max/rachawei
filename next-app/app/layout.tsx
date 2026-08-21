@@ -23,6 +23,15 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: BRAND.shopName,
   description: BRAND.tagline,
+  icons: {
+    icon: [{ url: BRAND.logoPath, type: 'image/png' }],
+    apple: [{ url: BRAND.logoPath }],
+  },
+  openGraph: {
+    title: BRAND.shopName,
+    description: BRAND.tagline,
+    images: [{ url: BRAND.logoPath }],
+  },
 };
 
 export const viewport: Viewport = {

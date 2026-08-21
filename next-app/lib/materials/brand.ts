@@ -10,5 +10,5 @@ export const BRAND = {
   /** ช่องทางหลักคือ Line — เบอร์สำรองแสดงเมื่อมีค่าจริง */
   phone: '',
   themeColor: '#0a1628',
-  logoPath: '/brand/rachawatsadu-logo.svg',
+  logoPath: '/brand/rachawatsadu-app-icon.png',
 } as const;

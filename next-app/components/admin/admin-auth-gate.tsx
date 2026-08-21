@@ -3,6 +3,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import Image from 'next/image';
 import { isAdminAuthed, loginAdmin } from '@/lib/materials/admin-store';
+import { assetUrl } from '@/lib/materials/asset-url';
 import { BRAND } from '@/lib/materials/brand';
 
 export function AdminAuthGate({ children }: { children: React.ReactNode }) {
@@ -44,7 +45,7 @@ export function AdminAuthGate({ children }: { children: React.ReactNode }) {
           className="glass-panel gold-frame relative z-10 w-full max-w-sm rounded-2xl p-6 shadow-[0_20px_60px_rgba(0,0,0,0.55)]"
         >
           <div className="flex items-center gap-3">
-            <Image src={BRAND.logoPath} alt="" width={48} height={48} className="rounded-xl" />
+            <Image src={assetUrl(BRAND.logoPath)} alt={BRAND.shopName} width={48} height={48} className="rounded-xl" />
             <div>
               <p className="text-[11px] tracking-wide text-amber-300/80 uppercase">หลังบ้าน</p>
               <h1 className="font-display text-xl font-semibold gold-text">{BRAND.shopName}</h1>
