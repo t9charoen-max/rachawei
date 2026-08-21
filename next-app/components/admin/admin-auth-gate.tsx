@@ -44,13 +44,13 @@ export function AdminAuthGate({ children }: { children: React.ReactNode }) {
           className="glass-panel gold-frame relative z-10 w-full max-w-sm rounded-2xl p-6 shadow-[0_20px_60px_rgba(0,0,0,0.55)]"
         >
           <div className="flex items-center gap-3">
-            <Image src={BRAND.logoPath} alt="" width={44} height={44} className="rounded-xl" />
+            <Image src={BRAND.logoPath} alt="" width={48} height={48} className="rounded-xl" />
             <div>
-              <p className="text-[11px] tracking-wide text-amber-300/80 uppercase">Admin</p>
+              <p className="text-[11px] tracking-wide text-amber-300/80 uppercase">หลังบ้าน</p>
               <h1 className="font-display text-xl font-semibold gold-text">{BRAND.shopName}</h1>
             </div>
           </div>
-          <p className="mt-3 text-sm text-amber-100/65">เข้าสู่ระบบจัดการวัสดุ</p>
+          <p className="mt-3 text-sm text-amber-100/65">ระบบจัดการร้านวัสดุก่อสร้าง</p>
 
           <label className="mt-6 block text-sm text-amber-100/80" htmlFor="admin-pin">
             รหัสผ่าน / PIN
@@ -61,7 +61,7 @@ export function AdminAuthGate({ children }: { children: React.ReactNode }) {
             autoComplete="current-password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="mt-2 w-full rounded-lg border border-amber-400/30 bg-[#0a1628]/80 px-3 py-2.5 text-amber-50 outline-none placeholder:text-amber-100/35 focus:ring-2 focus:ring-amber-400/40"
+            className="mt-2 w-full rounded-xl border border-amber-400/30 bg-[#0a1628]/80 px-3 py-3 text-amber-50 outline-none placeholder:text-amber-100/35 focus:ring-2 focus:ring-amber-400/40"
             placeholder="กรอกรหัส"
           />
 
@@ -70,7 +70,7 @@ export function AdminAuthGate({ children }: { children: React.ReactNode }) {
 
           <button
             type="submit"
-            className="btn-shine mt-5 w-full rounded-lg bg-gold-gradient px-4 py-2.5 text-sm font-bold text-[#0a1628] shadow-[0_8px_24px_rgba(212,175,55,0.4)] transition hover:opacity-95"
+            className="btn-shine mt-5 w-full rounded-xl bg-gold-gradient px-4 py-3 text-sm font-bold text-[#0a1628] shadow-[0_8px_24px_rgba(212,175,55,0.4)]"
           >
             เข้าสู่ระบบ
           </button>

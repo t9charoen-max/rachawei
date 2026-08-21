@@ -41,22 +41,24 @@ export function MaterialsQuotesAdmin() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5 pb-24 lg:pb-0">
       <div>
-        <h1 className="text-2xl font-semibold text-white">ใบเสนอราคา</h1>
-        <p className="mt-1 text-sm text-amber-100/70">คำขอจากลูกค้า — อัปเดตสถานะการติดตาม</p>
+        <p className="text-xs font-medium tracking-wide text-amber-300/80 uppercase">วัสดุก่อสร้าง</p>
+        <h1 className="font-display mt-1 text-2xl font-semibold gold-text">ใบเสนอราคา</h1>
+        <p className="mt-1 text-sm text-amber-100/65">คำขอจากลูกค้า — แตะเพื่ออัปเดตสถานะ</p>
       </div>
 
       {quotes.length === 0 ? (
-        <div className="glass-panel rounded-xl p-8 text-center">
-          <p className="text-lg text-white">ยังไม่มีใบเสนอราคา</p>
-          <p className="mt-2 text-sm text-amber-100/70">
-            เมื่อลูกค้าส่งคำขอจากหน้าร้าน รายการจะแสดงที่นี่
+        <div className="glass-panel rounded-2xl p-8 text-center">
+          <p className="text-4xl">📋</p>
+          <p className="mt-3 text-lg text-amber-50">ยังไม่มีใบเสนอราคา</p>
+          <p className="mt-2 text-sm text-amber-100/55">
+            เมื่อลูกค้ากดสั่งเลยจากหน้าร้าน รายการจะขึ้นที่นี่
           </p>
           <button
             type="button"
             onClick={handleSeed}
-            className="mt-5 rounded-lg bg-amber-600/90 px-4 py-2 text-sm font-medium text-white hover:bg-amber-500"
+            className="btn-shine mt-5 rounded-xl bg-gold-gradient px-5 py-2.5 text-sm font-bold text-[#0a1628]"
           >
             โหลดข้อมูลตัวอย่าง
           </button>
@@ -64,55 +66,39 @@ export function MaterialsQuotesAdmin() {
       ) : (
         <ul className="space-y-4">
           {quotes.map((quote) => (
-            <li key={quote.id} className="glass-panel rounded-xl p-5">
+            <li key={quote.id} className="glass-panel rounded-2xl p-4 sm:p-5">
               <div className="flex flex-wrap items-start justify-between gap-3">
-                <div>
-                  <p className="text-lg font-medium text-white">{quote.customer_name}</p>
-                  <p className="text-sm text-amber-100/70">{quote.phone}</p>
+                <div className="min-w-0">
+                  <p className="text-lg font-semibold text-amber-50">{quote.customer_name}</p>
+                  <p className="text-sm text-amber-100/60">{quote.phone}</p>
                   {quote.address ? (
-                    <p className="mt-1 text-sm text-amber-100/70">{quote.address}</p>
+                    <p className="mt-1 text-sm text-amber-100/55">📍 {quote.address}</p>
                   ) : null}
                   {quote.note ? (
-                    <p className="mt-1 text-sm text-amber-100/70">หมายเหตุ: {quote.note}</p>
+                    <p className="mt-1 text-sm text-amber-100/55">หมายเหตุ: {quote.note}</p>
                   ) : null}
                 </div>
                 <div className="text-right">
-                  <p className="text-xl font-semibold text-amber-100">
-                    {formatPrice(quote.total_estimate)}
+                  <p className="text-xl font-bold text-amber-200">{formatPrice(quote.total_estimate)}</p>
+                  <p className="text-[11px] text-amber-100/45">
+                    {new Date(quote.created_at).toLocaleString('th-TH')}
                   </p>
-                  <p className="text-xs text-amber-100/70">
-                    {new Date(quote.created_at).toLocaleString('th-TH')} · {quote.source}
-                  </p>
-                  <p className="mt-1 text-xs text-amber-50/80">{STATUS_LABEL[quote.status]}</p>
                 </div>
               </div>
 
-              <div className="mt-4 overflow-x-auto rounded-lg border border-amber-400/20">
-                <table className="w-full min-w-[480px] text-left text-sm">
-                  <thead>
-                    <tr className="border-b border-amber-400/20 text-amber-100/70">
-                      <th className="px-3 py-2 font-medium">สินค้า</th>
-                      <th className="px-3 py-2 font-medium">จำนวน</th>
-                      <th className="px-3 py-2 font-medium">ราคา/หน่วย</th>
-                      <th className="px-3 py-2 font-medium">รวม</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {quote.items.map((item, idx) => (
-                      <tr key={`${quote.id}-${item.product_id}-${idx}`} className="border-b border-amber-400/10 last:border-0">
-                        <td className="px-3 py-2 text-white">{item.product_name}</td>
-                        <td className="px-3 py-2 text-amber-50/80">
-                          {item.quantity} {item.unit}
-                        </td>
-                        <td className="px-3 py-2 text-amber-50/80">{formatPrice(item.unit_price)}</td>
-                        <td className="px-3 py-2 text-amber-50">
-                          {formatPrice(item.quantity * item.unit_price)}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              <ul className="mt-4 space-y-2 rounded-xl border border-amber-400/20 bg-black/20 p-3">
+                {quote.items.map((item, idx) => (
+                  <li
+                    key={`${quote.id}-${item.product_id}-${idx}`}
+                    className="flex justify-between gap-3 text-sm"
+                  >
+                    <span className="min-w-0 truncate text-amber-50">{item.product_name}</span>
+                    <span className="shrink-0 text-amber-100/70">
+                      {item.quantity} {item.unit} · {formatPrice(item.quantity * item.unit_price)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
 
               <div className="mt-4 flex flex-wrap gap-2">
                 {STATUSES.map((status) => (
@@ -121,10 +107,10 @@ export function MaterialsQuotesAdmin() {
                     type="button"
                     onClick={() => handleStatus(quote.id, status)}
                     className={cn(
-                      'rounded-lg border px-3 py-1.5 text-xs transition',
+                      'rounded-xl border px-3 py-2 text-xs font-medium transition',
                       quote.status === status
-                        ? 'border-amber-400/50 bg-amber-400/20 text-white'
-                        : 'border-amber-400/25 bg-white/5 text-amber-50/80 hover:bg-white/10',
+                        ? 'border-amber-400/50 bg-amber-400/25 text-amber-50'
+                        : 'border-amber-400/20 bg-white/5 text-amber-100/65 hover:bg-white/10',
                     )}
                   >
                     {STATUS_LABEL[status]}
