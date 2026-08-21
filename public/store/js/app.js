@@ -239,14 +239,101 @@
       Array.from(grid.children).forEach((card) => productSlideObserver.observe(card));
     }
 
-    function renderProducts(filter = 'all') {
-      const filtered = filter === 'all'
-        ? products
-        : products.filter(p => p.cat === filter);
+    let catalogFilter = 'all';
+    let catalogQuery = '';
+    let wishlist = [];
+    try {
+      wishlist = JSON.parse(localStorage.getItem('rachawei_wishlist') || '[]');
+      if (!Array.isArray(wishlist)) wishlist = [];
+    } catch (e) { wishlist = []; }
+
+    function saveWishlist() {
+      try { localStorage.setItem('rachawei_wishlist', JSON.stringify(wishlist)); } catch (e) {}
+    }
+
+    function isWished(id) { return wishlist.includes(id); }
+
+    function toggleWish(id) {
+      if (isWished(id)) wishlist = wishlist.filter(x => x !== id);
+      else wishlist.push(id);
+      saveWishlist();
+      renderProducts(catalogFilter);
+    }
+    window.toggleWish = toggleWish;
+
+    function productRating(p) {
+      if (p.badge === 'ยอดนิยม') return { score: 4.9, count: 28 };
+      if (p.badge === 'ใหม่') return { score: 4.8, count: 12 };
+      if (p.badge === 'ของขวัญ') return { score: 4.8, count: 16 };
+      return { score: 4.7, count: 9 };
+    }
+
+    function matchesCatalog(p, filter, query) {
+      const q = (query || '').trim().toLowerCase();
+      if (q) {
+        const hay = [p.name, p.desc, p.category, p.badge].filter(Boolean).join(' ').toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+      if (filter === 'all' || !filter) return true;
+      if (filter === 'basket' || filter === 'chair' || filter === 'home') return p.cat === filter;
+      if (filter === 'new') return p.badge === 'ใหม่';
+      if (filter === 'best') return p.badge === 'ยอดนิยม' || p.badge === 'สานมือ';
+      if (filter === 'promo') return p.badge === 'ยอดนิยม' || p.badge === 'ของขวัญ';
+      if (filter === 'gift') return p.badge === 'ของขวัญ' || /ขวัญ|กระเช้า/.test(p.name + p.category);
+      if (filter === 'fav') return isWished(p.id);
+      return true;
+    }
+
+    function renderPopularCats() {
+      const el = document.getElementById('popularCatGrid');
+      if (!el) return;
+      const groups = [
+        { filter: 'basket', name: 'ตะกร้าหวาย', emoji: '🧺' },
+        { filter: 'chair', name: 'เก้าอี้หวาย', emoji: '🪑' },
+        { filter: 'home', name: 'ของใช้ในบ้าน', emoji: '🏡' },
+        { filter: 'gift', name: 'ของขวัญ/ของฝาก', emoji: '🎁' },
+      ];
+      el.innerHTML = groups.map((g) => {
+        const count = products.filter((p) => matchesCatalog(p, g.filter, '')).length;
+        const sample = products.find((p) => matchesCatalog(p, g.filter, ''));
+        const cover = sample ? getCoverImage(sample) : null;
+        const media = cover
+          ? `<img src="${cover}" alt="">`
+          : `<span class="shop-cat__emoji">${g.emoji}</span>`;
+        return `<button type="button" class="shop-cat" data-filter="${g.filter}">
+          ${media}
+          <span class="shop-cat__label"><strong>${g.name}</strong><small>${count} รายการ</small></span>
+        </button>`;
+      }).join('');
+      el.querySelectorAll('.shop-cat').forEach((btn) => {
+        btn.addEventListener('click', () => applyCatalogFilter(btn.dataset.filter, true));
+      });
+    }
+
+    function applyCatalogFilter(filter, scrollToProducts) {
+      catalogFilter = filter || 'all';
+      document.querySelectorAll('.shop-quick__item').forEach((b) => {
+        b.classList.toggle('is-active', b.dataset.filter === catalogFilter);
+      });
+      document.querySelectorAll('.filter-btn').forEach((b) => {
+        b.classList.toggle('active', b.dataset.filter === catalogFilter);
+      });
+      renderProducts(catalogFilter);
+      if (scrollToProducts) {
+        const el = document.getElementById('products');
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }
+
+    function renderProducts(filter = catalogFilter) {
+      catalogFilter = filter || 'all';
+      const filtered = products.filter((p) => matchesCatalog(p, catalogFilter, catalogQuery));
 
       if (!filtered.length) {
-        grid.innerHTML = `<div class="product-card" style="min-height:180px;align-items:center;justify-content:center;padding:2rem;text-align:center;">ยังไม่มีสินค้าในหมวดนี้</div>`;
+        grid.innerHTML = `<div class="product-card" style="grid-column:1/-1;min-height:140px;align-items:center;justify-content:center;padding:1.5rem;text-align:center;">ไม่พบสินค้าที่ตรงกับรายการนี้</div>`;
         if (productDots) productDots.innerHTML = '';
+        renderPopularCats();
+        refreshHeroSlides();
         return;
       }
 
@@ -256,13 +343,15 @@
           ? `<img src="${cover}" alt="${p.name}" onerror="this.style.display='none';this.nextElementSibling.style.display='inline'">`
           : '';
         const emojiShow = cover ? 'display:none' : '';
-        const imgCount = getProductImages(p).length;
-        const delay = Math.min(idx * 0.07, 0.5);
+        const delay = Math.min(idx * 0.05, 0.4);
+        const rating = productRating(p);
+        const wish = isWished(p.id) ? '♥' : '♡';
+        const badgeLabel = p.badge === 'ยอดนิยม' ? 'ขายดี' : p.badge;
         return `
         <article class="product-card stagger" data-cat="${p.cat}" style="animation-delay:${delay}s" onclick="openProductDetail(${p.id})">
           <div class="product-image">
-            ${p.badge ? `<span class="product-badge">${p.badge}</span>` : ''}
-            ${imgCount > 1 ? `<span class="product-badge" style="left:auto;right:12px;background:rgba(0,0,0,0.55);">${imgCount} รูป</span>` : ''}
+            ${badgeLabel ? `<span class="product-badge">${badgeLabel}</span>` : ''}
+            <button type="button" class="shop-wish" aria-label="ถูกใจ" onclick="event.stopPropagation();toggleWish(${p.id})">${wish}</button>
             ${media}
             <span class="emoji" style="${emojiShow}">${p.emoji || '🧺'}</span>
           </div>
@@ -271,16 +360,18 @@
             <h3 class="product-title">${p.name}</h3>
             <p class="product-desc">${p.desc}</p>
             <div class="product-footer">
-              <div class="product-price">${formatPrice(p.price)} <small>โดยประมาณ</small></div>
-              <button class="btn btn-add btn-sm" onclick="event.stopPropagation();addToCart(${p.id})">🛒 เพิ่ม</button>
+              <div>
+                <div class="product-price">${formatPrice(p.price)}</div>
+                <div class="shop-card__rating">★ ${rating.score} <span>(${rating.count})</span></div>
+              </div>
+              <button class="btn btn-add btn-sm" onclick="event.stopPropagation();addToCart(${p.id})" aria-label="ใส่ตะกร้า">🛒</button>
             </div>
           </div>
         </article>
       `;
       }).join('');
 
-      bindProductSlideDots(filtered.length);
-      grid.scrollTo({ left: 0, behavior: 'smooth' });
+      renderPopularCats();
       refreshHeroSlides();
     }
 
@@ -539,7 +630,57 @@
       btn.addEventListener('click', () => {
         filterBtns.forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
-        renderProducts(btn.dataset.filter);
+        applyCatalogFilter(btn.dataset.filter, true);
+      });
+    });
+
+    document.querySelectorAll('.shop-quick__item').forEach((btn) => {
+      btn.addEventListener('click', () => applyCatalogFilter(btn.dataset.filter, true));
+    });
+
+    const searchForm = document.getElementById('productSearchForm');
+    const searchInput = document.getElementById('productSearch');
+    if (searchForm && searchInput) {
+      searchForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        catalogQuery = searchInput.value || '';
+        showPage('home');
+        applyCatalogFilter(catalogQuery ? catalogFilter : 'all', true);
+      });
+    }
+    document.getElementById('viewAllProducts')?.addEventListener('click', () => {
+      catalogQuery = '';
+      if (searchInput) searchInput.value = '';
+      applyCatalogFilter('all', true);
+    });
+
+    document.getElementById('shopTabbar')?.querySelectorAll('button').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('#shopTabbar button').forEach((b) => b.classList.remove('is-active'));
+        btn.classList.add('is-active');
+        const tab = btn.dataset.tab;
+        if (tab === 'home') {
+          catalogQuery = '';
+          if (searchInput) searchInput.value = '';
+          document.body.classList.remove('show-contact');
+          showPage('home');
+          applyCatalogFilter('all');
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        } else if (tab === 'cats') {
+          document.body.classList.remove('show-contact');
+          showPage('home');
+          document.getElementById('popularCats')?.scrollIntoView({ behavior: 'smooth' });
+        } else if (tab === 'fav') {
+          document.body.classList.remove('show-contact');
+          showPage('home');
+          applyCatalogFilter('fav', true);
+        } else if (tab === 'orders') {
+          document.getElementById('statusBtn')?.click();
+        } else if (tab === 'account') {
+          document.body.classList.add('show-contact');
+          showPage('home');
+          setTimeout(() => document.getElementById('contact')?.scrollIntoView({ behavior: 'smooth' }), 50);
+        }
       });
     });
 
@@ -2461,6 +2602,8 @@
       document.querySelectorAll('a[href*="line.me"]').forEach(a => {
         a.href = c.lineUrl;
       });
+      const lineFab = document.getElementById('shopLineBtn');
+      if (lineFab && c.lineUrl) lineFab.href = c.lineUrl;
       // Facebook
       document.querySelectorAll('a[href*="facebook.com"]').forEach(a => {
         a.href = c.facebookUrl;
