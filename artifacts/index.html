@@ -54,9 +54,12 @@
   </header>
 
   <form class="shop-search" id="productSearchForm" role="search">
-    <label class="visually-hidden" for="productSearch">ค้นหาสินค้า</label>
-    <input id="productSearch" type="search" placeholder="ค้นหาสินค้า เช่น ตะกร้า, กระเป๋า, เก้าอี้หวาย" autocomplete="off" />
-    <button type="submit" class="shop-search__btn">🔍 ค้นหา</button>
+    <span class="shop-search__label">ค้นหาสินค้า</span>
+    <div class="shop-search__field">
+      <label class="visually-hidden" for="productSearch">ค้นหาสินค้า</label>
+      <input id="productSearch" type="search" placeholder="ค้นหาสินค้า เช่น ตะกร้า, กระเป๋า..." autocomplete="off" />
+      <button type="submit" class="shop-search__btn">🔍 ค้นหา</button>
+    </div>
   </form>
 
   <nav class="main-nav" id="mainNav" aria-label="เมนูเนื้อหา">
@@ -118,7 +121,7 @@
 
   <section class="shop-block" id="popularCats" aria-labelledby="popularCatsTitle">
     <div class="shop-block__head">
-      <h2 id="popularCatsTitle">หมวดหมู่ยอดนิยม</h2>
+      <h2 id="popularCatsTitle">หมวดยอดนิยม</h2>
       <a href="#products" class="shop-block__more">ดูทั้งหมด →</a>
     </div>
     <div class="shop-cats" id="popularCatGrid"></div>
@@ -129,14 +132,7 @@
       <h2>สินค้าแนะนำสำหรับคุณ</h2>
       <button type="button" class="shop-block__more" id="viewAllProducts">ดูทั้งหมด →</button>
     </div>
-    <div class="filters visually-hidden">
-      <button class="filter-btn active" data-filter="all">ทั้งหมด</button>
-      <button class="filter-btn" data-filter="basket">ตะกร้า</button>
-      <button class="filter-btn" data-filter="chair">เก้าอี้</button>
-      <button class="filter-btn" data-filter="home">ของใช้ในบ้าน</button>
-    </div>
     <div class="product-grid shop-grid" id="productGrid"></div>
-    <div class="product-slider__dots" id="productDots" hidden></div>
   </section>
 
   </div><!-- /page-home -->
