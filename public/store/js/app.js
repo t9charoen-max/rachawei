@@ -139,6 +139,15 @@
         }
         if (savedShop && typeof savedShop === 'object') {
           Object.assign(SHOP_CONFIG, savedShop);
+          // Migrate older subtitle variants to the single-line brand line
+          const legacySubs = [
+            'งานหัตถกรรมหวาย · บ้านบุทม',
+            'งานหัตถกรรมหวายบ้านบุทม',
+            'งานหัตถกรรม หวาย • บ้านบุทม'
+          ];
+          if (!SHOP_CONFIG.shopSub || legacySubs.includes(SHOP_CONFIG.shopSub)) {
+            SHOP_CONFIG.shopSub = 'งานหัตถกรรมจักสานหวายบ้านบุทม';
+          }
         }
         return true;
       } catch (e) {
