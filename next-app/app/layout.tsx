@@ -20,17 +20,22 @@ const geistMono = Geist_Mono({
   subsets: ['latin'],
 });
 
+const basePath = process.env.NEXT_PUBLIC_BASE_PATH ?? '';
+const siteOrigin = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://rachawei.vercel.app';
+const logoUrl = `${basePath}${BRAND.logoPath}`;
+
 export const metadata: Metadata = {
+  metadataBase: new URL(siteOrigin),
   title: BRAND.shopName,
   description: BRAND.tagline,
   icons: {
-    icon: [{ url: BRAND.logoPath, type: 'image/png' }],
-    apple: [{ url: BRAND.logoPath }],
+    icon: [{ url: logoUrl, type: 'image/png' }],
+    apple: [{ url: logoUrl }],
   },
   openGraph: {
     title: BRAND.shopName,
     description: BRAND.tagline,
-    images: [{ url: BRAND.logoPath }],
+    images: [{ url: logoUrl }],
   },
 };
 
