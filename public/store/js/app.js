@@ -139,6 +139,15 @@
         }
         if (savedShop && typeof savedShop === 'object') {
           Object.assign(SHOP_CONFIG, savedShop);
+          // Migrate older subtitle variants to the single-line brand line
+          const legacySubs = [
+            'งานหัตถกรรมหวาย · บ้านบุทม',
+            'งานหัตถกรรมหวายบ้านบุทม',
+            'งานหัตถกรรม หวาย • บ้านบุทม'
+          ];
+          if (!SHOP_CONFIG.shopSub || legacySubs.includes(SHOP_CONFIG.shopSub)) {
+            SHOP_CONFIG.shopSub = 'งานหัตถกรรมจักสานหวายบ้านบุทม';
+          }
         }
         return true;
       } catch (e) {
@@ -2580,6 +2589,10 @@
       // admin label
       const lbl = document.getElementById('adminUserLabel');
       if (lbl) lbl.textContent = c.shopName;
+      const logoText = document.querySelector('.logo-text');
+      if (logoText && c.shopName) logoText.textContent = c.shopName;
+      const logoSub = document.querySelector('.logo-sub');
+      if (logoSub && c.shopSub) logoSub.textContent = c.shopSub;
       // contact address card if present
       const contactCards = document.querySelectorAll('.contact-card');
       contactCards.forEach(card => {
