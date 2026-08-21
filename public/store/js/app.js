@@ -188,9 +188,11 @@
       }, 0);
     }
 
-    // ========== RENDER PRODUCTS ==========
+    // ========== RENDER PRODUCTS (horizontal slides) ==========
     const grid = document.getElementById('productGrid');
+    const productDots = document.getElementById('productDots');
     const filterBtns = document.querySelectorAll('.filter-btn');
+    let productSlideObserver = null;
 
     function getProductImages(p) {
       if (!p) return [];
@@ -204,10 +206,49 @@
       return imgs[0] || null;
     }
 
+    function syncProductDots(activeIndex) {
+      if (!productDots) return;
+      productDots.querySelectorAll('.product-slider__dot').forEach((dot, i) => {
+        dot.classList.toggle('is-active', i === activeIndex);
+      });
+    }
+
+    function bindProductSlideDots(count) {
+      if (!productDots || !grid) return;
+      productDots.innerHTML = Array.from({ length: count }, (_, i) =>
+        `<button type="button" class="product-slider__dot${i === 0 ? ' is-active' : ''}" aria-label="สินค้าชิ้นที่ ${i + 1}" data-index="${i}"></button>`
+      ).join('');
+
+      productDots.querySelectorAll('.product-slider__dot').forEach((dot) => {
+        dot.addEventListener('click', () => {
+          const idx = Number(dot.dataset.index || 0);
+          const card = grid.children[idx];
+          if (card) card.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+        });
+      });
+
+      if (productSlideObserver) productSlideObserver.disconnect();
+      if (!('IntersectionObserver' in window)) return;
+      productSlideObserver = new IntersectionObserver((entries) => {
+        entries.forEach((entry) => {
+          if (!entry.isIntersecting) return;
+          const idx = Array.from(grid.children).indexOf(entry.target);
+          if (idx >= 0) syncProductDots(idx);
+        });
+      }, { root: grid, threshold: 0.6 });
+      Array.from(grid.children).forEach((card) => productSlideObserver.observe(card));
+    }
+
     function renderProducts(filter = 'all') {
       const filtered = filter === 'all'
         ? products
         : products.filter(p => p.cat === filter);
+
+      if (!filtered.length) {
+        grid.innerHTML = `<div class="product-card" style="min-height:180px;align-items:center;justify-content:center;padding:2rem;text-align:center;">ยังไม่มีสินค้าในหมวดนี้</div>`;
+        if (productDots) productDots.innerHTML = '';
+        return;
+      }
 
       grid.innerHTML = filtered.map((p, idx) => {
         const cover = getCoverImage(p);
@@ -237,7 +278,155 @@
         </article>
       `;
       }).join('');
+
+      bindProductSlideDots(filtered.length);
+      grid.scrollTo({ left: 0, behavior: 'smooth' });
+      refreshHeroSlides();
     }
+
+    // ========== HERO BACKGROUND SLIDES ==========
+    let heroIndex = 0;
+    let heroTimer = null;
+    let heroPausedUntil = 0;
+    const HERO_AUTO_MS = 4200;
+
+    function collectHeroImages() {
+      const urls = [];
+      products.forEach((p) => {
+        getProductImages(p).forEach((src) => {
+          if (src && !urls.includes(src)) urls.push(src);
+        });
+      });
+      if (!urls.length) {
+        [
+          '/images/promo/usage-shopping.png',
+          '/images/promo/usage-market.png',
+          '/images/promo/usage-community.png',
+          '/images/promo/usage-decor.png',
+          '/images/promo/usage-temple.png',
+        ].forEach((src) => urls.push(src));
+      }
+      return urls.slice(0, 8);
+    }
+
+    function setHeroSlide(index) {
+      const slides = document.querySelectorAll('#heroSlides .hero-slide');
+      const dots = document.querySelectorAll('#heroDots .hero-dot');
+      if (!slides.length) return;
+      heroIndex = ((index % slides.length) + slides.length) % slides.length;
+      slides.forEach((el, i) => el.classList.toggle('is-active', i === heroIndex));
+      dots.forEach((el, i) => el.classList.toggle('is-active', i === heroIndex));
+    }
+
+    function startHeroAutoplay() {
+      if (heroTimer) clearInterval(heroTimer);
+      const slides = document.querySelectorAll('#heroSlides .hero-slide');
+      if (slides.length < 2) return;
+      heroTimer = setInterval(() => {
+        if (Date.now() < heroPausedUntil) return;
+        setHeroSlide(heroIndex + 1);
+      }, HERO_AUTO_MS);
+    }
+
+    function refreshHeroSlides() {
+      const stage = document.getElementById('heroSlides');
+      const dots = document.getElementById('heroDots');
+      if (!stage || !dots) return;
+      const images = collectHeroImages();
+      if (!images.length) {
+        stage.innerHTML = '';
+        dots.innerHTML = '';
+        return;
+      }
+      stage.innerHTML = images.map((src, i) =>
+        `<div class="hero-slide${i === 0 ? ' is-active' : ''}"><img src="${src}" alt="" loading="${i === 0 ? 'eager' : 'lazy'}" decoding="async" draggable="false" /></div>`
+      ).join('');
+      dots.innerHTML = images.map((_, i) =>
+        `<button type="button" class="hero-dot${i === 0 ? ' is-active' : ''}" aria-label="ภาพที่ ${i + 1}" data-index="${i}"></button>`
+      ).join('');
+      dots.querySelectorAll('.hero-dot').forEach((dot) => {
+        dot.addEventListener('click', () => {
+          setHeroSlide(Number(dot.dataset.index || 0));
+          heroPausedUntil = Date.now() + 2500;
+        });
+      });
+
+      const heroStage = document.getElementById('heroStage');
+      if (heroStage && !heroStage.dataset.swipeBound) {
+        heroStage.dataset.swipeBound = '1';
+        let startX = null;
+        heroStage.addEventListener('touchstart', (e) => {
+          startX = e.changedTouches[0]?.clientX ?? null;
+        }, { passive: true });
+        heroStage.addEventListener('touchend', (e) => {
+          if (startX == null) return;
+          const endX = e.changedTouches[0]?.clientX ?? startX;
+          const delta = endX - startX;
+          startX = null;
+          if (Math.abs(delta) < 40) return;
+          setHeroSlide(heroIndex + (delta < 0 ? 1 : -1));
+          heroPausedUntil = Date.now() + 2500;
+        }, { passive: true });
+      }
+
+      heroIndex = 0;
+      startHeroAutoplay();
+    }
+
+    // ========== INSTALL BANNER ==========
+    function initInstallBanner() {
+      const banner = document.getElementById('installBanner');
+      const installBtn = document.getElementById('installBtn');
+      const closeBtn = document.getElementById('installClose');
+      const desc = document.getElementById('installDesc');
+      if (!banner) return;
+
+      const standalone = window.matchMedia('(display-mode: standalone)').matches
+        || window.navigator.standalone === true;
+      if (standalone) return;
+      try {
+        if (localStorage.getItem('rachawei-store-install-dismissed')) return;
+      } catch (_) {}
+
+      const isIos = /iphone|ipad|ipod/i.test(navigator.userAgent);
+      let deferredPrompt = null;
+
+      window.addEventListener('beforeinstallprompt', (event) => {
+        event.preventDefault();
+        deferredPrompt = event;
+        banner.hidden = false;
+        if (installBtn) installBtn.hidden = false;
+        if (desc) desc.textContent = 'เปิดเร็ว สั่งซื้อง่าย เหมือนแอปทั่วไป';
+      });
+
+      if (isIos) {
+        banner.hidden = false;
+        if (desc) desc.textContent = 'กดปุ่มแชร์ ⎋ แล้วเลือก “เพิ่มลงหน้าจอโฮม”';
+      }
+
+      if (installBtn) {
+        installBtn.addEventListener('click', async () => {
+          if (!deferredPrompt) return;
+          await deferredPrompt.prompt();
+          const choice = await deferredPrompt.userChoice;
+          deferredPrompt = null;
+          if (choice.outcome === 'accepted') {
+            banner.hidden = true;
+            try { localStorage.setItem('rachawei-store-install-dismissed', '1'); } catch (_) {}
+          }
+        });
+      }
+
+      if (closeBtn) {
+        closeBtn.addEventListener('click', () => {
+          banner.hidden = true;
+          try { localStorage.setItem('rachawei-store-install-dismissed', '1'); } catch (_) {}
+        });
+      }
+    }
+
+    initInstallBanner();
+
 
     // ========== PRODUCT DETAIL ==========
     let pdImages = [];
