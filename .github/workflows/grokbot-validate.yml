@@ -1,0 +1,27 @@
+name: Grokbot catalog validate
+on:
+  pull_request:
+    paths:
+      - 'public/catalog/**'
+      - 'public/products/**'
+      - 'public/images/shop/**'
+      - 'grokbot/**'
+      - 'scripts/grokbot-*.mjs'
+  push:
+    branches: [main]
+    paths:
+      - 'public/catalog/**'
+      - 'public/products/**'
+      - 'public/images/shop/**'
+      - 'grokbot/**'
+      - 'scripts/grokbot-*.mjs'
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Validate catalog + images
+        run: node scripts/grokbot-validate.mjs

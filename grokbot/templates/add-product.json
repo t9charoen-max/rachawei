@@ -1,0 +1,13 @@
+{
+  "type": "add-product",
+  "summary": "เพิ่มสินค้าตัวอย่างตะกร้าหวาย",
+  "requestedBy": "grokbot",
+  "product": {
+    "id": "13",
+    "name": "ตะกร้าหวายตัวอย่าง",
+    "description": "คำอธิบายสินค้าสั้น ๆ งานสานมือจากบ้านบุทม",
+    "category": "ทรงกลม",
+    "images": ["basket-13-example.jpg"]
+  },
+  "images": ["basket-13-example.jpg"]
+}

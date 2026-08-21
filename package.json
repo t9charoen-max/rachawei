@@ -13,6 +13,8 @@
     "build:desk": "cd desk-app && npm ci && VITE_BASE_PATH=/desk/ npm run build && rm -rf ../public/desk && mkdir -p ../public/desk && cp -r dist/. ../public/desk/ && touch ../public/desk/.nojekyll",
     "build:rachawatsadu": "cd next-app && npm ci && STATIC_EXPORT=1 NEXT_PUBLIC_BASE_PATH=/rachawatsadu npm run build:static && rm -rf ../public/rachawatsadu ../public/rajawasu && mkdir -p ../public/rachawatsadu && cp -r out/. ../public/rachawatsadu/ && touch ../public/rachawatsadu/.nojekyll",
     "build:store": "rm -rf public/store && mkdir -p public/store/css public/store/js public/store/brand && cp artifacts/index.html artifacts/rachawei-surin.html artifacts/manifest.webmanifest public/store/ && cp artifacts/css/styles.css public/store/css/ && cp artifacts/js/config.js artifacts/js/app.js public/store/js/ && cp artifacts/brand/rachawei-logo.png artifacts/brand/rachawei-logo-square.png public/store/brand/ && touch public/store/.nojekyll",
+    "grokbot:validate": "node scripts/grokbot-validate.mjs",
+    "grokbot:apply": "node scripts/grokbot-apply.mjs",
     "lint": "oxlint",
     "preview": "vite preview"
   },

@@ -1,0 +1,10 @@
+{
+  "type": "add-images",
+  "summary": "เพิ่มรูปให้สินค้า #12",
+  "requestedBy": "grokbot",
+  "productId": "12",
+  "images": [
+    "basket-12-square-extra-1.jpg",
+    "basket-12-square-extra-2.jpg"
+  ]
+}

@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rachawei.vercel.app/schemas/catalog-site.json",
+  "title": "RachaweiSiteSettings",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "heroCover",
+    "heroCoverAlt",
+    "heroCovers",
+    "aboutImage",
+    "aboutImageAlt",
+    "shopName",
+    "story",
+    "location",
+    "hours",
+    "phone"
+  ],
+  "properties": {
+    "heroCover": { "type": "string" },
+    "heroCoverAlt": { "type": "string" },
+    "heroCovers": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string" }
+    },
+    "aboutImage": { "type": "string" },
+    "aboutImageAlt": { "type": "string" },
+    "shopName": { "type": "string" },
+    "story": { "type": "string" },
+    "location": { "type": "string" },
+    "hours": { "type": "string" },
+    "phone": { "type": "string" }
+  }
+}
