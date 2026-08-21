@@ -35,7 +35,15 @@
       bankName: 'ธ.กสิกรไทย',           // ชื่อธนาคาร
       bankAccountName: 'ราชาหวายสุรินทร์', // ชื่อบัญชี
       bankAccountNo: '081-470-7089',    // เลขบัญชี หรือเบอร์พร้อมเพย์
-      bankNote: 'โอนแล้วทักแจ้งสลิปทาง LINE หรือ Facebook'
+      bankNote: 'โอนแล้วทักแจ้งสลิปทาง LINE หรือ Facebook',
+      // ภาพพื้นหลังฮีโร่ (เปลี่ยนได้จากหลังร้าน → แท็บตั้งค่า)
+      heroImages: [
+        '/images/promo/usage-shopping.png',
+        '/images/promo/usage-market.png',
+        '/images/promo/usage-community.png',
+        '/images/promo/usage-decor.png',
+        '/images/promo/usage-temple.png'
+      ]
     };
 
 const DEFAULT_PRODUCTS = [

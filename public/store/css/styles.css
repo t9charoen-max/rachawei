@@ -539,36 +539,62 @@
       z-index: 2;
       pointer-events: none;
       background:
-        linear-gradient(180deg, rgba(26,18,12,0.35) 0%, rgba(26,18,12,0.55) 42%, rgba(26,18,12,0.92) 100%),
-        radial-gradient(ellipse 80% 50% at 50% 0%, rgba(212,168,83,0.18), transparent 70%);
+        linear-gradient(180deg, rgba(18,12,8,0.45) 0%, rgba(18,12,8,0.28) 28%, rgba(18,12,8,0.72) 68%, rgba(18,12,8,0.94) 100%),
+        radial-gradient(ellipse 90% 55% at 50% 100%, rgba(26,18,12,0.55), transparent 70%);
     }
 
     .hero-copy {
       position: relative;
       z-index: 3;
-      width: min(720px, 100%);
-      padding: 3.2rem 1.25rem 2.4rem;
+      width: 100%;
+      padding: 3.4rem 1.15rem 2.1rem;
       color: #fff8ef;
+      display: flex;
+      justify-content: center;
+    }
+
+    .hero-copy__inner {
+      width: min(34rem, 100%);
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0;
     }
 
     .hero--slides .badge {
-      background: rgba(26, 18, 12, 0.55);
-      border-color: rgba(212, 168, 83, 0.35);
-      color: #f0d78c;
-      backdrop-filter: blur(8px);
+      background: rgba(18, 12, 8, 0.62);
+      border-color: rgba(212, 168, 83, 0.4);
+      color: #f3e0b0;
+      backdrop-filter: blur(10px);
+      margin-bottom: 0.85rem;
+      font-size: 0.78rem;
+      font-weight: 600;
+      letter-spacing: 0.01em;
+      padding: 0.4rem 0.9rem;
     }
 
     .hero--slides .hero-brand {
       background: none;
       -webkit-text-fill-color: #f0d78c;
       color: #f0d78c;
-      text-shadow: 0 2px 18px rgba(0,0,0,0.45);
+      text-shadow: 0 2px 16px rgba(0,0,0,0.5);
+      font-size: clamp(1.7rem, 6.2vw, 2.35rem);
+      line-height: 1.2;
+      margin: 0 0 0.45rem;
+      letter-spacing: -0.015em;
     }
 
     .hero--slides .hero h1,
     .hero--slides h1 {
       color: #fff8ef;
-      text-shadow: 0 2px 20px rgba(0,0,0,0.4);
+      text-shadow: 0 2px 14px rgba(0,0,0,0.45);
+      font-size: clamp(1.05rem, 3.6vw, 1.28rem);
+      font-weight: 600;
+      line-height: 1.45;
+      margin: 0 0 0.85rem;
+      max-width: 18em;
+      letter-spacing: 0.01em;
     }
 
     .hero--slides h1 span {
@@ -578,27 +604,59 @@
     }
 
     .hero--slides .hero-desc {
-      color: rgba(255, 248, 239, 0.88);
+      color: rgba(255, 248, 239, 0.92);
+      font-size: clamp(0.92rem, 2.8vw, 1rem);
+      line-height: 1.7;
+      font-weight: 500;
+      max-width: 28em;
+      margin: 0 0 1.35rem;
+      text-shadow: 0 1px 10px rgba(0,0,0,0.45);
+    }
+
+    .hero--slides .hero-cta {
+      width: 100%;
+      max-width: 22rem;
+      gap: 0.65rem;
+      margin-bottom: 0.15rem;
+    }
+
+    .hero--slides .hero-cta .btn {
+      flex: 1 1 auto;
+      justify-content: center;
+      min-height: 2.85rem;
+      font-size: 0.95rem;
+    }
+
+    .hero--slides .hero-features {
+      margin-top: 1.35rem;
+      padding-top: 1rem;
+      width: 100%;
+      max-width: 26rem;
+      gap: 0.55rem;
+      border-top-color: rgba(240, 215, 140, 0.22);
     }
 
     .hero--slides .feature-item {
-      background: rgba(255,248,239,0.08);
+      background: rgba(18,12,8,0.45);
       border-color: rgba(212,168,83,0.28);
       color: #fff8ef;
-      backdrop-filter: blur(6px);
+      backdrop-filter: blur(8px);
+      font-size: 0.8rem;
+      padding: 0.55rem 0.65rem;
+      justify-content: center;
     }
 
     .hero--slides .btn-outline {
-      border-color: rgba(255,248,239,0.45);
+      border-color: rgba(255,248,239,0.5);
       color: #fff8ef;
-      background: rgba(26,18,12,0.35);
+      background: rgba(18,12,8,0.4);
     }
 
     .hero-dots {
       display: flex;
       justify-content: center;
       gap: 0.45rem;
-      margin-top: 1.35rem;
+      margin-top: 1.15rem;
     }
 
     .hero-dot {
@@ -615,6 +673,40 @@
     .hero-dot.is-active {
       width: 1.35rem;
       background: #f0d78c;
+    }
+
+    .hero-admin-list {
+      display: grid;
+      gap: 0.65rem;
+    }
+
+    .hero-admin-item {
+      display: grid;
+      grid-template-columns: 96px 1fr;
+      gap: 0.65rem;
+      align-items: center;
+      padding: 0.5rem;
+      border: 1px solid rgba(184, 137, 90, 0.28);
+      border-radius: 12px;
+      background: rgba(255, 248, 239, 0.55);
+    }
+
+    .hero-admin-item img {
+      width: 96px;
+      height: 64px;
+      object-fit: cover;
+      border-radius: 8px;
+      background: #1a120c;
+    }
+
+    .hero-admin-item__actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.35rem;
+    }
+
+    [data-theme="dark"] .hero-admin-item {
+      background: rgba(40, 32, 26, 0.7);
     }
 
     .hero::before {

@@ -291,6 +291,11 @@
     const HERO_AUTO_MS = 4200;
 
     function collectHeroImages() {
+      const configured = Array.isArray(SHOP_CONFIG.heroImages)
+        ? SHOP_CONFIG.heroImages.filter(Boolean)
+        : [];
+      if (configured.length) return configured.slice(0, 10);
+
       const urls = [];
       products.forEach((p) => {
         getProductImages(p).forEach((src) => {
@@ -1425,7 +1430,8 @@
             bankName: SHOP_CONFIG.bankName,
             bankAccountName: SHOP_CONFIG.bankAccountName,
             bankAccountNo: SHOP_CONFIG.bankAccountNo,
-            bankNote: SHOP_CONFIG.bankNote
+            bankNote: SHOP_CONFIG.bankNote,
+            heroImages: Array.isArray(SHOP_CONFIG.heroImages) ? SHOP_CONFIG.heroImages : []
           };
           await idbSet('shopSettings', toSave);
         } catch (e) { console.warn(e); }
@@ -1436,13 +1442,16 @@
     function renderAdminSettings() {
       const c = SHOP_CONFIG;
       const el = document.getElementById('adminContent');
+      const heroImages = Array.isArray(c.heroImages) ? c.heroImages.filter(Boolean) : [];
+      window._heroImagesDraft = heroImages.slice();
+
       el.innerHTML = `
         <div class="admin-section-title">ตั้งค่าร้าน (แก้ไขได้ตลอด)</div>
         <p style="font-size:0.85rem;color:var(--text-soft);margin-bottom:1rem;line-height:1.55;">
           ค่าเหล่านี้บันทึกในเบราว์เซอร์เครื่องนี้ และแสดงบนหน้าร้านทันที
           หากต้องการให้ผู้เข้าชมทุกคนเห็นค่าเดียวกันถาวร ให้แก้ในไฟล์ <code>SHOP_CONFIG</code> แล้ว deploy ใหม่
         </p>
-        <div style="display:grid;gap:0.75rem;max-width:520px;">
+        <div style="display:grid;gap:0.75rem;max-width:560px;">
           <label style="font-size:0.82rem;font-weight:600;">ชื่อร้าน
             <input class="admin-input" id="setShopName" value="${escapeHtml(c.shopName||'')}" style="width:100%;margin-top:0.25rem;"></label>
           <label style="font-size:0.82rem;font-weight:600;">เบอร์แสดงผล
@@ -1471,6 +1480,18 @@
             <input class="admin-input" id="setBankNote" value="${escapeHtml(c.bankNote||'')}" style="width:100%;margin-top:0.25rem;"></label>
           <label style="font-size:0.82rem;font-weight:600;">รหัสหลังร้าน (PIN)
             <input class="admin-input" id="setAdminPin" value="${escapeHtml(c.adminPin||'')}" style="width:100%;margin-top:0.25rem;"></label>
+
+          <div class="admin-section-title" style="margin-top:0.5rem;">ภาพพื้นหลังหน้าแรก</div>
+          <p style="font-size:0.82rem;color:var(--text-soft);margin:0;line-height:1.5;">
+            อัปโหลดรูปเพื่อสไลด์พื้นหลังฮีโร่ (แนะนำแนวนอน 1–8 รูป) เรียงลำดับ/ลบได้ แล้วกดบันทึกตั้งค่า
+          </p>
+          <div id="heroImageList" class="hero-admin-list"></div>
+          <label class="btn btn-outline btn-sm" style="justify-content:center;cursor:pointer;">
+            ➕ เพิ่มภาพพื้นหลัง
+            <input type="file" id="heroImageUpload" accept="image/*" multiple hidden />
+          </label>
+          <button type="button" class="btn btn-outline btn-sm" id="btnResetHeroImages" style="justify-content:center;">รีเซ็ตภาพพื้นหลังเป็นค่าเริ่มต้น</button>
+
           <button type="button" class="btn btn-primary" id="btnSaveShopSettings" style="justify-content:center;">💾 บันทึกตั้งค่า</button>
         </div>
         <hr style="margin:1.4rem 0;border:none;border-top:1px solid rgba(196,164,132,0.35);">
@@ -1484,6 +1505,85 @@
           <button type="button" class="btn btn-outline btn-sm" id="btnResetProductsDefault">รีเซ็ตสินค้าเป็นค่าเริ่มต้น</button>
         </div>
       `;
+
+      function paintHeroList() {
+        const list = document.getElementById('heroImageList');
+        if (!list) return;
+        const imgs = window._heroImagesDraft || [];
+        if (!imgs.length) {
+          list.innerHTML = '<p style="font-size:0.82rem;color:var(--text-soft);margin:0;">ยังไม่มีภาพ — จะใช้ภาพโปรโมชันเริ่มต้น</p>';
+          return;
+        }
+        list.innerHTML = imgs.map((src, i) => `
+          <div class="hero-admin-item" data-index="${i}">
+            <img src="${src}" alt="พื้นหลัง ${i + 1}" />
+            <div class="hero-admin-item__actions">
+              <button type="button" class="btn btn-outline btn-sm" data-hero-up ${i === 0 ? 'disabled' : ''}>↑</button>
+              <button type="button" class="btn btn-outline btn-sm" data-hero-down ${i === imgs.length - 1 ? 'disabled' : ''}>↓</button>
+              <button type="button" class="btn btn-outline btn-sm" data-hero-del>ลบ</button>
+            </div>
+          </div>
+        `).join('');
+
+        list.querySelectorAll('.hero-admin-item').forEach((row) => {
+          const idx = Number(row.dataset.index);
+          row.querySelector('[data-hero-up]')?.addEventListener('click', () => {
+            if (idx <= 0) return;
+            const arr = window._heroImagesDraft;
+            [arr[idx - 1], arr[idx]] = [arr[idx], arr[idx - 1]];
+            paintHeroList();
+          });
+          row.querySelector('[data-hero-down]')?.addEventListener('click', () => {
+            const arr = window._heroImagesDraft;
+            if (idx >= arr.length - 1) return;
+            [arr[idx + 1], arr[idx]] = [arr[idx], arr[idx + 1]];
+            paintHeroList();
+          });
+          row.querySelector('[data-hero-del]')?.addEventListener('click', () => {
+            window._heroImagesDraft.splice(idx, 1);
+            paintHeroList();
+          });
+        });
+      }
+
+      paintHeroList();
+
+      document.getElementById('heroImageUpload').onchange = async (e) => {
+        const files = Array.from(e.target.files || []);
+        e.target.value = '';
+        for (const file of files) {
+          if (window._heroImagesDraft.length >= 10) {
+            showToast('ใส่ได้สูงสุด 10 รูป');
+            break;
+          }
+          try {
+            const dataUrl = await new Promise((resolve, reject) => {
+              const reader = new FileReader();
+              reader.onload = () => resolve(reader.result);
+              reader.onerror = reject;
+              reader.readAsDataURL(file);
+            });
+            const compressed = await compressImage(dataUrl, 1400, 0.78);
+            window._heroImagesDraft.push(compressed);
+          } catch (err) {
+            console.warn(err);
+            showToast('อัปโหลดรูปไม่สำเร็จ');
+          }
+        }
+        paintHeroList();
+      };
+
+      document.getElementById('btnResetHeroImages').onclick = () => {
+        window._heroImagesDraft = [
+          '/images/promo/usage-shopping.png',
+          '/images/promo/usage-market.png',
+          '/images/promo/usage-community.png',
+          '/images/promo/usage-decor.png',
+          '/images/promo/usage-temple.png'
+        ];
+        paintHeroList();
+        showToast('ตั้งภาพพื้นหลังกลับเป็นค่าเริ่มต้นแล้ว (อย่าลืมกดบันทึก)');
+      };
 
       document.getElementById('btnSaveShopSettings').onclick = () => {
         const phoneDisplay = document.getElementById('setPhoneDisplay').value.trim();
@@ -1505,8 +1605,10 @@
           bankAccountName: document.getElementById('setBankAccName').value.trim(),
           bankAccountNo: document.getElementById('setBankAccNo').value.trim(),
           bankNote: document.getElementById('setBankNote').value.trim(),
-          adminPin: document.getElementById('setAdminPin').value.trim() || '1234'
+          adminPin: document.getElementById('setAdminPin').value.trim() || '1234',
+          heroImages: (window._heroImagesDraft || []).slice(0, 10)
         });
+        refreshHeroSlides();
       };
 
       document.getElementById('btnExportProductsJson').onclick = () => {
@@ -2386,6 +2488,7 @@
       document.querySelectorAll('.promo-deal .value').forEach(el => {
         el.textContent = 'ลดทันที ' + c.promoDiscount + ' บาท';
       });
+      if (typeof refreshHeroSlides === 'function') refreshHeroSlides();
     }
 
     // Init — โหลดข้อมูลถาวรก่อนแสดงผล
