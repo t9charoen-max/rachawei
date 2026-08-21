@@ -30,7 +30,10 @@ export function saveLoyalty(data: LoyaltyData) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
 }
 
-export function addLoyaltyPoints(itemCount: number, totalBaht: number): LoyaltyData {
+export function addLoyaltyPoints(
+  itemCount: number,
+  totalBaht: number,
+): LoyaltyData & { earned: number } {
   const current = loadLoyalty();
   const earned = pointsForOrder(itemCount, totalBaht);
   const next = {
@@ -38,5 +41,5 @@ export function addLoyaltyPoints(itemCount: number, totalBaht: number): LoyaltyD
     orders: current.orders + 1,
   };
   saveLoyalty(next);
-  return { ...next, earned } as LoyaltyData & { earned: number };
+  return { ...next, earned };
 }

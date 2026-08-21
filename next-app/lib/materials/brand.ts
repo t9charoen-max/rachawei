@@ -7,7 +7,8 @@ export const BRAND = {
   /** จาก QR: https://line.me/ti/p/O0v-jM9X-A */
   lineId: 'O0v-jM9X-A',
   lineIdDisplay: '@O0v-jM9X-A',
-  phone: '08x-xxx-xxxx',
+  /** ช่องทางหลักคือ Line — เบอร์สำรองแสดงเมื่อมีค่าจริง */
+  phone: '',
   themeColor: '#ea580c',
   logoPath: '/brand/rachawatsadu-logo.svg',
 } as const;

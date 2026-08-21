@@ -51,25 +51,18 @@ export function useQuoteList() {
 
   const submitAll = useCallback(
     async (overrideCustomer?: typeof customer) => {
-      const info = overrideCustomer ?? customer;
-      if (!info.name.trim() || !info.phone.trim()) {
-        const name = window.prompt('ชื่อ-นามสกุล');
-        const phone = window.prompt('เบอร์โทรศัพท์');
-        if (!name?.trim() || !phone?.trim()) return;
-        info.name = name;
-        info.phone = phone;
-        setCustomer((c) => ({ ...c, name, phone }));
-      }
-
       if (!quoteList.length) return;
+
+      const info = overrideCustomer ?? customer;
+      const hasContact = Boolean(info.name.trim() && info.phone.trim());
 
       setIsSubmitting(true);
 
       const payload: QuoteRequestPayload = {
-        customer_name: info.name.trim(),
-        phone: info.phone.trim(),
+        customer_name: hasContact ? info.name.trim() : '(รอติดต่อกลับ)',
+        phone: hasContact ? info.phone.trim() : '-',
         address: info.address?.trim(),
-        note: info.note?.trim(),
+        note: info.note?.trim() || 'ส่งถึงหน้างาน',
         items: quoteList.map(({ product: _p, ...item }) => item),
       };
 

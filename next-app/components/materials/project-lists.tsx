@@ -46,16 +46,12 @@ export function ProjectLists({ products, quoteItems, onAddItems }: Props) {
     const items = resolveProjectItems(project, products);
     if (!items.length) return;
 
-    const name = window.prompt('ชื่อผู้ติดต่อ');
-    const phone = window.prompt('เบอร์โทร');
-    if (!name?.trim() || !phone?.trim()) return;
-
     setSending(key);
     try {
       const payload = {
-        customer_name: name.trim(),
-        phone: phone.trim(),
-        note: `โปรเจกต์: ${project.name}`,
+        customer_name: '(รอติดต่อกลับ)',
+        phone: '-',
+        note: `โปรเจกต์: ${project.name} — ส่งถึงหน้างาน`,
         items: items.map(({ product, quantity }) => ({
           product_id: product.id,
           product_name: product.name,
@@ -168,7 +164,7 @@ export function ProjectLists({ products, quoteItems, onAddItems }: Props) {
                     disabled={sending === key}
                     className="rounded-xl bg-[#06c755] py-2.5 text-sm font-bold text-white hover:bg-[#05b34c] disabled:opacity-60"
                   >
-                    {sending === key ? '...' : '💬 ขอราคา'}
+                    {sending === key ? 'กำลังเปิด Line...' : '💬 สั่งเลย'}
                   </button>
                 </div>
 
