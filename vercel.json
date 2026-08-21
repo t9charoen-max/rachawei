@@ -11,13 +11,34 @@
     { "source": "/rajawasu/:path*", "destination": "/rachawatsadu/:path*", "permanent": true }
   ],
   "rewrites": [
+    { "source": "/mcp", "destination": "/api/mcp" },
     { "source": "/desk", "destination": "/desk/index.html" },
     { "source": "/store", "destination": "/store/index.html" },
     { "source": "/rachawei-surin", "destination": "/store/index.html" },
     { "source": "/rachawatsadu", "destination": "/rachawatsadu/index.html" },
     { "source": "/rachawatsadu/products/:slug", "destination": "/rachawatsadu/products/:slug.html" }
   ],
+  "functions": {
+    "api/mcp.ts": {
+      "maxDuration": 60,
+      "memory": 1024
+    }
+  },
   "headers": [
+    {
+      "source": "/mcp",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-store" },
+        { "key": "Access-Control-Allow-Origin", "value": "*" }
+      ]
+    },
+    {
+      "source": "/api/mcp",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-store" },
+        { "key": "Access-Control-Allow-Origin", "value": "*" }
+      ]
+    },
     {
       "source": "/index.html",
       "headers": [

@@ -40,24 +40,20 @@ npm run dev
 
 เปิด [http://localhost:5173](http://localhost:5173) ในเบราว์เซอร์
 
-## Grokbot — จุดเชื่อมเพิ่มภาพ / ข้อมูล
+## Grokbot / MCP — ให้ Bot สั่งงานในแอปได้
 
-ให้เอเจนต์ (grokbot) เพิ่มสินค้าและรูปผ่านโฟลเดอร์ inbox:
+หน้าเว็บอย่างเดียวไม่พอสำหรับ Grok Bot ต้องมี **MCP server บน Vercel**
+
+- คู่มือเชื่อมต่อ: [grokbot/MCP.md](grokbot/MCP.md)
+- URL: `https://rachawei.vercel.app/mcp`
+- ตั้ง `MCP_API_TOKEN` + `GITHUB_TOKEN` ใน Vercel แล้ว redeploy
+
+ทางเลือกในรีโป (ไม่ผ่าน Grok Connector): [grokbot/README.md](grokbot/README.md)
 
 ```bash
-# วางงานที่ grokbot/inbox/*.json และรูปที่ grokbot/inbox/images/
 npm run grokbot:apply
 npm run grokbot:validate
 ```
-
-คู่มือเต็ม: [grokbot/README.md](grokbot/README.md)
-
-ปลายทางข้อมูลหลัก:
-
-- `public/catalog/products.json`
-- `public/catalog/site.json`
-- `public/products/` (รูปสินค้า)
-- `public/images/shop/` (ฮีโร่ / เกี่ยวกับเรา)
 
 ## Build
 
@@ -70,3 +66,4 @@ npm run preview
 
 - React 19 + TypeScript
 - Vite 8
+- MCP server (`/api/mcp`) สำหรับ Grok Bot
