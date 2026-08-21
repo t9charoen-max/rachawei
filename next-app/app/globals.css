@@ -1,38 +1,267 @@
 @import "tailwindcss";
 
 :root {
-  --background: #fff7ed;
-  --foreground: #1c1917;
-  --brand-primary: #ea580c;
-  --brand-primary-dark: #c2410c;
-  --brand-surface: #fff7ed;
-  --brand-card: #ffffff;
-  --brand-muted: #78716c;
-  --brand-border: #fed7aa;
+  /* โทนจากภาพแบรนด์: น้ำเงินเข้ม + ทองเมทัลลิก + แสงอุ่น */
+  --background: #06101f;
+  --foreground: #f3ead7;
+  --navy: #0a1628;
+  --navy-deep: #040b16;
+  --navy-mid: #12233a;
+  --gold: #d4af37;
+  --gold-bright: #f0d78c;
+  --gold-deep: #a67c1a;
+  --gold-soft: #e8c978;
+  --amber-glow: #f59e0b;
+  --warm-light: #ffe4a3;
+
+  --brand-primary: #d4af37;
+  --brand-primary-dark: #a67c1a;
+  --brand-primary-light: #f0d78c;
+  --brand-secondary: #f59e0b;
+  --brand-secondary-dark: #d97706;
+  --brand-accent: #ffe4a3;
+  --brand-surface: #0a1628;
+  --brand-card: rgba(12, 24, 42, 0.9);
+  --brand-muted: #b8a88a;
+  --brand-border: rgba(212, 175, 55, 0.35);
+  --brand-gradient: linear-gradient(135deg, #0a1628 0%, #12233a 35%, #1a2f4a 70%, #3d2e12 100%);
+  --brand-gradient-soft:
+    radial-gradient(ellipse 100% 70% at 15% -5%, rgba(212, 175, 55, 0.22) 0%, transparent 50%),
+    radial-gradient(ellipse 80% 55% at 95% 5%, rgba(245, 158, 11, 0.18) 0%, transparent 45%),
+    radial-gradient(ellipse 70% 50% at 50% 110%, rgba(26, 47, 74, 0.9) 0%, transparent 55%),
+    linear-gradient(180deg, #06101f 0%, #0a1628 50%, #071018 100%);
+  --gold-gradient: linear-gradient(135deg, #8a6a14 0%, #d4af37 40%, #f0d78c 55%, #d4af37 75%, #a67c1a 100%);
+  --shadow-card: 0 10px 36px -10px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(212, 175, 55, 0.18),
+    0 0 40px -12px rgba(245, 158, 11, 0.25);
+  --shadow-card-hover: 0 18px 48px -12px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(240, 215, 140, 0.45),
+    0 0 48px -8px rgba(212, 175, 55, 0.4);
+  --shadow-glow: 0 0 48px rgba(240, 215, 140, 0.35);
+  --light-beam: linear-gradient(120deg, transparent 30%, rgba(240, 215, 140, 0.14) 50%, transparent 70%);
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-sarabun);
+  --font-display: var(--font-display);
 }
 
 body {
-  background: var(--background);
+  background: var(--brand-gradient-soft);
+  background-attachment: fixed;
   color: var(--foreground);
   font-family: var(--font-sarabun), "Sarabun", system-ui, sans-serif;
+  min-height: 100dvh;
 }
 
-/* Brand utility classes */
+.font-display {
+  font-family: var(--font-display), "Noto Serif Thai", "Sarabun", serif;
+}
+
 .bg-brand-primary {
   background-color: var(--brand-primary);
 }
+.bg-brand-gradient {
+  background: var(--brand-gradient);
+}
+.bg-gold-gradient {
+  background: var(--gold-gradient);
+}
 .text-brand-primary {
-  color: var(--brand-primary);
+  color: var(--brand-primary-light);
+}
+.text-gold {
+  color: var(--gold-bright);
 }
 .border-brand-primary {
   border-color: var(--brand-primary);
 }
 .ring-brand-primary {
   --tw-ring-color: var(--brand-primary);
+}
+
+@keyframes float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+@keyframes pulse-glow {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(212, 175, 55, 0.45);
+  }
+  50% {
+    box-shadow: 0 0 0 14px rgba(212, 175, 55, 0);
+  }
+}
+
+@keyframes light-sweep {
+  0% {
+    transform: translateX(-120%) skewX(-12deg);
+  }
+  100% {
+    transform: translateX(220%) skewX(-12deg);
+  }
+}
+
+@keyframes aurora {
+  0%,
+  100% {
+    opacity: 0.4;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    opacity: 0.75;
+    transform: translate3d(2%, -2%, 0) scale(1.06);
+  }
+}
+
+@keyframes window-glow {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 0.95;
+  }
+}
+
+.animate-float {
+  animation: float 4s ease-in-out infinite;
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 2.4s ease-in-out infinite;
+}
+
+.animate-aurora {
+  animation: aurora 10s ease-in-out infinite;
+}
+
+.animate-window-glow {
+  animation: window-glow 3.5s ease-in-out infinite;
+}
+
+.btn-shine {
+  position: relative;
+  overflow: hidden;
+}
+
+.btn-shine::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    105deg,
+    transparent 40%,
+    rgba(255, 255, 255, 0.35) 50%,
+    transparent 60%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 3.2s infinite;
+}
+
+.card-lift {
+  transition:
+    transform 0.28s ease,
+    box-shadow 0.28s ease,
+    border-color 0.28s ease;
+}
+
+.card-lift:hover {
+  transform: translateY(-5px);
+  box-shadow: var(--shadow-card-hover);
+}
+
+.pattern-dots {
+  background-image: radial-gradient(rgba(212, 175, 55, 0.14) 1px, transparent 1px);
+  background-size: 22px 22px;
+}
+
+.glass {
+  background: rgba(8, 18, 34, 0.78);
+  backdrop-filter: blur(16px);
+  border-color: rgba(212, 175, 55, 0.22);
+}
+
+.glass-panel {
+  background: linear-gradient(160deg, rgba(26, 47, 74, 0.55), rgba(8, 18, 34, 0.92));
+  backdrop-filter: blur(18px);
+  border: 1px solid rgba(212, 175, 55, 0.28);
+  box-shadow: var(--shadow-card);
+}
+
+.glass-window {
+  background: linear-gradient(165deg, rgba(255, 228, 163, 0.12), rgba(10, 22, 40, 0.88));
+  border: 1px solid rgba(240, 215, 140, 0.28);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 228, 163, 0.15),
+    0 0 28px -8px rgba(245, 158, 11, 0.35);
+}
+
+.gold-text {
+  background: var(--gold-gradient);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 2px 8px rgba(212, 175, 55, 0.35));
+}
+
+.gold-frame {
+  border: 1px solid rgba(212, 175, 55, 0.45);
+  box-shadow:
+    inset 0 0 0 1px rgba(240, 215, 140, 0.12),
+    0 0 24px -6px rgba(212, 175, 55, 0.35);
+}
+
+.light-orb {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(60px);
+  pointer-events: none;
+}
+
+.light-sweep {
+  position: relative;
+  overflow: hidden;
+}
+
+.light-sweep::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 40%;
+  height: 100%;
+  background: var(--light-beam);
+  animation: light-sweep 7s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.admin-shell {
+  background:
+    radial-gradient(ellipse 80% 50% at 0% 0%, rgba(212, 175, 55, 0.16), transparent 55%),
+    radial-gradient(ellipse 60% 40% at 100% 0%, rgba(245, 158, 11, 0.12), transparent 50%),
+    #06101f;
+  min-height: 100dvh;
+  color: var(--foreground);
+}
+
+.pylon-rail {
+  background: linear-gradient(180deg, rgba(212, 175, 55, 0.2), transparent 30%, transparent 70%, rgba(212, 175, 55, 0.12));
+  border-right: 1px solid rgba(212, 175, 55, 0.28);
 }

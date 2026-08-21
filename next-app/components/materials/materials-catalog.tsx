@@ -2,65 +2,156 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { BRAND } from '@/lib/materials/brand';
 import { assetUrl } from '@/lib/materials/asset-url';
-import { getLineDisplayId, getLineProfileUrl } from '@/lib/materials/line-quote';
+import { getAdminProducts, saveAdminQuote } from '@/lib/materials/admin-store';
+import { getLineDisplayId, getLineProfileUrl, openLineQuickOrder } from '@/lib/materials/line-quote';
+import { addLoyaltyPoints } from '@/lib/materials/loyalty';
 import { MATERIAL_CATEGORIES } from '@/lib/materials/demo-data';
+import { getCategoryStyle } from '@/lib/materials/theme';
 import type { MaterialProduct } from '@/types/material';
 import { QuoteModal } from '@/components/materials/quote-modal';
 import { useQuoteList } from '@/components/materials/use-quote-list';
+import { DeliveryBanner } from '@/components/materials/delivery-banner';
+import { ImageSearchPanel } from '@/components/materials/image-search-panel';
+import { LoyaltyBadge, notifyLoyaltyUpdate } from '@/components/materials/loyalty-badge';
+import { ProjectLists } from '@/components/materials/project-lists';
+import { StockIndicator } from '@/components/materials/stock-indicator';
 
 type Props = {
   products: MaterialProduct[];
   demo: boolean;
 };
 
+const CATEGORY_ICONS: Record<string, string> = {
+  ทั้งหมด: '🏗️',
+  'ปูนและคอนกรีต': '🧱',
+  'เหล็กโครงสร้าง': '🔩',
+  'ไม้แบบและไม้แปรรูป': '🪵',
+  'หลังคาและผนัง': '🏠',
+  'สีและเคมีภัณฑ์': '🎨',
+  'ระบบประปา': '🚿',
+  'ระบบไฟฟ้า': '⚡',
+  'เครื่องมือช่าง': '🔧',
+};
+
 export function MaterialsCatalog({ products, demo }: Props) {
+  const [catalogProducts, setCatalogProducts] = useState(products);
   const [selectedCategory, setSelectedCategory] = useState('ทั้งหมด');
   const [searchTerm, setSearchTerm] = useState('');
   const [modalProduct, setModalProduct] = useState<MaterialProduct | null>(null);
-  const { quoteList, addItem, submitAll, count, isSubmitting } = useQuoteList();
+  const [orderingId, setOrderingId] = useState<string | null>(null);
+  const [aiMatches, setAiMatches] = useState<MaterialProduct[] | null>(null);
+  const { quoteList, addItem, addMany, submitAll, count, isSubmitting } = useQuoteList();
+
+  useEffect(() => {
+    setCatalogProducts(getAdminProducts(products));
+  }, [products]);
 
   const filteredProducts = useMemo(() => {
-    return products.filter((product) => {
+    const base = catalogProducts.filter((product) => {
       const matchCategory =
         selectedCategory === 'ทั้งหมด' || product.category === selectedCategory;
       const q = searchTerm.toLowerCase();
       const matchSearch =
+        !q ||
         product.name.toLowerCase().includes(q) ||
         product.spec.toLowerCase().includes(q) ||
         product.category.toLowerCase().includes(q);
-      return matchCategory && matchSearch;
+      return matchCategory && matchSearch && product.is_active;
     });
-  }, [products, selectedCategory, searchTerm]);
+
+    if (aiMatches?.length) {
+      const ids = new Set(aiMatches.map((p) => p.id));
+      const matched = base.filter((p) => ids.has(p.id));
+      return matched.length ? matched : base;
+    }
+    return base;
+  }, [catalogProducts, selectedCategory, searchTerm, aiMatches]);
 
   const readyPercent = useMemo(() => {
-    if (!products.length) return 0;
-    const ready = products.filter((p) => p.stock_status === 'พร้อมส่ง').length;
-    return Math.round((ready / products.length) * 100);
-  }, [products]);
+    if (!catalogProducts.length) return 0;
+    const ready = catalogProducts.filter((p) => p.stock_status === 'พร้อมส่ง').length;
+    return Math.round((ready / catalogProducts.length) * 100);
+  }, [catalogProducts]);
+
+  const handleQuickOrder = async (product: MaterialProduct) => {
+    setOrderingId(product.id);
+    try {
+      try {
+        saveAdminQuote(
+          {
+            customer_name: '(รอติดต่อกลับ)',
+            phone: '-',
+            note: 'สั่งคลิกเดียวจากแคตตาล็อก — ส่งถึงหน้างาน',
+            items: [
+              {
+                product_id: product.id,
+                product_name: product.name,
+                quantity: 1,
+                unit: product.unit,
+                unit_price: product.price,
+              },
+            ],
+          },
+          'line',
+        );
+      } catch {
+        /* admin store optional */
+      }
+      await openLineQuickOrder(product);
+      addLoyaltyPoints(1, product.price);
+      notifyLoyaltyUpdate();
+    } finally {
+      setOrderingId(null);
+    }
+  };
 
   return (
-    <div className="min-h-screen bg-[var(--brand-surface)]">
-      <header className="sticky top-0 z-50 border-b border-orange-100 bg-white/95 backdrop-blur-md">
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3">
-          <Link href="/" className="flex min-w-0 items-center gap-3">
-            <Image src={BRAND.logoPath} alt="" width={44} height={44} className="shrink-0" />
+    <div className="relative min-h-screen overflow-x-hidden text-[var(--foreground)]">
+      <div className="pointer-events-none absolute inset-0 overflow-hidden">
+        <div className="light-orb animate-aurora -left-24 top-10 h-72 w-72 bg-amber-500/25" />
+        <div className="light-orb animate-aurora right-0 top-40 h-80 w-80 bg-amber-400/20 [animation-delay:2s]" />
+        <div className="light-orb bottom-20 left-1/3 h-64 w-64 bg-yellow-400/15" />
+        <div className="pattern-dots absolute inset-0 opacity-40" />
+      </div>
+
+      <header className="glass sticky top-0 z-50 border-b border-amber-500/25">
+        <div className="relative mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3">
+          <Link href="/" className="group flex min-w-0 items-center gap-3">
+            <div className="relative shrink-0">
+              <div className="absolute -inset-1 rounded-2xl bg-gold-gradient opacity-40 blur-sm transition group-hover:opacity-70" />
+              <Image
+                src={BRAND.logoPath}
+                alt=""
+                width={48}
+                height={48}
+                className="relative rounded-xl ring-1 ring-amber-400/40"
+              />
+            </div>
             <div className="min-w-0">
-              <h1 className="truncate text-lg font-bold text-[var(--brand-primary)] sm:text-xl">
+              <h1 className="font-display truncate text-lg font-bold gold-text sm:text-xl">
                 {BRAND.shopName}
               </h1>
-              <p className="truncate text-xs text-gray-500 sm:text-sm">{BRAND.location}</p>
+              <p className="truncate text-xs text-amber-100/50 sm:text-sm">{BRAND.location}</p>
             </div>
           </Link>
           <div className="flex shrink-0 items-center gap-2">
+            <Link
+              href="/admin/dashboard"
+              className="hidden text-xs text-amber-100/40 transition hover:text-amber-200 sm:inline"
+            >
+              หลังบ้าน
+            </Link>
+            <LoyaltyBadge />
             <a
               href={getLineProfileUrl()}
               target="_blank"
               rel="noreferrer"
-              className="hidden rounded-xl border border-orange-200 px-3 py-2 text-sm hover:bg-orange-50 sm:inline-block"
+              className="hidden items-center gap-1.5 rounded-xl border border-[#06c755]/50 bg-[#06c755]/15 px-3 py-2 text-sm font-medium text-[#06c755] transition hover:bg-[#06c755]/25 sm:inline-flex"
             >
+              <span className="text-base">💬</span>
               Line {getLineDisplayId()}
             </a>
             {count > 0 && (
@@ -68,7 +159,7 @@ export function MaterialsCatalog({ products, demo }: Props) {
                 type="button"
                 onClick={() => submitAll()}
                 disabled={isSubmitting}
-                className="rounded-xl bg-[var(--brand-primary)] px-3 py-2 text-sm font-medium text-white hover:bg-[var(--brand-primary-dark)] disabled:opacity-60"
+                className="btn-shine rounded-xl bg-gold-gradient px-3 py-2 text-sm font-semibold text-[#0a1628] shadow-md transition hover:opacity-90 disabled:opacity-60"
               >
                 ขอราคา ({count})
               </button>
@@ -77,166 +168,308 @@ export function MaterialsCatalog({ products, demo }: Props) {
         </div>
       </header>
 
-      <section className="bg-gradient-to-br from-[var(--brand-primary)] to-[var(--brand-primary-dark)] py-10 text-white sm:py-12">
-        <div className="mx-auto max-w-7xl px-4 text-center">
-          <p className="text-sm font-medium text-orange-100">{BRAND.tagline}</p>
-          <h2 className="mt-2 text-3xl font-bold sm:text-4xl">
-            วัสดุก่อสร้างคุณภาพ
+      <section className="light-sweep relative overflow-hidden py-14 sm:py-20">
+        <div className="absolute inset-0 bg-brand-gradient opacity-95" />
+        <div className="pattern-dots absolute inset-0 opacity-40" />
+        <div className="light-orb animate-aurora -right-10 -top-10 h-72 w-72 bg-amber-400/35" />
+        <div className="light-orb animate-window-glow bottom-0 left-1/4 h-40 w-56 bg-amber-300/30" />
+        <div className="light-orb -bottom-16 -left-8 h-48 w-48 bg-yellow-500/20" />
+
+        <div className="relative mx-auto max-w-7xl px-4 text-center">
+          <span className="glass-window inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-sm font-medium text-amber-100">
+            <span className="animate-pulse-glow inline-block h-2 w-2 rounded-full bg-amber-300" />
+            ราชาวัสดุ • สุรินทร์และใกล้เคียง
+          </span>
+          <h2 className="font-display mt-5 text-3xl leading-tight font-bold sm:text-5xl">
+            <span className="gold-text">{BRAND.shopName}</span>
             <br />
-            ส่งตรงถึงหน้างาน
+            <span className="mt-2 inline-block text-amber-50">วัสดุก่อสร้างคุณภาพ</span>
+            <br />
+            <span className="text-amber-200">ส่งตรงถึงหน้างาน</span>
           </h2>
-          <p className="mx-auto mt-3 max-w-2xl text-sm text-orange-50 sm:text-base">
-            สำหรับช่างและเจ้าของบ้านในสุรินทร์และใกล้เคียง • สต็อกพร้อม • ราคาโครงการ
+          <p className="mx-auto mt-4 max-w-2xl text-base text-amber-50/80 sm:text-lg">
+            {BRAND.tagline} — คลิกเดียวสั่งผ่าน Line ได้เลย
           </p>
+
+          <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
+            <a
+              href={getLineProfileUrl()}
+              target="_blank"
+              rel="noreferrer"
+              className="btn-shine inline-flex items-center gap-2 rounded-2xl bg-[#06c755] px-6 py-3.5 text-base font-bold text-white shadow-lg shadow-[#06c755]/25 transition hover:bg-[#05b34c] sm:px-8"
+            >
+              <span className="text-xl">💬</span>
+              แชทสั่งซื้อ Line
+            </a>
+            <button
+              type="button"
+              onClick={() => {
+                document.getElementById('products')?.scrollIntoView({ behavior: 'smooth' });
+              }}
+              className="gold-frame rounded-2xl bg-amber-500/10 px-6 py-3.5 text-base font-semibold text-amber-100 transition hover:bg-amber-500/20"
+            >
+              ดูสินค้าทั้งหมด ↓
+            </button>
+          </div>
+
           {demo ? (
-            <p className="mt-4 inline-block rounded-full bg-white/15 px-4 py-1 text-xs">
-              กดขอราคา → แชร์ไป Line {getLineDisplayId()}
+            <p className="glass-panel mt-5 inline-block rounded-full px-4 py-1.5 text-xs text-amber-50/90">
+              กด &quot;สั่งเลย&quot; → เปิด Line ส่งออเดอร์ทันที
             </p>
           ) : (
-            <p className="mt-4 inline-block rounded-full bg-white/15 px-4 py-1 text-xs">
-              เชื่อม Supabase แล้ว • ขอราคาบันทึกลงระบบ
+            <p className="glass-panel mt-5 inline-block rounded-full px-4 py-1.5 text-xs text-amber-50/90">
+              เชื่อม Supabase แล้ว • บันทึกออเดอร์อัตโนมัติ
             </p>
           )}
         </div>
       </section>
 
-      <div className="mx-auto -mt-5 max-w-7xl px-4">
-        <div className="grid grid-cols-2 gap-3 rounded-2xl border border-orange-100 bg-white p-4 text-center shadow-sm sm:grid-cols-4 sm:gap-4 sm:p-6">
-          <div>
-            <div className="text-2xl font-bold text-[var(--brand-primary)] sm:text-3xl">
-              {products.length}
+      <div className="relative mx-auto -mt-6 max-w-7xl px-4">
+        <div className="glass-panel grid grid-cols-2 gap-3 rounded-3xl p-4 sm:grid-cols-4 sm:gap-4 sm:p-6">
+          {[
+            { value: catalogProducts.length, label: 'รายการสินค้า', color: 'text-amber-200' },
+            {
+              value: MATERIAL_CATEGORIES.length - 1,
+              label: 'หมวดหมู่',
+              color: 'text-amber-200',
+            },
+            { value: `${readyPercent}%`, label: 'สต็อกพร้อมส่ง', color: 'text-emerald-400' },
+            { value: 'ฟรี', label: 'ปรึกษาราคาโครงการ', color: 'text-amber-200' },
+          ].map((stat) => (
+            <div key={stat.label} className="text-center">
+              <div className={`text-2xl font-bold sm:text-3xl ${stat.color}`}>{stat.value}</div>
+              <div className="mt-0.5 text-xs text-slate-400 sm:text-sm">{stat.label}</div>
             </div>
-            <div className="text-xs text-gray-500 sm:text-sm">รายการสินค้า</div>
-          </div>
-          <div>
-            <div className="text-2xl font-bold text-[var(--brand-primary)] sm:text-3xl">
-              {MATERIAL_CATEGORIES.length - 1}
-            </div>
-            <div className="text-xs text-gray-500 sm:text-sm">หมวดหมู่</div>
-          </div>
-          <div>
-            <div className="text-2xl font-bold text-green-600 sm:text-3xl">{readyPercent}%</div>
-            <div className="text-xs text-gray-500 sm:text-sm">สต็อกพร้อมส่ง</div>
-          </div>
-          <div>
-            <div className="text-2xl font-bold text-[var(--brand-primary)] sm:text-3xl">อัปเดต</div>
-            <div className="text-xs text-gray-500 sm:text-sm">12 ก.ค. 2569</div>
-          </div>
+          ))}
         </div>
       </div>
 
-      <div className="mx-auto mt-8 max-w-7xl px-4 pb-28">
-        <input
-          type="search"
-          placeholder="ค้นหาสินค้า เช่น ปูน, เหล็ก, เมทัลชีท..."
-          className="mb-4 w-full rounded-2xl border border-orange-100 bg-white px-4 py-3 shadow-sm focus:ring-2 focus:ring-[var(--brand-primary)] focus:outline-none"
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-        />
-
-        <div className="mb-6 flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          {MATERIAL_CATEGORIES.map((cat) => (
-            <button
-              key={cat}
-              type="button"
-              onClick={() => setSelectedCategory(cat)}
-              className={`shrink-0 rounded-full px-4 py-2 text-sm transition-all ${
-                selectedCategory === cat
-                  ? 'bg-[var(--brand-primary)] text-white shadow-sm'
-                  : 'border border-orange-100 bg-white text-gray-700 hover:bg-orange-50'
-              }`}
+      <div className="relative mx-auto max-w-7xl px-4 py-4">
+        <div className="flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {[
+            { icon: '🚚', label: 'ส่งถึงหน้างาน' },
+            { icon: '⚡', label: 'ขอราคาเร็ว' },
+            { icon: '📦', label: 'สต็อกชัดเจน' },
+            { icon: '📁', label: 'รายการโปรเจกต์' },
+            { icon: '✨', label: 'UI อ่านง่าย' },
+            { icon: '🎁', label: 'สะสมแต้ม' },
+            { icon: '🤖', label: 'ค้นหาด้วยภาพ' },
+          ].map((f) => (
+            <span
+              key={f.label}
+              className="glass-panel flex shrink-0 items-center gap-1.5 rounded-full px-3 py-2 text-xs font-medium text-slate-200"
             >
-              {cat}
-            </button>
+              {f.icon} {f.label}
+            </span>
           ))}
         </div>
+      </div>
 
-        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {filteredProducts.map((product) => (
-            <article
-              key={product.id}
-              className="overflow-hidden rounded-2xl border border-orange-100 bg-white shadow-sm transition hover:shadow-md"
-            >
-              <Link href={`/products/${product.id}`} className="block">
-                <div className="relative aspect-[4/3] bg-orange-50">
-                  <Image
-                    src={assetUrl(product.image_url)}
-                    alt={product.name}
-                    fill
-                    className="object-cover"
-                    sizes="(max-width: 640px) 100vw, 25vw"
-                  />
-                </div>
-              </Link>
-              <div className="p-4">
-                <div className="mb-2 flex items-start justify-between gap-2">
-                  <div className="min-w-0">
-                    <Link href={`/products/${product.id}`}>
-                      <h3 className="font-semibold leading-snug text-gray-900 hover:text-[var(--brand-primary)]">
-                        {product.name}
-                      </h3>
-                    </Link>
-                    <p className="mt-0.5 text-sm text-gray-500">{product.spec}</p>
+      <DeliveryBanner />
+
+      <div id="products" className="relative mx-auto mt-6 max-w-7xl px-4 pb-32">
+        <ImageSearchPanel
+          products={catalogProducts}
+          onResults={setAiMatches}
+          onClear={() => setAiMatches(null)}
+        />
+
+        <div className="relative mb-6">
+          <span className="pointer-events-none absolute top-1/2 left-4 -translate-y-1/2 text-lg text-slate-500">
+            🔍
+          </span>
+          <input
+            type="search"
+            placeholder="ค้นหาสินค้า เช่น ปูน, เหล็ก, เมทัลชีท..."
+            className="glass-panel w-full rounded-2xl py-3.5 pr-4 pl-11 text-base text-slate-100 placeholder:text-slate-500 transition focus:border-amber-400/50 focus:ring-4 focus:ring-amber-500/25 focus:outline-none"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </div>
+
+        <div className="mb-8 flex gap-2 overflow-x-auto pb-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {MATERIAL_CATEGORIES.map((cat) => {
+            const active = selectedCategory === cat;
+            return (
+              <button
+                key={cat}
+                type="button"
+                onClick={() => setSelectedCategory(cat)}
+                className={`flex shrink-0 items-center gap-1.5 rounded-full px-4 py-2.5 text-sm font-medium transition-all ${
+                  active
+                    ? 'bg-brand-gradient text-white shadow-[0_0_24px_rgba(59,130,246,0.45)]'
+                    : 'glass-panel text-slate-300 hover:border-amber-400/40 hover:text-amber-100'
+                }`}
+              >
+                <span>{CATEGORY_ICONS[cat] ?? '📦'}</span>
+                {cat}
+              </button>
+            );
+          })}
+        </div>
+
+        <ProjectLists
+          products={catalogProducts}
+          quoteItems={quoteList.map(({ product_id, quantity }) => ({ product_id, quantity }))}
+          onAddItems={addMany}
+        />
+
+        <h2 className="mb-4 text-lg font-bold text-amber-50">สินค้าทั้งหมด</h2>
+
+        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {filteredProducts.map((product) => {
+            const catStyle = getCategoryStyle(product.category);
+            const isOrdering = orderingId === product.id;
+
+            return (
+              <article
+                key={product.id}
+                className="card-lift glass-panel group overflow-hidden rounded-3xl"
+              >
+                <Link href={`/products/${product.id}`} className="relative block">
+                  <div className="relative aspect-[4/3] overflow-hidden bg-gradient-to-br from-[#06101f] to-[#12233a]">
+                    <Image
+                      src={assetUrl(product.image_url)}
+                      alt={product.name}
+                      fill
+                      className="object-cover transition duration-500 group-hover:scale-105"
+                      sizes="(max-width: 640px) 100vw, 25vw"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-[#07111f]/80 via-transparent to-transparent" />
+                    <div className="absolute top-3 left-3">
+                      <span
+                        className={`rounded-full px-2.5 py-1 text-xs font-medium shadow-sm backdrop-blur-sm ${catStyle.bg} ${catStyle.text}`}
+                      >
+                        {product.category}
+                      </span>
+                    </div>
+                    <div className="absolute top-3 right-3">
+                      <span
+                        className={`rounded-full px-2.5 py-1 text-xs font-semibold shadow-sm ${
+                          product.stock_status === 'พร้อมส่ง'
+                            ? 'bg-emerald-500/90 text-white'
+                            : 'bg-amber-400/90 text-amber-950'
+                        }`}
+                      >
+                        {product.stock_status}
+                      </span>
+                    </div>
                   </div>
-                  <span
-                    className={`shrink-0 rounded-full px-2 py-0.5 text-xs ${
-                      product.stock_status === 'พร้อมส่ง'
-                        ? 'bg-green-100 text-green-700'
-                        : 'bg-amber-100 text-amber-800'
-                    }`}
-                  >
-                    {product.stock_status}
-                  </span>
-                </div>
-                <div className="flex items-baseline gap-1">
-                  <span className="text-2xl font-bold text-[var(--brand-primary)]">
-                    ฿{product.price.toLocaleString('th-TH')}
-                  </span>
-                  <span className="text-sm text-gray-500">/ {product.unit}</span>
-                </div>
-                <p className="mt-1 text-xs text-gray-500">
-                  คงเหลือ {product.stock.toLocaleString('th-TH')} {product.unit}
-                </p>
-                <div className="mt-3 grid grid-cols-2 gap-2">
+                </Link>
+
+                <div className="p-4">
+                  <Link href={`/products/${product.id}`}>
+                    <h3 className="font-bold leading-snug text-slate-100 transition group-hover:text-amber-200">
+                      {product.name}
+                    </h3>
+                  </Link>
+                  <p className="mt-1 text-sm text-slate-400">{product.spec}</p>
+
+                  <div className="mt-3">
+                    <StockIndicator product={product} compact />
+                  </div>
+
+                  <div className="mt-3 flex items-end justify-between">
+                    <div>
+                      <span className="text-2xl font-extrabold text-amber-200">
+                        ฿{product.price.toLocaleString('th-TH')}
+                      </span>
+                      <span className="ml-1 text-sm text-slate-500">/ {product.unit}</span>
+                    </div>
+                  </div>
+
+                  <p className="mt-2 text-xs font-medium text-amber-300">🚚 ส่งถึงหน้างาน</p>
+
+                  <div className="mt-3 grid grid-cols-[1fr_auto] gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handleQuickOrder(product)}
+                      disabled={isOrdering}
+                      className="btn-shine flex items-center justify-center gap-2 rounded-2xl bg-[#06c755] py-3 text-sm font-bold text-white shadow-md shadow-[#06c755]/20 transition hover:bg-[#05b34c] disabled:opacity-70"
+                    >
+                      {isOrdering ? (
+                        'กำลังเปิด Line...'
+                      ) : (
+                        <>
+                          <span>💬</span>
+                          สั่งเลย
+                        </>
+                      )}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setModalProduct(product)}
+                      className="glass-panel rounded-2xl px-3 py-3 text-sm font-medium text-amber-200 transition hover:border-amber-400/50"
+                      title="ขอใบเสนอราคา"
+                    >
+                      📋
+                    </button>
+                  </div>
                   <Link
                     href={`/products/${product.id}`}
-                    className="rounded-xl border border-orange-200 py-2.5 text-center text-sm font-medium text-[var(--brand-primary)] hover:bg-orange-50"
+                    className="mt-2 block text-center text-xs font-medium text-slate-500 transition hover:text-amber-200"
                   >
-                    รายละเอียด
+                    ดูรายละเอียด →
                   </Link>
-                  <button
-                    type="button"
-                    onClick={() => setModalProduct(product)}
-                    className="rounded-xl bg-[var(--brand-primary)] py-2.5 text-sm font-medium text-white hover:bg-[var(--brand-primary-dark)]"
-                  >
-                    ขอราคา
-                  </button>
                 </div>
-              </div>
-            </article>
-          ))}
+              </article>
+            );
+          })}
         </div>
 
         {filteredProducts.length === 0 && (
-          <p className="py-16 text-center text-gray-500">ไม่พบสินค้าที่ตรงกับการค้นหา</p>
+          <div className="py-20 text-center">
+            <div className="text-5xl">🔍</div>
+            <p className="mt-4 text-lg text-slate-400">ไม่พบสินค้าที่ตรงกับการค้นหา</p>
+          </div>
         )}
       </div>
 
-      {count > 0 && (
-        <div className="fixed right-4 bottom-4 z-50 sm:right-6 sm:bottom-6">
+      <div className="glass fixed right-0 bottom-0 left-0 z-50 border-t border-amber-500/30 p-3 sm:right-6 sm:bottom-6 sm:left-auto sm:max-w-sm sm:rounded-2xl sm:border sm:shadow-2xl sm:shadow-amber-900/40">
+        {count > 0 ? (
           <button
             type="button"
             onClick={() => submitAll()}
             disabled={isSubmitting}
-            className="rounded-2xl bg-[var(--brand-primary)] px-5 py-3 text-sm font-semibold text-white shadow-xl hover:bg-[var(--brand-primary-dark)] disabled:opacity-60 sm:px-6 sm:text-base"
+            className="btn-shine w-full rounded-2xl bg-brand-gradient py-3.5 text-base font-bold text-white shadow-lg disabled:opacity-60"
           >
-            {isSubmitting ? 'กำลังเปิด Line...' : `ส่งไป Line ${count} รายการ →`}
+            {isSubmitting ? 'กำลังเปิด Line...' : `ส่งใบเสนอราคา ${count} รายการ →`}
           </button>
-        </div>
-      )}
+        ) : (
+          <a
+            href={getLineProfileUrl()}
+            target="_blank"
+            rel="noreferrer"
+            className="btn-shine flex w-full items-center justify-center gap-2 rounded-2xl bg-[#06c755] py-3.5 text-base font-bold text-white shadow-lg transition hover:bg-[#05b34c]"
+          >
+            <span className="text-xl">💬</span>
+            สั่งซื้อผ่าน Line {getLineDisplayId()}
+          </a>
+        )}
+      </div>
 
-      <footer className="border-t border-orange-100 bg-white py-8 text-center text-sm text-gray-500">
-        {BRAND.shopName} • {BRAND.tagline}
+      <footer className="relative border-t border-amber-500/25 py-10 text-center">
+        <div className="mx-auto max-w-7xl px-4">
+          <p className="text-lg font-bold text-amber-200">{BRAND.shopName}</p>
+          <p className="mt-1 text-sm text-slate-400">{BRAND.tagline}</p>
+          <p className="mt-2 text-xs text-slate-500">{BRAND.location}</p>
+          <div className="mt-4 flex flex-wrap items-center justify-center gap-3">
+            <a
+              href={getLineProfileUrl()}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-2 rounded-full border border-[#06c755]/40 bg-[#06c755]/10 px-4 py-2 text-sm font-medium text-[#06c755] transition hover:bg-[#06c755]/20"
+            >
+              💬 แชท Line {getLineDisplayId()}
+            </a>
+            <Link
+              href="/admin/dashboard"
+              className="text-xs text-slate-500 transition hover:text-amber-200"
+            >
+              หลังบ้าน
+            </Link>
+          </div>
+        </div>
       </footer>
 
       <QuoteModal

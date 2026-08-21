@@ -82,93 +82,119 @@ export function QuoteModal({ product, open, onClose, onSubmit }: QuoteModalProps
     });
   };
 
-  return (
-    <div className="fixed inset-0 z-[100] flex items-end justify-center bg-black/50 p-4 sm:items-center">
-      <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-3xl bg-white p-6 shadow-xl">
-        <h3 className="text-xl font-semibold">ขอใบเสนอราคา</h3>
-        <p className="mt-1 font-medium text-[var(--brand-primary)]">{product.name}</p>
-        {lineDirect ? (
-          <p className="mt-2 text-sm text-gray-500">
-            กดส่ง → เปิด Line แชร์ → เลือกส่งให้ {getLineDisplayId()} (ข้อความคัดลอกไว้แล้ว)
-          </p>
-        ) : null}
+  const fieldClass =
+    'w-full rounded-xl border border-amber-500/30 bg-slate-950/50 px-4 py-3 text-slate-100 placeholder:text-slate-500 transition focus:border-amber-400/60 focus:outline-none focus:ring-2 focus:ring-amber-500/20';
 
-        <div className="mt-4 space-y-3">
-          <input
-            type="text"
-            placeholder="ชื่อ-นามสกุล *"
-            className="w-full rounded-xl border border-orange-100 px-4 py-3"
-            value={form.name}
-            onChange={(e) => setForm({ ...form, name: e.target.value })}
-          />
-          <input
-            type="tel"
-            placeholder="เบอร์โทรศัพท์ *"
-            className="w-full rounded-xl border border-orange-100 px-4 py-3"
-            value={form.phone}
-            onChange={(e) => setForm({ ...form, phone: e.target.value })}
-          />
-          <div className="flex gap-3">
-            <input
-              type="number"
-              min={1}
-              placeholder="จำนวน"
-              className="flex-1 rounded-xl border border-orange-100 px-4 py-3"
-              value={form.quantity}
-              onChange={(e) =>
-                setForm({ ...form, quantity: Math.max(1, parseInt(e.target.value, 10) || 1) })
-              }
-            />
-            <div className="flex items-center rounded-xl border border-orange-100 px-4 text-gray-500">
-              {product.unit}
-            </div>
+  return (
+    <div
+      className="fixed inset-0 z-[100] flex items-end justify-center bg-[#07111f]/75 p-4 backdrop-blur-md sm:items-center"
+      onClick={onClose}
+    >
+      <div
+        className="glass-panel light-sweep max-h-[90vh] w-full max-w-md overflow-y-auto rounded-3xl shadow-2xl shadow-black/60"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="relative overflow-hidden bg-brand-gradient px-6 py-5 text-white">
+          <div className="light-orb -right-8 -top-8 h-28 w-28 bg-amber-300/40" />
+          <div className="pattern-dots absolute inset-0 opacity-40" />
+          <div className="relative">
+            <h3 className="text-xl font-bold">📋 ขอใบเสนอราคา</h3>
+            <p className="mt-1 font-medium text-amber-50">{product.name}</p>
+            <p className="mt-2 text-2xl font-extrabold">
+              ฿{product.price.toLocaleString('th-TH')}
+              <span className="text-base font-normal text-amber-50"> / {product.unit}</span>
+            </p>
           </div>
-          <input
-            type="text"
-            placeholder="ที่อยู่หน้างาน"
-            className="w-full rounded-xl border border-orange-100 px-4 py-3"
-            value={form.address}
-            onChange={(e) => setForm({ ...form, address: e.target.value })}
-          />
-          <textarea
-            placeholder="หมายเหตุเพิ่มเติม"
-            className="h-20 w-full rounded-xl border border-orange-100 px-4 py-3"
-            value={form.note}
-            onChange={(e) => setForm({ ...form, note: e.target.value })}
-          />
         </div>
 
-        <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-          <button type="button" onClick={onClose} className="flex-1 rounded-xl border py-3">
-            ยกเลิก
-          </button>
+        <div className="p-6">
           {lineDirect ? (
-            <>
+            <p className="mb-4 rounded-xl border border-[#06c755]/30 bg-[#06c755]/10 px-4 py-3 text-sm text-[#06c755]">
+              💡 ต้องการสั่งเร็ว? ปิดหน้านี้แล้วกด &quot;สั่งเลย&quot; ได้เลย
+            </p>
+          ) : null}
+
+          <div className="space-y-3">
+            <input
+              type="text"
+              placeholder="ชื่อ-นามสกุล *"
+              className={fieldClass}
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+            />
+            <input
+              type="tel"
+              placeholder="เบอร์โทรศัพท์ *"
+              className={fieldClass}
+              value={form.phone}
+              onChange={(e) => setForm({ ...form, phone: e.target.value })}
+            />
+            <div className="flex gap-3">
+              <input
+                type="number"
+                min={1}
+                placeholder="จำนวน"
+                className={`flex-1 ${fieldClass}`}
+                value={form.quantity}
+                onChange={(e) =>
+                  setForm({ ...form, quantity: Math.max(1, parseInt(e.target.value, 10) || 1) })
+                }
+              />
+              <div className="flex items-center rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 font-medium text-slate-300">
+                {product.unit}
+              </div>
+            </div>
+            <input
+              type="text"
+              placeholder="ที่อยู่หน้างาน"
+              className={fieldClass}
+              value={form.address}
+              onChange={(e) => setForm({ ...form, address: e.target.value })}
+            />
+            <textarea
+              placeholder="หมายเหตุเพิ่มเติม"
+              className={`h-20 ${fieldClass}`}
+              value={form.note}
+              onChange={(e) => setForm({ ...form, note: e.target.value })}
+            />
+          </div>
+
+          <div className="mt-6 flex flex-col gap-3">
+            {lineDirect ? (
+              <>
+                <button
+                  type="button"
+                  onClick={sendToLine}
+                  disabled={sending}
+                  className="btn-shine rounded-2xl bg-[#06c755] py-3.5 font-bold text-white disabled:opacity-60"
+                >
+                  {sending ? 'กำลังเปิด Line...' : `💬 ส่งไป Line ${getLineDisplayId()}`}
+                </button>
+                <button
+                  type="button"
+                  onClick={addToList}
+                  className="rounded-2xl border border-amber-500/35 py-3 text-sm font-semibold text-amber-200 transition hover:bg-amber-500/10"
+                >
+                  + เพิ่มรายการอื่นก่อนส่ง
+                </button>
+              </>
+            ) : (
               <button
                 type="button"
                 onClick={addToList}
-                className="flex-1 rounded-xl border border-orange-200 py-3 text-sm font-medium text-[var(--brand-primary)]"
+                className="btn-shine rounded-2xl bg-brand-gradient py-3.5 font-bold text-white"
               >
-                + เพิ่มรายการอื่น
+                เพิ่มลงรายการ
               </button>
-              <button
-                type="button"
-                onClick={sendToLine}
-                disabled={sending}
-                className="flex-1 rounded-xl bg-[var(--brand-primary)] py-3 font-medium text-white disabled:opacity-60"
-              >
-                {sending ? 'กำลังเปิด Line...' : 'ส่งไป Line เลย'}
-              </button>
-            </>
-          ) : (
+            )}
             <button
               type="button"
-              onClick={addToList}
-              className="flex-1 rounded-xl bg-[var(--brand-primary)] py-3 font-medium text-white"
+              onClick={onClose}
+              className="rounded-2xl py-3 text-sm text-slate-500 transition hover:text-slate-300"
             >
-              เพิ่มลงรายการ
+              ยกเลิก
             </button>
-          )}
+          </div>
         </div>
       </div>
     </div>

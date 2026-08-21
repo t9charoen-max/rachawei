@@ -1,5 +1,5 @@
 import { BRAND } from '@/lib/materials/brand';
-import type { QuoteRequestPayload } from '@/types/material';
+import type { MaterialProduct, QuoteRequestPayload } from '@/types/material';
 
 export function formatQuoteText(payload: QuoteRequestPayload) {
   const lines = payload.items.map(
@@ -82,6 +82,45 @@ export async function openLineWithQuote(payload: QuoteRequestPayload) {
 
 export function getLineProfileUrl() {
   return BRAND.lineType === 'personal' ? linePersonalProfileUrl() : lineOaProfileUrl();
+}
+
+export function formatQuickOrderText(product: MaterialProduct, quantity = 1) {
+  const total = product.price * quantity;
+  return [
+    `🛒 สั่งซื้อ — ${BRAND.shopName}`,
+    `สินค้า: ${product.name}`,
+    product.spec ? `รายละเอียด: ${product.spec}` : null,
+    `จำนวน: ${quantity} ${product.unit}`,
+    `ราคา: ฿${product.price.toLocaleString('th-TH')}/${product.unit}`,
+    `รวมประมาณ: ฿${total.toLocaleString('th-TH')}`,
+    '',
+    '🚚 ส่งถึงหน้างาน — สุรินทร์และใกล้เคียง',
+    'โปรดติดต่อกลับเพื่อยืนยันออเดอร์และจัดส่ง ขอบคุณครับ 🙏',
+  ]
+    .filter(Boolean)
+    .join('\n');
+}
+
+/**
+ * สั่งซื้อคลิกเดียว — เปิด Line พร้อมข้อความสินค้า (ไม่ต้องกรอกฟอร์ม)
+ */
+export async function openLineQuickOrder(product: MaterialProduct, quantity = 1) {
+  const text = formatQuickOrderText(product, quantity);
+
+  if (BRAND.lineType === 'personal') {
+    await copyQuoteText(text);
+    window.location.assign(lineShareUrl(text));
+    return { opened: true, copied: true, mode: 'share' as const };
+  }
+
+  let url = lineOaMessageUrl(text);
+  if (url.length > 1900) {
+    await copyQuoteText(text);
+    url = lineOaMessageUrl('(วางข้อความจากคลิปบอร์ด)');
+  }
+
+  window.location.assign(url);
+  return { opened: true, mode: 'oa' as const };
 }
 
 export function getLineDisplayId() {

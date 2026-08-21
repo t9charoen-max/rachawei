@@ -2,6 +2,8 @@
 
 import { useCallback, useState } from 'react';
 import { submitQuoteRequest } from '@/lib/materials/submit-quote';
+import { addLoyaltyPoints } from '@/lib/materials/loyalty';
+import { notifyLoyaltyUpdate } from '@/components/materials/loyalty-badge';
 import type { MaterialProduct, QuoteItemInput, QuoteRequestPayload } from '@/types/material';
 
 export type PendingQuoteItem = QuoteItemInput & {
@@ -49,25 +51,18 @@ export function useQuoteList() {
 
   const submitAll = useCallback(
     async (overrideCustomer?: typeof customer) => {
-      const info = overrideCustomer ?? customer;
-      if (!info.name.trim() || !info.phone.trim()) {
-        const name = window.prompt('ชื่อ-นามสกุล');
-        const phone = window.prompt('เบอร์โทรศัพท์');
-        if (!name?.trim() || !phone?.trim()) return;
-        info.name = name;
-        info.phone = phone;
-        setCustomer((c) => ({ ...c, name, phone }));
-      }
-
       if (!quoteList.length) return;
+
+      const info = overrideCustomer ?? customer;
+      const hasContact = Boolean(info.name.trim() && info.phone.trim());
 
       setIsSubmitting(true);
 
       const payload: QuoteRequestPayload = {
-        customer_name: info.name.trim(),
-        phone: info.phone.trim(),
+        customer_name: hasContact ? info.name.trim() : '(รอติดต่อกลับ)',
+        phone: hasContact ? info.phone.trim() : '-',
         address: info.address?.trim(),
-        note: info.note?.trim(),
+        note: info.note?.trim() || 'ส่งถึงหน้างาน',
         items: quoteList.map(({ product: _p, ...item }) => item),
       };
 
@@ -77,6 +72,12 @@ export function useQuoteList() {
           alert(result.message);
         }
         if (result.ok) {
+          const total = quoteList.reduce(
+            (sum, item) => sum + item.quantity * item.unit_price,
+            0,
+          );
+          addLoyaltyPoints(quoteList.length, total);
+          notifyLoyaltyUpdate();
           setQuoteList([]);
           sessionStorage.removeItem(STORAGE_KEY);
         }
@@ -89,9 +90,44 @@ export function useQuoteList() {
     [customer, quoteList],
   );
 
+  const loadItems = useCallback(
+    (items: { product: MaterialProduct; quantity: number }[]) => {
+      setQuoteList(
+        items.map(({ product, quantity }) => ({
+          product_id: product.id,
+          product_name: product.name,
+          quantity,
+          unit: product.unit,
+          unit_price: product.price,
+          product,
+        })),
+      );
+    },
+    [],
+  );
+
+  const addMany = useCallback(
+    (items: { product: MaterialProduct; quantity: number }[]) => {
+      setQuoteList((prev) => [
+        ...prev,
+        ...items.map(({ product, quantity }) => ({
+          product_id: product.id,
+          product_name: product.name,
+          quantity,
+          unit: product.unit,
+          unit_price: product.price,
+          product,
+        })),
+      ]);
+    },
+    [],
+  );
+
   return {
     quoteList,
     addItem,
+    addMany,
+    loadItems,
     submitAll,
     count: quoteList.length,
     isSubmitting,
