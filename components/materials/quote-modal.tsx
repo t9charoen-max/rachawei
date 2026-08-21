@@ -1,0 +1,202 @@
+'use client';
+
+import { useState } from 'react';
+import { isPublicSupabaseReady } from '@/lib/materials/env';
+import { getLineDisplayId } from '@/lib/materials/line-quote';
+import { submitQuoteRequest } from '@/lib/materials/submit-quote';
+import type { MaterialProduct } from '@/types/material';
+
+type QuoteModalProps = {
+  product: MaterialProduct | null;
+  open: boolean;
+  onClose: () => void;
+  onSubmit: (item: {
+    product: MaterialProduct;
+    quantity: number;
+    note?: string;
+    customer: { name: string; phone: string; address?: string; note?: string };
+  }) => void;
+};
+
+export function QuoteModal({ product, open, onClose, onSubmit }: QuoteModalProps) {
+  const [form, setForm] = useState({
+    name: '',
+    phone: '',
+    quantity: 1,
+    address: '',
+    note: '',
+  });
+  const [sending, setSending] = useState(false);
+  const lineDirect = !isPublicSupabaseReady();
+
+  if (!open || !product) return null;
+
+  const customer = {
+    name: form.name.trim(),
+    phone: form.phone.trim(),
+    address: form.address.trim(),
+    note: form.note.trim(),
+  };
+
+  const validate = () => {
+    if (!customer.name || !customer.phone) {
+      alert('กรุณากรอกชื่อและเบอร์โทร');
+      return false;
+    }
+    return true;
+  };
+
+  const sendToLine = async () => {
+    if (!validate()) return;
+    setSending(true);
+    try {
+      await submitQuoteRequest({
+        customer_name: customer.name,
+        phone: customer.phone,
+        address: customer.address || undefined,
+        note: customer.note || undefined,
+        items: [
+          {
+            product_id: product.id,
+            product_name: product.name,
+            quantity: form.quantity,
+            unit: product.unit,
+            unit_price: product.price,
+            note: form.note || undefined,
+          },
+        ],
+      });
+      onClose();
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const addToList = () => {
+    if (!validate()) return;
+    onSubmit({
+      product,
+      quantity: form.quantity,
+      note: form.note,
+      customer,
+    });
+  };
+
+  const fieldClass =
+    'w-full rounded-xl border border-amber-500/30 bg-slate-950/50 px-4 py-3 text-slate-100 placeholder:text-slate-500 transition focus:border-amber-400/60 focus:outline-none focus:ring-2 focus:ring-amber-500/20';
+
+  return (
+    <div
+      className="fixed inset-0 z-[100] flex items-end justify-center bg-[#07111f]/75 p-4 backdrop-blur-md sm:items-center"
+      onClick={onClose}
+    >
+      <div
+        className="glass-panel light-sweep max-h-[90vh] w-full max-w-md overflow-y-auto rounded-3xl shadow-2xl shadow-black/60"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="relative overflow-hidden bg-brand-gradient px-6 py-5 text-white">
+          <div className="light-orb -right-8 -top-8 h-28 w-28 bg-amber-300/40" />
+          <div className="pattern-dots absolute inset-0 opacity-40" />
+          <div className="relative">
+            <h3 className="text-xl font-bold">📋 ขอใบเสนอราคา</h3>
+            <p className="mt-1 font-medium text-amber-50">{product.name}</p>
+            <p className="mt-2 text-2xl font-extrabold">
+              ฿{product.price.toLocaleString('th-TH')}
+              <span className="text-base font-normal text-amber-50"> / {product.unit}</span>
+            </p>
+          </div>
+        </div>
+
+        <div className="p-6">
+          {lineDirect ? (
+            <p className="mb-4 rounded-xl border border-[#06c755]/30 bg-[#06c755]/10 px-4 py-3 text-sm text-[#06c755]">
+              💡 ต้องการสั่งเร็ว? ปิดหน้านี้แล้วกด &quot;สั่งเลย&quot; ได้เลย
+            </p>
+          ) : null}
+
+          <div className="space-y-3">
+            <input
+              type="text"
+              placeholder="ชื่อ-นามสกุล *"
+              className={fieldClass}
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+            />
+            <input
+              type="tel"
+              placeholder="เบอร์โทรศัพท์ *"
+              className={fieldClass}
+              value={form.phone}
+              onChange={(e) => setForm({ ...form, phone: e.target.value })}
+            />
+            <div className="flex gap-3">
+              <input
+                type="number"
+                min={1}
+                placeholder="จำนวน"
+                className={`flex-1 ${fieldClass}`}
+                value={form.quantity}
+                onChange={(e) =>
+                  setForm({ ...form, quantity: Math.max(1, parseInt(e.target.value, 10) || 1) })
+                }
+              />
+              <div className="flex items-center rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 font-medium text-slate-300">
+                {product.unit}
+              </div>
+            </div>
+            <input
+              type="text"
+              placeholder="ที่อยู่หน้างาน"
+              className={fieldClass}
+              value={form.address}
+              onChange={(e) => setForm({ ...form, address: e.target.value })}
+            />
+            <textarea
+              placeholder="หมายเหตุเพิ่มเติม"
+              className={`h-20 ${fieldClass}`}
+              value={form.note}
+              onChange={(e) => setForm({ ...form, note: e.target.value })}
+            />
+          </div>
+
+          <div className="mt-6 flex flex-col gap-3">
+            {lineDirect ? (
+              <>
+                <button
+                  type="button"
+                  onClick={sendToLine}
+                  disabled={sending}
+                  className="btn-shine rounded-2xl bg-[#06c755] py-3.5 font-bold text-white disabled:opacity-60"
+                >
+                  {sending ? 'กำลังเปิด Line...' : `💬 ส่งไป Line ${getLineDisplayId()}`}
+                </button>
+                <button
+                  type="button"
+                  onClick={addToList}
+                  className="rounded-2xl border border-amber-500/35 py-3 text-sm font-semibold text-amber-200 transition hover:bg-amber-500/10"
+                >
+                  + เพิ่มรายการอื่นก่อนส่ง
+                </button>
+              </>
+            ) : (
+              <button
+                type="button"
+                onClick={addToList}
+                className="btn-shine rounded-2xl bg-brand-gradient py-3.5 font-bold text-white"
+              >
+                เพิ่มลงรายการ
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-2xl py-3 text-sm text-slate-500 transition hover:text-slate-300"
+            >
+              ยกเลิก
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
