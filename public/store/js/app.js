@@ -188,9 +188,8 @@
       }, 0);
     }
 
-    // ========== RENDER PRODUCTS (horizontal slides) ==========
+    // ========== RENDER PRODUCTS ==========
     const grid = document.getElementById('productGrid');
-    const productDots = document.getElementById('productDots');
     const filterBtns = document.querySelectorAll('.filter-btn');
     let productSlideObserver = null;
 
@@ -206,38 +205,8 @@
       return imgs[0] || null;
     }
 
-    function syncProductDots(activeIndex) {
-      if (!productDots) return;
-      productDots.querySelectorAll('.product-slider__dot').forEach((dot, i) => {
-        dot.classList.toggle('is-active', i === activeIndex);
-      });
-    }
-
-    function bindProductSlideDots(count) {
-      if (!productDots || !grid) return;
-      productDots.innerHTML = Array.from({ length: count }, (_, i) =>
-        `<button type="button" class="product-slider__dot${i === 0 ? ' is-active' : ''}" aria-label="สินค้าชิ้นที่ ${i + 1}" data-index="${i}"></button>`
-      ).join('');
-
-      productDots.querySelectorAll('.product-slider__dot').forEach((dot) => {
-        dot.addEventListener('click', () => {
-          const idx = Number(dot.dataset.index || 0);
-          const card = grid.children[idx];
-          if (card) card.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
-        });
-      });
-
-      if (productSlideObserver) productSlideObserver.disconnect();
-      if (!('IntersectionObserver' in window)) return;
-      productSlideObserver = new IntersectionObserver((entries) => {
-        entries.forEach((entry) => {
-          if (!entry.isIntersecting) return;
-          const idx = Array.from(grid.children).indexOf(entry.target);
-          if (idx >= 0) syncProductDots(idx);
-        });
-      }, { root: grid, threshold: 0.6 });
-      Array.from(grid.children).forEach((card) => productSlideObserver.observe(card));
-    }
+    function syncProductDots() {}
+    function bindProductSlideDots() {}
 
     let catalogFilter = 'all';
     let catalogQuery = '';
@@ -315,9 +284,6 @@
       document.querySelectorAll('.shop-quick__item').forEach((b) => {
         b.classList.toggle('is-active', b.dataset.filter === catalogFilter);
       });
-      document.querySelectorAll('.filter-btn').forEach((b) => {
-        b.classList.toggle('active', b.dataset.filter === catalogFilter);
-      });
       renderProducts(catalogFilter);
       if (scrollToProducts) {
         const el = document.getElementById('products');
@@ -330,8 +296,7 @@
       const filtered = products.filter((p) => matchesCatalog(p, catalogFilter, catalogQuery));
 
       if (!filtered.length) {
-        grid.innerHTML = `<div class="product-card" style="grid-column:1/-1;min-height:140px;align-items:center;justify-content:center;padding:1.5rem;text-align:center;">ไม่พบสินค้าที่ตรงกับรายการนี้</div>`;
-        if (productDots) productDots.innerHTML = '';
+        grid.innerHTML = `<div class="product-card" style="grid-column:1/-1;min-height:120px;align-items:center;justify-content:center;padding:1.25rem;text-align:center;">ไม่พบสินค้าที่ตรงกับรายการนี้</div>`;
         renderPopularCats();
         refreshHeroSlides();
         return;
@@ -628,8 +593,6 @@
 
     filterBtns.forEach(btn => {
       btn.addEventListener('click', () => {
-        filterBtns.forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
         applyCatalogFilter(btn.dataset.filter, true);
       });
     });
@@ -1553,6 +1516,7 @@
     }
 
     async function saveShopSettings(partial) {
+      // exposed for tests
       Object.assign(SHOP_CONFIG, partial);
       applyShopConfig();
       if (dbReady) {
@@ -2419,6 +2383,11 @@
 
     // Expose for inline onclick
     window.addToCart = addToCart;
+    window.saveShopSettings = saveShopSettings;
+    window.saveProducts = saveProducts;
+    window.renderProducts = renderProducts;
+    window.refreshHeroSlides = refreshHeroSlides;
+    window.renderPopularCats = renderPopularCats;
     window.changeQty = changeQty;
     window.removeFromCart = removeFromCart;
 
