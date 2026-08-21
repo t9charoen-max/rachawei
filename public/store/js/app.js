@@ -2580,6 +2580,10 @@
       // admin label
       const lbl = document.getElementById('adminUserLabel');
       if (lbl) lbl.textContent = c.shopName;
+      const logoText = document.querySelector('.logo-text');
+      if (logoText && c.shopName) logoText.textContent = c.shopName;
+      const logoSub = document.querySelector('.logo-sub');
+      if (logoSub && c.shopSub) logoSub.textContent = c.shopSub;
       // contact address card if present
       const contactCards = document.querySelectorAll('.contact-card');
       contactCards.forEach(card => {
