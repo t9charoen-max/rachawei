@@ -22,6 +22,17 @@
   <link rel="stylesheet" href="css/styles.css" />
 </head>
 <body>
+  <!-- Install banner -->
+  <div class="install-banner" id="installBanner" hidden>
+    <img class="install-banner__icon" src="brand/rachawei-logo-square.png" alt="" width="40" height="40" />
+    <div class="install-banner__text">
+      <p class="install-banner__title">ติดตั้งแอปราชาหวาย</p>
+      <p class="install-banner__desc" id="installDesc">เปิดเร็ว สั่งซื้อง่าย เหมือนแอปทั่วไป</p>
+    </div>
+    <button type="button" class="install-banner__install" id="installBtn" hidden>ติดตั้ง</button>
+    <button type="button" class="install-banner__close" id="installClose" aria-label="ปิด">✕</button>
+  </div>
+
   <!-- Header -->
   <header>
     <a href="#" class="logo">
@@ -53,33 +64,38 @@
 
   <!-- PAGE: HOME -->
   <div class="page-panel active" id="page-home">
-  <!-- Hero -->
-  <section class="hero">
-    <div class="badge">🏅 สินค้า OTOP สุรินทร์ · สานด้วยมือทุกชิ้น</div>
-    <p class="hero-brand">ราชาหวายสุรินทร์</p>
-    <h1>ตะกร้าหวาย<br><span>คุณภาพจากชุมชน</span></h1>
-    <p class="hero-desc">
-      จากหมู่บ้านจักสานบ้านบุทม ต.เมืองที จ.สุรินทร์
-      สานด้วยหวายหางหนู เส้นละเอียด ไม่เคลือบสารเคมี
-      ทนทาน ใช้งานจริง — มรดกภูมิปัญญากว่า 60 ปี
-    </p>
-    <div class="hero-cta">
-      <a href="#products" class="btn btn-primary btn-shine">เลือกชมสินค้า</a>
-      <a href="#contact" class="btn btn-outline">สอบถาม / สั่งซื้อ</a>
-    </div>
-    <div class="hero-features">
-      <div class="feature-item"><span>✋</span> สานมือทุกชิ้น</div>
-      <div class="feature-item"><span>🌿</span> หวายธรรมชาติ</div>
-      <div class="feature-item"><span>🏅</span> มาตรฐาน OTOP</div>
-      <div class="feature-item"><span>🚚</span> สั่งออนไลน์ได้</div>
+  <!-- Hero with sliding product backgrounds -->
+  <section class="hero hero--slides" id="heroStage">
+    <div class="hero-slides" id="heroSlides" aria-hidden="true"></div>
+    <div class="hero-veil" aria-hidden="true"></div>
+    <div class="hero-copy">
+      <div class="badge">🏅 สินค้า OTOP สุรินทร์ · สานด้วยมือทุกชิ้น</div>
+      <p class="hero-brand">ราชาหวายสุรินทร์</p>
+      <h1>ตะกร้าหวาย<br><span>คุณภาพจากชุมชน</span></h1>
+      <p class="hero-desc">
+        จากหมู่บ้านจักสานบ้านบุทม ต.เมืองที จ.สุรินทร์
+        สานด้วยหวายหางหนู เส้นละเอียด ไม่เคลือบสารเคมี
+        ทนทาน ใช้งานจริง — มรดกภูมิปัญญากว่า 60 ปี
+      </p>
+      <div class="hero-cta">
+        <a href="#products" class="btn btn-primary btn-shine">เลือกชมสินค้า</a>
+        <a href="#contact" class="btn btn-outline">สอบถาม / สั่งซื้อ</a>
+      </div>
+      <div class="hero-features">
+        <div class="feature-item"><span>✋</span> สานมือทุกชิ้น</div>
+        <div class="feature-item"><span>🌿</span> หวายธรรมชาติ</div>
+        <div class="feature-item"><span>🏅</span> มาตรฐาน OTOP</div>
+        <div class="feature-item"><span>🚚</span> สั่งออนไลน์ได้</div>
+      </div>
+      <div class="hero-dots" id="heroDots" role="tablist" aria-label="ภาพพื้นหลัง"></div>
     </div>
   </section>
 
-  <!-- Products -->
-  <section id="products" class="reveal">
+  <!-- Products as horizontal slides -->
+  <section id="products" class="reveal products-section">
     <div class="section-header">
       <h2>สินค้าแนะนำ</h2>
-      <p>ตะกร้า เก้าอี้ และของใช้ในบ้านจากหวาย — กดที่สินค้าเพื่อดูรูปและรายละเอียดเพิ่มเติม</p>
+      <p>เลื่อนซ้าย–ขวาเพื่อดูสินค้า — กดการ์ดเพื่อดูรายละเอียดและสั่งซื้อ</p>
     </div>
 
     <div class="filters">
@@ -89,7 +105,11 @@
       <button class="filter-btn" data-filter="home">ของใช้ในบ้าน</button>
     </div>
 
-    <div class="product-grid" id="productGrid"></div>
+    <div class="product-slider" id="productSlider" aria-label="สไลด์สินค้า">
+      <div class="product-slider__track" id="productGrid"></div>
+    </div>
+    <div class="product-slider__dots" id="productDots" role="tablist" aria-label="ตำแหน่งสินค้า"></div>
+    <div class="product-slider__hint" aria-hidden="true">← ปัดดูสินค้า →</div>
   </section>
 
   </div><!-- /page-home -->
