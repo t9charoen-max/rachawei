@@ -148,3 +148,22 @@ const DEFAULT_PRODUCTS = [
         badge: null
       }
     ];
+
+const DEFAULT_SHOP_VIDEOS = [
+      {
+        id: 1,
+        title: 'ตะกร้าหวายสี่เหลี่ยม 2 ชั้น',
+        videoUrl: 'https://www.youtube.com/watch?v=_6JMaYC-Zbw',
+        productId: 1,
+        views: 1280,
+        thumbnail: ''
+      },
+      {
+        id: 2,
+        title: 'ตะกร้าหวายทรงกลม',
+        videoUrl: 'https://www.youtube.com/watch?v=AdpJCJ7TVpQ',
+        productId: 2,
+        views: 860,
+        thumbnail: ''
+      }
+    ];

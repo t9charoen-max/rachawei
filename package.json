@@ -15,6 +15,8 @@
     "build:store": "rm -rf public/store && mkdir -p public/store/css public/store/js public/store/brand && cp artifacts/index.html artifacts/rachawei-surin.html artifacts/manifest.webmanifest public/store/ && cp artifacts/css/styles.css public/store/css/ && cp artifacts/js/config.js artifacts/js/app.js public/store/js/ && cp artifacts/brand/rachawei-logo.png artifacts/brand/rachawei-logo-square.png public/store/brand/ && touch public/store/.nojekyll",
     "grokbot:validate": "node scripts/grokbot-validate.mjs",
     "grokbot:apply": "node scripts/grokbot-apply.mjs",
+    "test:store": "node scripts/test-store-admin.mjs",
+    "test:store:full": "node scripts/test-store-full.mjs",
     "lint": "oxlint",
     "preview": "vite preview"
   },

@@ -57,6 +57,7 @@
 
     // ========== PERSISTENT STORAGE (IndexedDB — รูปและข้อมูลถาวร) ==========
     let products = DEFAULT_PRODUCTS.map(p => ({ ...p }));
+    let shopVideos = (typeof DEFAULT_SHOP_VIDEOS !== 'undefined' ? DEFAULT_SHOP_VIDEOS : []).map((v) => ({ ...v }));
     let cart = [];
     let orders = [];
     let orderSeq = 1;
@@ -127,9 +128,13 @@
         const savedSeq = await idbGet('orderSeq');
         const savedTheme = await idbGet('theme');
         const savedShop = await idbGet('shopSettings');
+        const savedVideos = await idbGet('shopVideos');
 
         if (Array.isArray(savedProducts) && savedProducts.length > 0) {
           products = savedProducts;
+        }
+        if (Array.isArray(savedVideos)) {
+          shopVideos = savedVideos;
         }
         if (Array.isArray(savedCart)) cart = savedCart;
         if (Array.isArray(savedOrders)) orders = savedOrders;
@@ -162,6 +167,7 @@
       if (!dbReady || !db) return;
       try {
         await idbSet('products', products);
+        await idbSet('shopVideos', shopVideos);
         await idbSet('cart', cart);
         await idbSet('orders', orders);
         await idbSet('orderSeq', orderSeq);
@@ -175,6 +181,10 @@
     }
 
     function saveProducts() {
+      persistAll();
+    }
+
+    function saveShopVideos() {
       persistAll();
     }
 
@@ -405,6 +415,7 @@
       renderPopularCats();
       refreshHeroSlides();
       bindProductCardGalleries();
+      renderShopVideos();
     }
 
     document.getElementById('productGrid').addEventListener('click', (e) => {
@@ -415,6 +426,118 @@
         gallery._swiped = false;
       }
     }, true);
+
+    // ========== SHOP VIDEOS (ราชาหวาย VIDEO) ==========
+    let nextVideoId = Math.max(...shopVideos.map((v) => v.id), 0) + 1;
+    let editingVideoId = null;
+
+    function extractYoutubeId(url) {
+      if (!url) return null;
+      const s = String(url).trim();
+      const patterns = [
+        /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/shorts\/)([\w-]{11})/i,
+        /^([\w-]{11})$/,
+      ];
+      for (const pattern of patterns) {
+        const match = s.match(pattern);
+        if (match) return match[1];
+      }
+      return null;
+    }
+
+    function formatViewCount(n) {
+      const v = Number(n) || 0;
+      if (v >= 1000000) return `${(v / 1000000).toFixed(1).replace(/\.0$/, '')}M`;
+      if (v >= 1000) return `${(v / 1000).toFixed(1).replace(/\.0$/, '')}k`;
+      return String(v);
+    }
+
+    function getShopVideoThumbnail(video) {
+      if (video.thumbnail) return video.thumbnail;
+      const yt = extractYoutubeId(video.videoUrl);
+      if (yt) return `https://img.youtube.com/vi/${yt}/hqdefault.jpg`;
+      const product = video.productId ? products.find((p) => p.id === video.productId) : null;
+      return product ? getCoverImage(product) : '';
+    }
+
+    function bumpShopVideoViews(id) {
+      const video = shopVideos.find((v) => v.id === id);
+      if (!video) return;
+      video.views = (Number(video.views) || 0) + 1;
+      saveShopVideos();
+      renderShopVideos();
+    }
+
+    function renderShopVideos() {
+      const block = document.getElementById('shopVideosBlock');
+      const track = document.getElementById('shopVideosTrack');
+      if (!block || !track) return;
+
+      const items = shopVideos.slice().sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0) || a.id - b.id);
+      if (!items.length) {
+        block.hidden = true;
+        track.innerHTML = '';
+        return;
+      }
+
+      block.hidden = false;
+      track.innerHTML = items.map((video) => {
+        const product = video.productId ? products.find((p) => p.id === video.productId) : null;
+        const thumb = getShopVideoThumbnail(video);
+        const title = video.title || product?.name || 'วิดีโอแนะนำสินค้า';
+        const views = formatViewCount(video.views);
+        const thumbHtml = thumb
+          ? `<img src="${thumb}" alt="" loading="lazy" draggable="false">`
+          : `<span class="shop-video-card__placeholder">🎬</span>`;
+        const priceHtml = product
+          ? `<div class="shop-video-card__price">${formatPrice(product.price)}</div>`
+          : '';
+        const buyHtml = product
+          ? `<button type="button" class="shop-video-card__buy" onclick="event.stopPropagation();buyFromShopVideo(${video.id})">ซื้อเลย</button>`
+          : '';
+
+        return `
+          <article class="shop-video-card" data-video-id="${video.id}">
+            <button type="button" class="shop-video-card__media" onclick="playShopVideo(${video.id})" aria-label="เล่นวิดีโอ ${title.replace(/"/g, '&quot;')}">
+              ${thumbHtml}
+              <span class="shop-video-card__overlay">
+                <span class="shop-video-card__play" aria-hidden="true">▶</span>
+                <span class="shop-video-card__views">${views}</span>
+              </span>
+            </button>
+            <div class="shop-video-card__body">
+              <div class="shop-video-card__title">${title}</div>
+              ${priceHtml}
+              ${buyHtml}
+            </div>
+          </article>
+        `;
+      }).join('');
+    }
+
+    function playShopVideo(id) {
+      const video = shopVideos.find((v) => v.id === id);
+      if (!video || !video.videoUrl) return;
+      bumpShopVideoViews(id);
+      const title = video.title || 'ราชาหวาย VIDEO';
+      if (typeof window.openShopVideo === 'function') {
+        window.openShopVideo(video.videoUrl, title);
+        return;
+      }
+      window.open(video.videoUrl, '_blank', 'noopener,noreferrer');
+    }
+
+    function buyFromShopVideo(id) {
+      const video = shopVideos.find((v) => v.id === id);
+      if (!video || !video.productId) {
+        showToast('ยังไม่ได้เชื่อมสินค้ากับวิดีโอนี้');
+        return;
+      }
+      addToCart(video.productId);
+    }
+
+    window.playShopVideo = playShopVideo;
+    window.buyFromShopVideo = buyFromShopVideo;
 
     // ========== HERO BACKGROUND SLIDES ==========
     let heroIndex = 0;
@@ -1923,6 +2046,7 @@
         tab.classList.add('active');
         adminTab = tab.dataset.tab;
         editingProductId = null;
+        editingVideoId = null;
         renderAdminTab(adminTab);
       });
     });
@@ -1930,6 +2054,7 @@
     function renderAdminTab(tab) {
       if (tab === 'dash') renderAdminDash();
       else if (tab === 'products') renderAdminProducts();
+      else if (tab === 'videos') renderAdminVideos();
       else if (tab === 'orders') renderAdminOrders();
       else if (tab === 'settings') renderAdminSettings();
     }
@@ -2241,6 +2366,7 @@
         version: 1,
         exportedAt: new Date().toISOString(),
         products,
+        shopVideos,
         orders,
         cart,
         orderSeq
@@ -2310,12 +2436,15 @@
         throw new Error('ไฟล์สำรองไม่มีข้อมูลสินค้า');
       }
       products = data.products;
+      shopVideos = Array.isArray(data.shopVideos) ? data.shopVideos : shopVideos;
       orders = Array.isArray(data.orders) ? data.orders : [];
       cart = Array.isArray(data.cart) ? data.cart : [];
       orderSeq = typeof data.orderSeq === 'number' ? data.orderSeq : 1;
       nextProductId = Math.max(...products.map(p => p.id), 0) + 1;
+      nextVideoId = Math.max(...shopVideos.map((v) => v.id), 0) + 1;
       persistAll();
       renderProducts(document.querySelector('.filter-btn.active')?.dataset.filter || 'all');
+      renderShopVideos();
       updateBadge();
     }
 
@@ -2360,12 +2489,15 @@
     function resetToDefault() {
       if (!confirm('ล้างข้อมูลทั้งหมดแล้วกลับเป็นสินค้าเริ่มต้น?\n(แนะนำให้สำรองข้อมูลก่อน)')) return;
       products = DEFAULT_PRODUCTS.map(p => ({ ...p }));
+      shopVideos = (typeof DEFAULT_SHOP_VIDEOS !== 'undefined' ? DEFAULT_SHOP_VIDEOS : []).map((v) => ({ ...v }));
       orders = [];
       cart = [];
       orderSeq = 1;
       nextProductId = Math.max(...products.map(p => p.id), 0) + 1;
+      nextVideoId = Math.max(...shopVideos.map((v) => v.id), 0) + 1;
       persistAll();
       renderProducts();
+      renderShopVideos();
       updateBadge();
       showToast('รีเซ็ตข้อมูลแล้ว');
       renderAdminDash();
@@ -2380,6 +2512,7 @@
       adminContent.innerHTML = `
         <div class="admin-stats">
           <div class="stat-card"><div class="num">${products.length}</div><div class="lbl">สินค้าทั้งหมด</div></div>
+          <div class="stat-card"><div class="num">${shopVideos.length}</div><div class="lbl">วิดีโอแนะนำ</div></div>
           <div class="stat-card"><div class="num">${orders.length}</div><div class="lbl">ออเดอร์ทั้งหมด</div></div>
           <div class="stat-card"><div class="num">${pending}</div><div class="lbl">รอดำเนินการ</div></div>
           <div class="stat-card"><div class="num">${formatPrice(totalSales)}</div><div class="lbl">ยอดรวมโดยประมาณ</div></div>
@@ -2861,12 +2994,165 @@
       const idx = products.findIndex(p => p.id === id);
       if (idx >= 0) products.splice(idx, 1);
       cart = cart.filter(c => c.id !== id);
+      shopVideos.forEach((v) => {
+        if (v.productId === id) v.productId = null;
+      });
       saveProducts();
+      saveShopVideos();
       saveCart();
       updateBadge();
       renderProducts(document.querySelector('.filter-btn.active')?.dataset.filter || 'all');
       renderAdminProducts();
       showToast('ลบสินค้าแล้ว');
+    };
+
+    function renderAdminVideos() {
+      const editV = editingVideoId ? shopVideos.find((v) => v.id === editingVideoId) : null;
+      const formTitle = editV ? 'แก้ไขวิดีโอ' : 'เพิ่มวิดีโอใหม่';
+      const productOptions = products.map((p) =>
+        `<option value="${p.id}" ${editV && editV.productId === p.id ? 'selected' : ''}>${p.name} (${formatPrice(p.price)})</option>`
+      ).join('');
+
+      adminContent.innerHTML = `
+        <div class="admin-form-card">
+          <h3>${editV ? '✏️ ' : '➕ '}${formTitle}</h3>
+          <p class="admin-form-sub">วิดีโอจะแสดงใต้รายการสินค้าในหน้าร้าน · รองรับ YouTube / ลิงก์ MP4 / TikTok / Facebook Reels</p>
+          <div class="form-group">
+            <label>หัวข้อวิดีโอ *</label>
+            <input type="text" id="avTitle" value="${editV ? editV.title.replace(/"/g, '&quot;') : ''}" placeholder="เช่น ตะกร้าหวายทรงกลม 2 ชั้น" />
+          </div>
+          <div class="form-group">
+            <label>ลิงก์วิดีโอ *</label>
+            <input type="url" id="avUrl" value="${editV ? (editV.videoUrl || '').replace(/"/g, '&quot;') : ''}" placeholder="https://www.youtube.com/watch?v=..." />
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>เชื่อมกับสินค้า (กดซื้อเลย)</label>
+              <select id="avProductId">
+                <option value="">— ไม่เชื่อมสินค้า —</option>
+                ${productOptions}
+              </select>
+            </div>
+            <div class="form-group">
+              <label>จำนวนวิว (แสดงบนการ์ด)</label>
+              <input type="number" id="avViews" min="0" step="1" value="${editV ? (editV.views || 0) : 0}" />
+            </div>
+          </div>
+          <div class="form-group">
+            <label>รูปปก (ไม่บังคับ — ว่างไว้ใช้จาก YouTube/สินค้า)</label>
+            <input type="url" id="avThumb" value="${editV ? (editV.thumbnail || '').replace(/"/g, '&quot;') : ''}" placeholder="https://..." />
+          </div>
+          <div class="admin-actions" style="margin-top:0.5rem;">
+            <button class="btn btn-primary btn-sm" id="avSaveBtn">${editV ? 'บันทึกการแก้ไข' : 'เพิ่มวิดีโอ'}</button>
+            ${editV ? '<button class="btn btn-outline btn-sm" id="avCancelBtn">ยกเลิก</button>' : ''}
+          </div>
+        </div>
+
+        <div class="admin-section-title">
+          <span>วิดีโอทั้งหมด (${shopVideos.length})</span>
+        </div>
+        ${shopVideos.length === 0 ? '<div class="empty-admin">ยังไม่มีวิดีโอ<br><small>เพิ่มวิดีโอแรกด้านบน หรือใช้ค่าเริ่มต้นจาก deploy</small></div>' : `
+          <div class="admin-table-wrap">
+            <table class="admin-table">
+              <thead>
+                <tr><th>ปก</th><th>หัวข้อ</th><th>สินค้า</th><th>วิว</th><th>จัดการ</th></tr>
+              </thead>
+              <tbody>
+                ${shopVideos.slice().sort((a, b) => a.id - b.id).map((v) => {
+                  const product = v.productId ? products.find((p) => p.id === v.productId) : null;
+                  const thumb = getShopVideoThumbnail(v);
+                  const thumbCell = thumb
+                    ? `<div class="admin-thumb"><img src="${thumb}" alt=""></div>`
+                    : '<div class="admin-thumb">🎬</div>';
+                  return `<tr>
+                    <td>${thumbCell}</td>
+                    <td><strong>${v.title || '—'}</strong><br><small style="color:var(--text-soft)">${(v.videoUrl || '').slice(0, 42)}${(v.videoUrl || '').length > 42 ? '…' : ''}</small></td>
+                    <td>${product ? product.name : '<span style="color:var(--text-soft)">—</span>'}</td>
+                    <td>${formatViewCount(v.views)}</td>
+                    <td>
+                      <div class="admin-actions">
+                        <button class="btn btn-outline btn-xs" onclick="adminEditVideo(${v.id})">แก้ไข</button>
+                        <button class="btn btn-outline btn-xs" style="color:#c0392b;border-color:#e8b4b4;" onclick="adminDeleteVideo(${v.id})">ลบ</button>
+                      </div>
+                    </td>
+                  </tr>`;
+                }).join('')}
+              </tbody>
+            </table>
+          </div>
+        `}
+      `;
+
+      document.getElementById('avSaveBtn').addEventListener('click', saveAdminVideo);
+      const cancelBtn = document.getElementById('avCancelBtn');
+      if (cancelBtn) {
+        cancelBtn.addEventListener('click', () => {
+          editingVideoId = null;
+          renderAdminVideos();
+        });
+      }
+    }
+
+    function saveAdminVideo() {
+      const title = document.getElementById('avTitle').value.trim();
+      const videoUrl = document.getElementById('avUrl').value.trim();
+      const productRaw = document.getElementById('avProductId').value;
+      const productId = productRaw ? Number(productRaw) : null;
+      const views = parseInt(document.getElementById('avViews').value, 10) || 0;
+      const thumbnail = document.getElementById('avThumb').value.trim();
+
+      if (!title || !videoUrl) {
+        showToast('กรุณากรอกหัวข้อและลิงก์วิดีโอ');
+        return;
+      }
+      if (!/^https?:\/\//i.test(videoUrl)) {
+        showToast('ลิงก์วิดีโอต้องขึ้นต้นด้วย http:// หรือ https://');
+        return;
+      }
+
+      if (editingVideoId) {
+        const video = shopVideos.find((v) => v.id === editingVideoId);
+        if (video) {
+          video.title = title;
+          video.videoUrl = videoUrl;
+          video.productId = productId;
+          video.views = views;
+          video.thumbnail = thumbnail;
+        }
+        showToast('บันทึกวิดีโอแล้ว ✓');
+      } else {
+        shopVideos.push({
+          id: nextVideoId++,
+          title,
+          videoUrl,
+          productId,
+          views,
+          thumbnail,
+        });
+        showToast('เพิ่มวิดีโอแล้ว ✓');
+      }
+
+      editingVideoId = null;
+      saveShopVideos();
+      renderShopVideos();
+      renderAdminVideos();
+    }
+
+    window.adminEditVideo = function(id) {
+      editingVideoId = id;
+      renderAdminVideos();
+      adminContent.scrollTop = 0;
+    };
+
+    window.adminDeleteVideo = function(id) {
+      if (!confirm('ลบวิดีโอนี้?')) return;
+      const idx = shopVideos.findIndex((v) => v.id === id);
+      if (idx >= 0) shopVideos.splice(idx, 1);
+      if (editingVideoId === id) editingVideoId = null;
+      saveShopVideos();
+      renderShopVideos();
+      renderAdminVideos();
+      showToast('ลบวิดีโอแล้ว');
     };
 
     function renderAdminOrders() {
@@ -3055,6 +3341,24 @@
       const copyBtn = document.getElementById('videoModalCopyBtn');
       if (!overlay || !player) return;
 
+      function parseYoutubeId(url) {
+        if (!url) return null;
+        const s = String(url).trim();
+        const patterns = [
+          /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/shorts\/)([\w-]{11})/i,
+          /^([\w-]{11})$/,
+        ];
+        for (const pattern of patterns) {
+          const match = s.match(pattern);
+          if (match) return match[1];
+        }
+        return null;
+      }
+
+      function isDirectVideo(url) {
+        return /\.(mp4|webm|mov)(\?|$)/i.test(String(url || ''));
+      }
+
       function ytUrl(id) {
         return 'https://www.youtube.com/watch?v=' + id;
       }
@@ -3062,11 +3366,14 @@
         return 'https://www.youtube.com/embed/' + id + '?autoplay=1&rel=0&modestbranding=1';
       }
 
+      function clearPlayer() {
+        player.querySelectorAll('iframe, video').forEach((n) => n.remove());
+        if (fallback) fallback.classList.remove('show');
+      }
+
       function closeVideo() {
         overlay.classList.remove('open');
-        const iframe = player.querySelector('iframe');
-        if (iframe) iframe.remove();
-        if (fallback) fallback.classList.remove('show');
+        clearPlayer();
       }
 
       function openVideo(id, title) {
@@ -3075,9 +3382,7 @@
         titleEl.textContent = title || 'วิดีโออ้างอิง';
         ytLink.href = url;
         openBtn.href = url;
-        // clear old iframe
-        player.querySelectorAll('iframe').forEach(n => n.remove());
-        if (fallback) fallback.classList.remove('show');
+        clearPlayer();
 
         const iframe = document.createElement('iframe');
         iframe.src = embedUrl(id);
@@ -3087,8 +3392,40 @@
         iframe.referrerPolicy = 'strict-origin-when-cross-origin';
         player.appendChild(iframe);
         overlay.classList.add('open');
-        // ปุ่มด้านล่างเปิด YouTube ไว้เสมอ หากสภาพแวดล้อมบล็อก embed
       }
+
+      window.openShopVideo = function openShopVideo(url, title) {
+        const raw = String(url || '').trim();
+        if (!raw) return;
+        const yt = parseYoutubeId(raw);
+        if (yt) {
+          openVideo(yt, title || 'ราชาหวาย VIDEO');
+          return;
+        }
+        if (isDirectVideo(raw)) {
+          titleEl.textContent = title || 'ราชาหวาย VIDEO';
+          ytLink.href = raw;
+          openBtn.href = raw;
+          clearPlayer();
+          const video = document.createElement('video');
+          video.src = raw;
+          video.controls = true;
+          video.autoplay = true;
+          video.playsInline = true;
+          video.style.width = '100%';
+          video.style.height = '100%';
+          video.style.objectFit = 'contain';
+          player.appendChild(video);
+          overlay.classList.add('open');
+          return;
+        }
+        titleEl.textContent = title || 'ราชาหวาย VIDEO';
+        ytLink.href = raw;
+        openBtn.href = raw;
+        clearPlayer();
+        if (fallback) fallback.classList.add('show');
+        overlay.classList.add('open');
+      };
 
       document.querySelectorAll('.video-frame[data-yt], .yt-open-btn[data-yt]').forEach(el => {
         const go = (e) => {
@@ -3185,6 +3522,7 @@
       applyShopConfig();
       const ok = await loadPersisted();
       nextProductId = Math.max(...products.map(p => p.id), 0) + 1;
+      nextVideoId = Math.max(...shopVideos.map((v) => v.id), 0) + 1;
       renderProducts();
       updateBadge();
       setTheme(getTheme());
