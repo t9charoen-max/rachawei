@@ -85,6 +85,13 @@ try {
   const contactVisible = await page.evaluate(() => !!document.querySelector('#shopMapCard h3'));
   ok('contact section map card', contactVisible);
 
+  const shopPhotos = await page.evaluate(() => ({
+    count: document.querySelectorAll('#shopFrontPhotosGrid img').length,
+    day: document.querySelector('#shopFrontPhotosGrid img')?.src || '',
+  }));
+  ok('storefront photos section', shopPhotos.count === 2, `count=${shopPhotos.count}`);
+  ok('storefront day photo loads', shopPhotos.day.includes('shop-front-day'));
+
   // --- Admin ---
   await page.evaluate(() => document.getElementById('adminOverlay')?.classList.add('open'));
   await page.waitForSelector('#adminPin', { visible: true });
