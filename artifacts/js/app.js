@@ -3524,6 +3524,7 @@
         return;
       }
       section.hidden = false;
+      grid.classList.toggle('shop-front-photos__grid--solo', items.length === 1);
       grid.innerHTML = items.map((p) => `
         <figure class="shop-front-photo">
           <img src="${p.src}" alt="${(p.alt || 'ภาพหน้าร้าน').replace(/"/g, '&quot;')}" loading="lazy" />

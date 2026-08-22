@@ -89,7 +89,7 @@ try {
     count: document.querySelectorAll('#shopFrontPhotosGrid img').length,
     day: document.querySelector('#shopFrontPhotosGrid img')?.src || '',
   }));
-  ok('storefront photos section', shopPhotos.count === 2, `count=${shopPhotos.count}`);
+  ok('storefront photos section', shopPhotos.count === 1, `count=${shopPhotos.count}`);
   ok('storefront day photo loads', shopPhotos.day.includes('shop-front-day'));
 
   await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
