@@ -44,6 +44,19 @@
         '/images/promo/usage-community.png',
         '/images/promo/usage-decor.png',
         '/images/promo/usage-temple.png'
+      ],
+      // ภาพหน้าร้าน (แสดงในส่วนติดต่อ)
+      storefrontPhotos: [
+        {
+          src: '/images/shop/shop-front-day.jpeg',
+          alt: 'หน้าร้านราชาหวาย — ตะกร้าหวายสานมือที่หน้าร้าน',
+          caption: 'หน้าร้านช่วงกลางวัน',
+        },
+        {
+          src: '/images/shop/shop-front-night.jpeg',
+          alt: 'ป้ายหน้าร้านราชาหวาย ทองดีมินิมาร์ท ตอนกลางคืน',
+          caption: 'หน้าร้านช่วงกลางคืน',
+        },
       ]
     };
 

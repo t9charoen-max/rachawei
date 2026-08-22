@@ -3514,6 +3514,24 @@
     })();
 
 
+    function renderStorefrontPhotos(photos) {
+      const grid = document.getElementById('shopFrontPhotosGrid');
+      const section = document.getElementById('shopFrontPhotos');
+      if (!grid || !section) return;
+      const items = Array.isArray(photos) ? photos.filter((p) => p && p.src) : [];
+      if (items.length === 0) {
+        section.hidden = true;
+        return;
+      }
+      section.hidden = false;
+      grid.innerHTML = items.map((p) => `
+        <figure class="shop-front-photo">
+          <img src="${p.src}" alt="${(p.alt || 'ภาพหน้าร้าน').replace(/"/g, '&quot;')}" loading="lazy" />
+          ${p.caption ? `<figcaption>${p.caption}</figcaption>` : ''}
+        </figure>
+      `).join('');
+    }
+
     // ========== APPLY SHOP CONFIG TO PAGE ==========
     function applyShopConfig() {
       const c = SHOP_CONFIG;
@@ -3568,6 +3586,7 @@
       document.querySelectorAll('.promo-deal .value').forEach(el => {
         el.textContent = 'ลดทันที ' + c.promoDiscount + ' บาท';
       });
+      renderStorefrontPhotos(c.storefrontPhotos);
       if (typeof refreshHeroSlides === 'function') refreshHeroSlides();
     }
 

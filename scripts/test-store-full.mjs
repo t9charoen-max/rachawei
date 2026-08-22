@@ -85,6 +85,29 @@ try {
   const contactVisible = await page.evaluate(() => !!document.querySelector('#shopMapCard h3'));
   ok('contact section map card', contactVisible);
 
+  const shopPhotos = await page.evaluate(() => ({
+    count: document.querySelectorAll('#shopFrontPhotosGrid img').length,
+    day: document.querySelector('#shopFrontPhotosGrid img')?.src || '',
+  }));
+  ok('storefront photos section', shopPhotos.count === 2, `count=${shopPhotos.count}`);
+  ok('storefront day photo loads', shopPhotos.day.includes('shop-front-day'));
+
+  await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
+  await page.click('#mainNav button[data-page="media"]');
+  await new Promise((r) => setTimeout(r, 250));
+  const newsContrast = await page.evaluate(() => {
+    const lum = (rgb) => {
+      const m = rgb.match(/[\d.]+/g);
+      if (!m) return 1;
+      const [r, g, b] = m.map(Number).slice(0, 3).map((v) => v / 255);
+      return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+    };
+    const h3 = getComputedStyle(document.querySelector('.news-card h3')).color;
+    const excerpt = getComputedStyle(document.querySelector('.news-excerpt')).color;
+    return { h3, excerpt, darkText: lum(h3) < 0.45 && lum(excerpt) < 0.45 };
+  });
+  ok('news card readable in dark mode', newsContrast.darkText, `${newsContrast.h3} / ${newsContrast.excerpt}`);
+
   // --- Admin ---
   await page.evaluate(() => document.getElementById('adminOverlay')?.classList.add('open'));
   await page.waitForSelector('#adminPin', { visible: true });
