@@ -27,6 +27,7 @@
       phoneTel: '+66814707089',
       lineUrl: 'https://line.me/ti/p/~0814707089',
       facebookUrl: 'https://www.facebook.com/p/%E0%B8%A3%E0%B9%89%E0%B8%B2%E0%B8%99-%E0%B8%A3%E0%B8%B2%E0%B8%8A%E0%B8%B2%E0%B8%AB%E0%B8%A7%E0%B8%B2%E0%B8%A2%E0%B8%AA%E0%B8%B8%E0%B8%A3%E0%B8%B4%E0%B8%99%E0%B8%97%E0%B8%A3%E0%B9%8C-100063725193085/',
+      mapUrl: 'https://maps.app.goo.gl/hSA19NcULuP5KQsh6?g_st=ic',
       addressHtml: '126 หมู่ 4 บ้านบุทม<br>ต.เมืองที อ.เมือง จ.สุรินทร์ 32000<br><small style="opacity:0.85">ห่างตัวเมืองสุรินทร์ประมาณ 12 กม. ทางหลวง 226</small>',
       adminPin: '1234',  // เปลี่ยนรหัสหลังร้านตรงนี้
       promoMin: 1500,
