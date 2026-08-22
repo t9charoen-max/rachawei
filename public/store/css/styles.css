@@ -1592,7 +1592,7 @@
       font-size: 0.78rem;
       font-weight: 700;
       letter-spacing: 0.04em;
-      color: var(--rattan-deep);
+      color: #3a271c;
       background: linear-gradient(135deg, rgba(255,255,255,0.9), rgba(255,244,228,0.75));
       border: 1px solid rgba(184, 137, 90, 0.3);
       box-shadow: 0 8px 18px rgba(58, 39, 28, 0.08), 0 1px 0 rgba(255,255,255,0.85) inset;
@@ -1635,6 +1635,10 @@
 
     .news-card {
       position: relative;
+      --surface-heading: #3a271c;
+      --surface-text: #1f1610;
+      --surface-text-soft: #4d3f32;
+      --surface-accent: #2f6b45;
       background:
         linear-gradient(155deg, rgba(255,255,255,0.95), rgba(255,248,236,0.88) 55%, rgba(255,243,224,0.82));
       border: 1px solid var(--card-border);
@@ -1702,7 +1706,7 @@
       z-index: 1;
       font-family: var(--font-display);
       font-size: clamp(1.12rem, 3.6vw, 1.28rem);
-      color: var(--rattan-deep);
+      color: var(--surface-heading);
       line-height: 1.45;
       font-weight: 700;
       letter-spacing: -0.01em;
@@ -1712,7 +1716,7 @@
     .news-card h3 a {
       color: inherit;
       text-decoration: none;
-      background-image: linear-gradient(90deg, var(--leaf), var(--amber));
+      background-image: linear-gradient(90deg, var(--surface-accent), #6a4736);
       background-size: 0% 2px;
       background-repeat: no-repeat;
       background-position: 0 100%;
@@ -1721,7 +1725,7 @@
 
     .news-card h3 a:hover {
       background-size: 100% 2px;
-      color: var(--leaf);
+      color: var(--surface-accent);
     }
 
     .news-meta {
@@ -1729,22 +1733,22 @@
       z-index: 1;
       font-size: 0.84rem;
       font-weight: 600;
-      color: var(--text-soft);
-      opacity: 0.92;
+      color: var(--surface-text-soft);
+      opacity: 1;
     }
 
     .news-excerpt {
       position: relative;
       z-index: 1;
       font-size: 0.96rem;
-      color: var(--text);
+      color: var(--surface-text);
       line-height: 1.8;
       font-weight: 500;
       text-wrap: pretty;
     }
 
     .news-excerpt strong {
-      color: var(--leaf);
+      color: var(--surface-accent);
       font-weight: 800;
     }
 
@@ -1753,6 +1757,18 @@
       z-index: 1;
       align-self: flex-start;
       margin-top: 0.35rem;
+    }
+
+    .news-card .btn-outline {
+      background: rgba(255, 250, 243, 0.92);
+      color: var(--surface-heading);
+      border-color: rgba(184, 137, 90, 0.48);
+    }
+
+    .news-card .btn-outline:hover {
+      background: var(--surface-heading);
+      color: #fffaf3;
+      border-color: var(--surface-heading);
     }
 
     /* Video reference */
@@ -1769,6 +1785,10 @@
     }
 
     .video-card {
+      --surface-heading: #3a271c;
+      --surface-text: #1f1610;
+      --surface-text-soft: #4d3f32;
+      --surface-accent: #2f6b45;
       background:
         linear-gradient(165deg, rgba(255,255,255,0.96), rgba(255,247,234,0.9));
       border: 1px solid var(--card-border);
@@ -1886,7 +1906,7 @@
     .video-body h3 {
       font-family: var(--font-display);
       font-size: clamp(1.12rem, 3.5vw, 1.28rem);
-      color: var(--rattan-deep);
+      color: var(--surface-heading);
       margin-bottom: 0.5rem;
       line-height: 1.4;
       font-weight: 700;
@@ -1896,7 +1916,7 @@
 
     .video-body p {
       font-size: 0.96rem;
-      color: var(--text);
+      color: var(--surface-text);
       line-height: 1.8;
       margin-bottom: 0.85rem;
       font-weight: 500;
@@ -1904,8 +1924,20 @@
     }
 
     .video-body p strong {
-      color: var(--leaf);
+      color: var(--surface-accent);
       font-weight: 800;
+    }
+
+    .video-card .btn-outline {
+      background: rgba(255, 250, 243, 0.92);
+      color: var(--surface-heading);
+      border-color: rgba(184, 137, 90, 0.48);
+    }
+
+    .video-card .btn-outline:hover {
+      background: var(--surface-heading);
+      color: #fffaf3;
+      border-color: var(--surface-heading);
     }
 
     .video-actions {
