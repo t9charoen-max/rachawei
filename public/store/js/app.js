@@ -200,11 +200,11 @@
     // ========== RENDER PRODUCTS ==========
     const grid = document.getElementById('productGrid');
     const filterBtns = document.querySelectorAll('.filter-btn');
-    let productSlideObserver = null;
+    const MAX_PRODUCT_IMAGES = 10;
 
     function getProductImages(p) {
       if (!p) return [];
-      if (Array.isArray(p.images) && p.images.length) return p.images.filter(Boolean);
+      if (Array.isArray(p.images) && p.images.length) return p.images.filter(Boolean).slice(0, MAX_PRODUCT_IMAGES);
       if (p.image) return [p.image];
       return [];
     }
@@ -214,8 +214,69 @@
       return imgs[0] || null;
     }
 
-    function syncProductDots() {}
-    function bindProductSlideDots() {}
+    function renderProductCardMedia(p) {
+      const imgs = getProductImages(p);
+      if (!imgs.length) {
+        return { html: '', emojiShow: '' };
+      }
+      if (imgs.length === 1) {
+        return {
+          html: `<img class="product-card-img" src="${imgs[0]}" alt="${p.name}" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='inline'">`,
+          emojiShow: 'display:none',
+        };
+      }
+      const slides = imgs.map((src, i) =>
+        `<div class="product-card-gallery__slide"><img src="${src}" alt="${p.name}" loading="${i === 0 ? 'eager' : 'lazy'}" draggable="false"></div>`
+      ).join('');
+      const dots = imgs.map((_, i) =>
+        `<button type="button" class="product-card-gallery__dot${i === 0 ? ' is-active' : ''}" aria-label="รูปที่ ${i + 1}" data-index="${i}"></button>`
+      ).join('');
+      return {
+        html: `<div class="product-card-gallery" data-pid="${p.id}">
+          <div class="product-card-gallery__track">${slides}</div>
+          <div class="product-card-gallery__dots">${dots}</div>
+        </div>`,
+        emojiShow: 'display:none',
+      };
+    }
+
+    function bindProductCardGalleries() {
+      document.querySelectorAll('.product-card-gallery').forEach((gallery) => {
+        if (gallery.dataset.bound) return;
+        gallery.dataset.bound = '1';
+        const track = gallery.querySelector('.product-card-gallery__track');
+        const dots = gallery.querySelectorAll('.product-card-gallery__dot');
+        if (!track || !dots.length) return;
+
+        const syncDots = () => {
+          const slideW = track.clientWidth || 1;
+          const idx = Math.min(dots.length - 1, Math.max(0, Math.round(track.scrollLeft / slideW)));
+          dots.forEach((d, i) => d.classList.toggle('is-active', i === idx));
+        };
+
+        track.addEventListener('scroll', syncDots, { passive: true });
+
+        dots.forEach((dot) => {
+          dot.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const i = Number(dot.dataset.index || 0);
+            track.scrollTo({ left: i * track.clientWidth, behavior: 'smooth' });
+          });
+        });
+
+        let startX = null;
+        gallery._swiped = false;
+        track.addEventListener('touchstart', (e) => {
+          startX = e.touches[0]?.clientX ?? null;
+          gallery._swiped = false;
+        }, { passive: true });
+        track.addEventListener('touchmove', (e) => {
+          if (startX == null) return;
+          if (Math.abs((e.touches[0]?.clientX ?? startX) - startX) > 10) gallery._swiped = true;
+        }, { passive: true });
+        track.addEventListener('touchend', () => { startX = null; });
+      });
+    }
 
     let catalogFilter = 'all';
     let catalogQuery = '';
@@ -312,11 +373,7 @@
       }
 
       grid.innerHTML = filtered.map((p, idx) => {
-        const cover = getCoverImage(p);
-        const media = cover
-          ? `<img src="${cover}" alt="${p.name}" onerror="this.style.display='none';this.nextElementSibling.style.display='inline'">`
-          : '';
-        const emojiShow = cover ? 'display:none' : '';
+        const cardMedia = renderProductCardMedia(p);
         const delay = Math.min(idx * 0.05, 0.4);
         const rating = productRating(p);
         const wish = isWished(p.id) ? '♥' : '♡';
@@ -326,8 +383,8 @@
           <div class="product-image">
             ${badgeLabel ? `<span class="product-badge">${badgeLabel}</span>` : ''}
             <button type="button" class="shop-wish" aria-label="ถูกใจ" onclick="event.stopPropagation();toggleWish(${p.id})">${wish}</button>
-            ${media}
-            <span class="emoji" style="${emojiShow}">${p.emoji || '🧺'}</span>
+            ${cardMedia.html}
+            <span class="emoji" style="${cardMedia.emojiShow}">${p.emoji || '🧺'}</span>
           </div>
           <div class="product-body">
             <div class="product-cat">${p.category}</div>
@@ -347,7 +404,17 @@
 
       renderPopularCats();
       refreshHeroSlides();
+      bindProductCardGalleries();
     }
+
+    document.getElementById('productGrid').addEventListener('click', (e) => {
+      const gallery = e.target.closest('.product-card-gallery');
+      if (gallery && gallery._swiped) {
+        e.preventDefault();
+        e.stopPropagation();
+        gallery._swiped = false;
+      }
+    }, true);
 
     // ========== HERO BACKGROUND SLIDES ==========
     let heroIndex = 0;
@@ -2087,7 +2154,7 @@
             <label>รูปสินค้า (หลายรูปได้)</label>
             <input type="file" id="apFile" accept="image/jpeg,image/png,image/webp,image/gif" multiple style="font-size:0.85rem;margin-bottom:0.5rem;" />
             <div style="font-size:0.75rem;color:var(--text-soft);line-height:1.4;margin-bottom:0.5rem;">
-              เลือกได้หลายไฟล์พร้อมกัน · JPG/PNG/WebP · แนะนำไม่เกิน 2 MB ต่อรูป
+              ใส่ได้สูงสุด ${MAX_PRODUCT_IMAGES} รูปต่อสินค้า · JPG/PNG/WebP · ระบบจะปรับให้พอดีกรอบอัตโนมัติ
             </div>
             <div style="display:flex;gap:0.5rem;margin-bottom:0.5rem;">
               <input type="url" id="apImageUrl" placeholder="หรือวางลิงก์รูป แล้วกดเพิ่ม" style="font-size:0.85rem;flex:1;" />
@@ -2154,17 +2221,18 @@
         let added = 0;
         for (const file of files) {
           if (!file.type.startsWith('image/')) continue;
-          if (file.size > 2.5 * 1024 * 1024) {
-            showToast(`${file.name} ใหญ่เกินไป`);
-            continue;
+          if ((window._apImages || []).length >= MAX_PRODUCT_IMAGES) {
+            showToast(`ใส่ได้สูงสุด ${MAX_PRODUCT_IMAGES} รูปต่อสินค้า`);
+            break;
           }
           try {
             const dataUrl = await readFileAsDataURL(file);
-            const compressed = await compressImage(dataUrl, 900, 0.75);
+            const compressed = await compressImage(dataUrl, { purpose: 'product' });
             window._apImages.push(compressed);
             added++;
           } catch (e) {
             console.warn(e);
+            showToast(`${file.name} อ่านไม่ได้`);
           }
         }
         fileInput.value = '';
@@ -2176,6 +2244,10 @@
         const url = document.getElementById('apImageUrl').value.trim();
         if (!url.startsWith('http')) {
           showToast('กรุณาใส่ลิงก์รูปที่ถูกต้อง');
+          return;
+        }
+        if ((window._apImages || []).length >= MAX_PRODUCT_IMAGES) {
+          showToast(`ใส่ได้สูงสุด ${MAX_PRODUCT_IMAGES} รูปต่อสินค้า`);
           return;
         }
         window._apImages.push(url);
@@ -2216,25 +2288,68 @@
       });
     }
 
-    function compressImage(dataUrl, maxWidth, quality) {
+    function compressImage(dataUrl, optionsOrMaxWidth, legacyQuality) {
+      const defaults = {
+        product: { aspectRatio: 1, mode: 'contain', maxEdge: 1200, background: '#efe6d6', quality: 0.82 },
+        hero: { aspectRatio: 16 / 10, mode: 'contain', maxEdge: 1400, background: '#1a120c', quality: 0.78 },
+      };
+
+      let opts;
+      if (typeof optionsOrMaxWidth === 'number') {
+        opts = { ...defaults.hero, maxEdge: optionsOrMaxWidth, quality: legacyQuality ?? defaults.hero.quality };
+      } else {
+        const purpose = optionsOrMaxWidth?.purpose === 'hero' ? 'hero' : 'product';
+        opts = { ...defaults[purpose], ...optionsOrMaxWidth };
+      }
+
+      const { aspectRatio, mode, maxEdge, background, quality } = opts;
+
       return new Promise((resolve, reject) => {
         const img = new Image();
         img.onload = () => {
-          let w = img.width;
-          let h = img.height;
-          if (w <= maxWidth && dataUrl.length < 400000) {
+          let canvasW;
+          let canvasH;
+          if (aspectRatio >= 1) {
+            canvasW = maxEdge;
+            canvasH = Math.max(1, Math.round(maxEdge / aspectRatio));
+          } else {
+            canvasH = maxEdge;
+            canvasW = Math.max(1, Math.round(maxEdge * aspectRatio));
+          }
+
+          const sourceEdge = Math.max(img.width, img.height);
+          if (sourceEdge < maxEdge) {
+            const shrink = sourceEdge / maxEdge;
+            canvasW = Math.max(1, Math.round(canvasW * shrink));
+            canvasH = Math.max(1, Math.round(canvasH * shrink));
+            if (aspectRatio >= 1) {
+              canvasH = Math.max(1, Math.round(canvasW / aspectRatio));
+            } else {
+              canvasW = Math.max(1, Math.round(canvasH * aspectRatio));
+            }
+          }
+
+          const canvas = document.createElement('canvas');
+          canvas.width = canvasW;
+          canvas.height = canvasH;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) {
             resolve(dataUrl);
             return;
           }
-          if (w > maxWidth) {
-            h = Math.round(h * maxWidth / w);
-            w = maxWidth;
-          }
-          const canvas = document.createElement('canvas');
-          canvas.width = w;
-          canvas.height = h;
-          const ctx = canvas.getContext('2d');
-          ctx.drawImage(img, 0, 0, w, h);
+
+          ctx.fillStyle = background;
+          ctx.fillRect(0, 0, canvasW, canvasH);
+
+          const scale = mode === 'cover'
+            ? Math.max(canvasW / img.width, canvasH / img.height)
+            : Math.min(canvasW / img.width, canvasH / img.height);
+          const drawW = img.width * scale;
+          const drawH = img.height * scale;
+          const x = (canvasW - drawW) / 2;
+          const y = (canvasH - drawH) / 2;
+          ctx.drawImage(img, x, y, drawW, drawH);
+
           try {
             resolve(canvas.toDataURL('image/jpeg', quality));
           } catch (e) {
@@ -2254,7 +2369,7 @@
       const desc = document.getElementById('apDesc').value.trim();
       const detail = document.getElementById('apDetail').value.trim();
       const badge = document.getElementById('apBadge').value.trim() || null;
-      const images = (window._apImages || []).slice();
+      const images = (window._apImages || []).slice(0, MAX_PRODUCT_IMAGES);
       const image = images[0] || null;
 
       if (!name || isNaN(price) || price < 0) {
