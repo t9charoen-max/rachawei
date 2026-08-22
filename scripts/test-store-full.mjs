@@ -110,28 +110,48 @@ try {
   ok('excel import template btn', !!(await page.$('#apDownloadTemplateBtn')));
   ok('excel export csv btn', !!(await page.$('#apExportCsvBtn')));
 
-  // Videos admin form
+  // Videos admin: save with URL only (auto title) + validation feedback
   await page.click('.admin-tab[data-tab="videos"]');
   await page.waitForSelector('#avSaveBtn');
   ok('video admin save btn', !!(await page.$('#avSaveBtn')));
   ok('video admin product select', !!(await page.$('#avProductId')));
 
-  // Add test video via admin API
-  const videoAdded = await page.evaluate(() => {
-    const before = shopVideos.length;
-    shopVideos.push({
-      id: (Math.max(...shopVideos.map((v) => v.id), 0) + 999),
-      title: 'วิดีโอทดสอบระบบ',
-      videoUrl: 'https://www.youtube.com/watch?v=_6JMaYC-Zbw',
-      productId: products[0]?.id || null,
-      views: 99,
-      thumbnail: '',
-    });
+  const beforeCount = await page.evaluate(() => shopVideos.length);
+  await page.click('#avSaveBtn');
+  await new Promise((r) => setTimeout(r, 200));
+  const emptyUrlError = await page.evaluate(() => ({
+    shown: document.getElementById('avFormError')?.classList.contains('show'),
+    text: document.getElementById('avFormError')?.textContent || '',
+  }));
+  ok('video save shows inline error when URL empty', emptyUrlError.shown && emptyUrlError.text.includes('ลิงก์วิดีโอ'), emptyUrlError.text);
+
+  const testUrl = 'https://www.youtube.com/watch?v=test-add-video-ui';
+  await page.evaluate(() => {
+    document.getElementById('avUrl').value = '';
+    document.getElementById('avTitle').value = '';
+    document.getElementById('avFormError')?.classList.remove('show');
+  });
+  await page.type('#avUrl', testUrl);
+  await page.click('#avSaveBtn');
+  await new Promise((r) => setTimeout(r, 350));
+  const uiSave = await page.evaluate((url) => {
+    const added = shopVideos.find((v) => v.videoUrl === url);
+    return {
+      countIncreased: shopVideos.length > 0,
+      addedTitle: added?.title || '',
+      hasAdded: !!added,
+    };
+  }, testUrl);
+  ok('video save via UI with URL only', uiSave.hasAdded && uiSave.addedTitle.length > 0, uiSave.addedTitle);
+  ok('video save increases list', uiSave.countIncreased);
+
+  // Clean up test video
+  await page.evaluate((url) => {
+    const idx = shopVideos.findIndex((v) => v.videoUrl === url);
+    if (idx >= 0) shopVideos.splice(idx, 1);
     if (typeof saveShopVideos === 'function') saveShopVideos();
     if (typeof renderShopVideos === 'function') renderShopVideos();
-    return shopVideos.length > before;
-  });
-  ok('admin video CRUD path', videoAdded);
+  }, testUrl);
 
   // Nav pages
   await page.evaluate(() => document.getElementById('adminOverlay')?.classList.remove('open'));

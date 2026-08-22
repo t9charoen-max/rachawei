@@ -3006,6 +3006,39 @@
       showToast('ลบสินค้าแล้ว');
     };
 
+    function resolveAdminVideoTitle(rawTitle, productId, videoUrl) {
+      const trimmed = (rawTitle || '').trim();
+      if (trimmed) return trimmed;
+      if (productId) {
+        const product = products.find((p) => p.id === productId);
+        if (product?.name) return product.name;
+      }
+      if (videoUrl) return 'วิดีโอแนะนำสินค้า';
+      return '';
+    }
+
+    function showAdminVideoFormError(msg, fieldIds = []) {
+      const errEl = document.getElementById('avFormError');
+      if (errEl) {
+        errEl.textContent = msg;
+        errEl.classList.add('show');
+      }
+      document.querySelectorAll('#avTitle, #avUrl, #avProductId').forEach((el) => el.classList.remove('input-invalid'));
+      fieldIds.forEach((id) => document.getElementById(id)?.classList.add('input-invalid'));
+      showToast(msg);
+      const focusId = fieldIds[0];
+      const focusEl = focusId ? document.getElementById(focusId) : null;
+      if (focusEl) {
+        focusEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        focusEl.focus({ preventScroll: true });
+      }
+    }
+
+    function clearAdminVideoFormError() {
+      document.getElementById('avFormError')?.classList.remove('show');
+      document.querySelectorAll('#avTitle, #avUrl, #avProductId').forEach((el) => el.classList.remove('input-invalid'));
+    }
+
     function renderAdminVideos() {
       const editV = editingVideoId ? shopVideos.find((v) => v.id === editingVideoId) : null;
       const formTitle = editV ? 'แก้ไขวิดีโอ' : 'เพิ่มวิดีโอใหม่';
@@ -3017,13 +3050,14 @@
         <div class="admin-form-card">
           <h3>${editV ? '✏️ ' : '➕ '}${formTitle}</h3>
           <p class="admin-form-sub">วิดีโอจะแสดงใต้รายการสินค้าในหน้าร้าน · รองรับ YouTube / ลิงก์ MP4 / TikTok / Facebook Reels</p>
-          <div class="form-group">
-            <label>หัวข้อวิดีโอ *</label>
-            <input type="text" id="avTitle" value="${editV ? editV.title.replace(/"/g, '&quot;') : ''}" placeholder="เช่น ตะกร้าหวายทรงกลม 2 ชั้น" />
-          </div>
+          <div class="admin-form-error" id="avFormError" role="alert"></div>
           <div class="form-group">
             <label>ลิงก์วิดีโอ *</label>
             <input type="url" id="avUrl" value="${editV ? (editV.videoUrl || '').replace(/"/g, '&quot;') : ''}" placeholder="https://www.youtube.com/watch?v=..." />
+          </div>
+          <div class="form-group">
+            <label>หัวข้อวิดีโอ <small style="font-weight:400;color:var(--text-soft)">(ว่างไว้ใช้ชื่อสินค้าอัตโนมัติ)</small></label>
+            <input type="text" id="avTitle" value="${editV ? editV.title.replace(/"/g, '&quot;') : ''}" placeholder="เช่น ตะกร้าหวายทรงกลม 2 ชั้น" />
           </div>
           <div class="form-row">
             <div class="form-group">
@@ -3043,8 +3077,8 @@
             <input type="url" id="avThumb" value="${editV ? (editV.thumbnail || '').replace(/"/g, '&quot;') : ''}" placeholder="https://..." />
           </div>
           <div class="admin-actions" style="margin-top:0.5rem;">
-            <button class="btn btn-primary btn-sm" id="avSaveBtn">${editV ? 'บันทึกการแก้ไข' : 'เพิ่มวิดีโอ'}</button>
-            ${editV ? '<button class="btn btn-outline btn-sm" id="avCancelBtn">ยกเลิก</button>' : ''}
+            <button type="button" class="btn btn-primary btn-sm" id="avSaveBtn">${editV ? 'บันทึกการแก้ไข' : 'เพิ่มวิดีโอ'}</button>
+            ${editV ? '<button type="button" class="btn btn-outline btn-sm" id="avCancelBtn">ยกเลิก</button>' : ''}
           </div>
         </div>
 
@@ -3084,6 +3118,18 @@
       `;
 
       document.getElementById('avSaveBtn').addEventListener('click', saveAdminVideo);
+      const productSelect = document.getElementById('avProductId');
+      const titleInput = document.getElementById('avTitle');
+      productSelect.addEventListener('change', () => {
+        if (!titleInput.value.trim()) {
+          const pid = productSelect.value ? Number(productSelect.value) : null;
+          const autoTitle = resolveAdminVideoTitle('', pid, document.getElementById('avUrl').value.trim());
+          if (autoTitle && autoTitle !== 'วิดีโอแนะนำสินค้า') titleInput.value = autoTitle;
+        }
+      });
+      ['avUrl', 'avTitle', 'avProductId'].forEach((id) => {
+        document.getElementById(id)?.addEventListener('input', clearAdminVideoFormError);
+      });
       const cancelBtn = document.getElementById('avCancelBtn');
       if (cancelBtn) {
         cancelBtn.addEventListener('click', () => {
@@ -3094,19 +3140,27 @@
     }
 
     function saveAdminVideo() {
-      const title = document.getElementById('avTitle').value.trim();
+      const rawTitle = document.getElementById('avTitle').value.trim();
       const videoUrl = document.getElementById('avUrl').value.trim();
       const productRaw = document.getElementById('avProductId').value;
       const productId = productRaw ? Number(productRaw) : null;
       const views = parseInt(document.getElementById('avViews').value, 10) || 0;
       const thumbnail = document.getElementById('avThumb').value.trim();
 
-      if (!title || !videoUrl) {
-        showToast('กรุณากรอกหัวข้อและลิงก์วิดีโอ');
+      clearAdminVideoFormError();
+
+      if (!videoUrl) {
+        showAdminVideoFormError('กรุณากรอกลิงก์วิดีโอ', ['avUrl']);
         return;
       }
       if (!/^https?:\/\//i.test(videoUrl)) {
-        showToast('ลิงก์วิดีโอต้องขึ้นต้นด้วย http:// หรือ https://');
+        showAdminVideoFormError('ลิงก์วิดีโอต้องขึ้นต้นด้วย http:// หรือ https://', ['avUrl']);
+        return;
+      }
+
+      const title = resolveAdminVideoTitle(rawTitle, productId, videoUrl);
+      if (!title) {
+        showAdminVideoFormError('กรุณากรอกหัวข้อวิดีโอ หรือเลือกสินค้าเพื่อใช้ชื่ออัตโนมัติ', ['avTitle', 'avProductId']);
         return;
       }
 

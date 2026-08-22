@@ -2590,7 +2590,7 @@
       border-radius: 999px;
       font-size: 0.9rem;
       font-weight: 500;
-      z-index: 400;
+      z-index: 850;
       opacity: 0;
       transition: all 0.35s ease;
       box-shadow: 0 8px 24px rgba(0,0,0,0.2);
@@ -3620,6 +3620,23 @@
       font-size: 0.78rem;
       color: var(--text-soft);
       line-height: 1.45;
+    }
+    .admin-form-error {
+      display: none;
+      margin: 0 0 0.85rem;
+      padding: 0.65rem 0.85rem;
+      border-radius: 10px;
+      background: #fdecea;
+      border: 1px solid #e8b4b4;
+      color: #a93226;
+      font-size: 0.84rem;
+      line-height: 1.45;
+    }
+    .admin-form-error.show { display: block; }
+    .form-group input.input-invalid,
+    .form-group select.input-invalid {
+      border-color: #e74c3c;
+      box-shadow: 0 0 0 2px rgba(231, 76, 60, 0.15);
     }
 
     .admin-import-card {
