@@ -200,11 +200,11 @@
     // ========== RENDER PRODUCTS ==========
     const grid = document.getElementById('productGrid');
     const filterBtns = document.querySelectorAll('.filter-btn');
-    let productSlideObserver = null;
+    const MAX_PRODUCT_IMAGES = 10;
 
     function getProductImages(p) {
       if (!p) return [];
-      if (Array.isArray(p.images) && p.images.length) return p.images.filter(Boolean);
+      if (Array.isArray(p.images) && p.images.length) return p.images.filter(Boolean).slice(0, MAX_PRODUCT_IMAGES);
       if (p.image) return [p.image];
       return [];
     }
@@ -214,8 +214,69 @@
       return imgs[0] || null;
     }
 
-    function syncProductDots() {}
-    function bindProductSlideDots() {}
+    function renderProductCardMedia(p) {
+      const imgs = getProductImages(p);
+      if (!imgs.length) {
+        return { html: '', emojiShow: '' };
+      }
+      if (imgs.length === 1) {
+        return {
+          html: `<img class="product-card-img" src="${imgs[0]}" alt="${p.name}" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='inline'">`,
+          emojiShow: 'display:none',
+        };
+      }
+      const slides = imgs.map((src, i) =>
+        `<div class="product-card-gallery__slide"><img src="${src}" alt="${p.name}" loading="${i === 0 ? 'eager' : 'lazy'}" draggable="false"></div>`
+      ).join('');
+      const dots = imgs.map((_, i) =>
+        `<button type="button" class="product-card-gallery__dot${i === 0 ? ' is-active' : ''}" aria-label="รูปที่ ${i + 1}" data-index="${i}"></button>`
+      ).join('');
+      return {
+        html: `<div class="product-card-gallery" data-pid="${p.id}">
+          <div class="product-card-gallery__track">${slides}</div>
+          <div class="product-card-gallery__dots">${dots}</div>
+        </div>`,
+        emojiShow: 'display:none',
+      };
+    }
+
+    function bindProductCardGalleries() {
+      document.querySelectorAll('.product-card-gallery').forEach((gallery) => {
+        if (gallery.dataset.bound) return;
+        gallery.dataset.bound = '1';
+        const track = gallery.querySelector('.product-card-gallery__track');
+        const dots = gallery.querySelectorAll('.product-card-gallery__dot');
+        if (!track || !dots.length) return;
+
+        const syncDots = () => {
+          const slideW = track.clientWidth || 1;
+          const idx = Math.min(dots.length - 1, Math.max(0, Math.round(track.scrollLeft / slideW)));
+          dots.forEach((d, i) => d.classList.toggle('is-active', i === idx));
+        };
+
+        track.addEventListener('scroll', syncDots, { passive: true });
+
+        dots.forEach((dot) => {
+          dot.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const i = Number(dot.dataset.index || 0);
+            track.scrollTo({ left: i * track.clientWidth, behavior: 'smooth' });
+          });
+        });
+
+        let startX = null;
+        gallery._swiped = false;
+        track.addEventListener('touchstart', (e) => {
+          startX = e.touches[0]?.clientX ?? null;
+          gallery._swiped = false;
+        }, { passive: true });
+        track.addEventListener('touchmove', (e) => {
+          if (startX == null) return;
+          if (Math.abs((e.touches[0]?.clientX ?? startX) - startX) > 10) gallery._swiped = true;
+        }, { passive: true });
+        track.addEventListener('touchend', () => { startX = null; });
+      });
+    }
 
     let catalogFilter = 'all';
     let catalogQuery = '';
@@ -312,11 +373,7 @@
       }
 
       grid.innerHTML = filtered.map((p, idx) => {
-        const cover = getCoverImage(p);
-        const media = cover
-          ? `<img src="${cover}" alt="${p.name}" onerror="this.style.display='none';this.nextElementSibling.style.display='inline'">`
-          : '';
-        const emojiShow = cover ? 'display:none' : '';
+        const cardMedia = renderProductCardMedia(p);
         const delay = Math.min(idx * 0.05, 0.4);
         const rating = productRating(p);
         const wish = isWished(p.id) ? '♥' : '♡';
@@ -326,8 +383,8 @@
           <div class="product-image">
             ${badgeLabel ? `<span class="product-badge">${badgeLabel}</span>` : ''}
             <button type="button" class="shop-wish" aria-label="ถูกใจ" onclick="event.stopPropagation();toggleWish(${p.id})">${wish}</button>
-            ${media}
-            <span class="emoji" style="${emojiShow}">${p.emoji || '🧺'}</span>
+            ${cardMedia.html}
+            <span class="emoji" style="${cardMedia.emojiShow}">${p.emoji || '🧺'}</span>
           </div>
           <div class="product-body">
             <div class="product-cat">${p.category}</div>
@@ -347,7 +404,17 @@
 
       renderPopularCats();
       refreshHeroSlides();
+      bindProductCardGalleries();
     }
+
+    document.getElementById('productGrid').addEventListener('click', (e) => {
+      const gallery = e.target.closest('.product-card-gallery');
+      if (gallery && gallery._swiped) {
+        e.preventDefault();
+        e.stopPropagation();
+        gallery._swiped = false;
+      }
+    }, true);
 
     // ========== HERO BACKGROUND SLIDES ==========
     let heroIndex = 0;
@@ -1467,6 +1534,342 @@
       home: 'ของใช้ในบ้าน'
     };
 
+    const categoryReverseMap = {
+      basket: 'basket',
+      chair: 'chair',
+      home: 'home',
+      'ตะกร้าหวาย': 'basket',
+      'เก้าอี้หวาย': 'chair',
+      'ของใช้ในบ้าน': 'home',
+    };
+
+    const PRODUCT_IMPORT_HEADERS = [
+      'ชื่อสินค้า',
+      'ราคา',
+      'หมวดหมู่',
+      'รายละเอียดสั้น',
+      'รายละเอียดเต็ม',
+      'ป้าย',
+      'อีโมจิ',
+      'ลิงก์รูป',
+    ];
+
+    function normalizeImportHeader(value) {
+      return String(value || '')
+        .replace(/^\uFEFF/, '')
+        .replace(/\*$/, '')
+        .trim()
+        .toLowerCase()
+        .replace(/\s+/g, '');
+    }
+
+    const PRODUCT_IMPORT_ALIASES = {
+      'ชื่อสินค้า': 'name',
+      name: 'name',
+      'ราคา': 'price',
+      price: 'price',
+      'หมวดหมู่': 'cat',
+      cat: 'cat',
+      category: 'cat',
+      'รายละเอียดสั้น': 'desc',
+      desc: 'desc',
+      'รายละเอียดเต็ม': 'detail',
+      detail: 'detail',
+      'ป้าย': 'badge',
+      badge: 'badge',
+      'อีโมจิ': 'emoji',
+      emoji: 'emoji',
+      'ลิงก์รูป': 'images',
+      images: 'images',
+      'ลิงก์รูปภาพ': 'images',
+      imageurls: 'images',
+    };
+
+    function parseCsvText(text) {
+      const rows = [];
+      let row = [];
+      let cell = '';
+      let inQuotes = false;
+      const src = String(text || '').replace(/^\uFEFF/, '');
+      for (let i = 0; i < src.length; i++) {
+        const c = src[i];
+        const next = src[i + 1];
+        if (inQuotes) {
+          if (c === '"' && next === '"') {
+            cell += '"';
+            i++;
+          } else if (c === '"') {
+            inQuotes = false;
+          } else {
+            cell += c;
+          }
+        } else if (c === '"') {
+          inQuotes = true;
+        } else if (c === ',') {
+          row.push(cell);
+          cell = '';
+        } else if (c === '\r' && next === '\n') {
+          row.push(cell);
+          rows.push(row);
+          row = [];
+          cell = '';
+          i++;
+        } else if (c === '\n' || c === '\r') {
+          row.push(cell);
+          rows.push(row);
+          row = [];
+          cell = '';
+        } else {
+          cell += c;
+        }
+      }
+      if (cell.length || row.length) {
+        row.push(cell);
+        rows.push(row);
+      }
+      return rows.filter((r) => r.some((v) => String(v || '').trim()));
+    }
+
+    function csvEscape(value) {
+      const s = String(value ?? '');
+      if (/[",\n\r]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
+      return s;
+    }
+
+    function buildProductImportTemplateRows() {
+      return [
+        PRODUCT_IMPORT_HEADERS.map((h, i) => (i < 2 ? `${h}*` : h)),
+        [
+          'ตะกร้าหวายทรงกลม 2 ชั้น',
+          '550',
+          'ตะกร้าหวาย',
+          'กลม 2 ชั้น พิเศษ สานมือ',
+          'เหมาะใส่ของใช้ในบ้าน ของฝาก หรือตั้งโชว์',
+          'ขายดี',
+          '🧺',
+          '',
+        ],
+        [
+          'เก้าอี้หวายพักผ่อน',
+          '1290',
+          'เก้าอี้หวาย',
+          'นั่งสบาย โครงแข็ง',
+          'รายละเอียดเพิ่มเติม ขนาด วัสดุ วิธีดูแล',
+          '',
+          '🪑',
+          'https://example.com/photo1.jpg|https://example.com/photo2.jpg',
+        ],
+        [
+          'ที่รองจานหวาย',
+          '180',
+          'ของใช้ในบ้าน',
+          'ลายสานสวย ใช้บนโต๊ะอาหาร',
+          '',
+          'ใหม่',
+          '🏡',
+          '',
+        ],
+      ];
+    }
+
+    function rowsToCsv(rows) {
+      return rows.map((row) => row.map(csvEscape).join(',')).join('\r\n');
+    }
+
+    function downloadProductImportTemplate() {
+      const rows = buildProductImportTemplateRows();
+      const csv = '\uFEFF' + rowsToCsv(rows);
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'rachawei-sanpham-template.csv';
+      a.click();
+      URL.revokeObjectURL(a.href);
+      showToast('ดาวน์โหลดเทมเพลตแล้ว — เปิดด้วย Excel แล้วกรอกข้อมูล');
+    }
+
+    function exportProductsToCsv() {
+      const rows = [
+        PRODUCT_IMPORT_HEADERS,
+        ...products.map((p) => [
+          p.name || '',
+          p.price ?? '',
+          categoryMap[p.cat] || p.cat || '',
+          p.desc || '',
+          p.detail || '',
+          p.badge || '',
+          p.emoji || '',
+          getProductImages(p).join('|'),
+        ]),
+      ];
+      const csv = '\uFEFF' + rowsToCsv(rows);
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'rachawei-sanpham-export.csv';
+      a.click();
+      URL.revokeObjectURL(a.href);
+      showToast('ส่งออกรายการสินค้าเป็น CSV แล้ว');
+    }
+
+    let sheetJsPromise = null;
+    function loadSheetJs() {
+      if (window.XLSX) return Promise.resolve(window.XLSX);
+      if (sheetJsPromise) return sheetJsPromise;
+      sheetJsPromise = new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        script.src = 'https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js';
+        script.async = true;
+        script.onload = () => resolve(window.XLSX);
+        script.onerror = () => reject(new Error('โหลดตัวอ่าน Excel ไม่สำเร็จ'));
+        document.head.appendChild(script);
+      });
+      return sheetJsPromise;
+    }
+
+    async function readSpreadsheetRows(file) {
+      const ext = (file.name.split('.').pop() || '').toLowerCase();
+      if (ext === 'csv' || ext === 'txt') {
+        const text = await file.text();
+        return parseCsvText(text);
+      }
+      if (ext === 'xlsx' || ext === 'xls') {
+        const XLSX = await loadSheetJs();
+        const buf = await file.arrayBuffer();
+        const wb = XLSX.read(buf, { type: 'array' });
+        const sheetName = wb.SheetNames[0];
+        if (!sheetName) return [];
+        const sheet = wb.Sheets[sheetName];
+        return XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '', raw: false });
+      }
+      throw new Error('รองรับไฟล์ CSV หรือ Excel (.xlsx, .xls) เท่านั้น');
+    }
+
+    function mapImportRow(row, headerMap) {
+      const data = {};
+      row.forEach((value, index) => {
+        const key = headerMap[index];
+        if (!key) return;
+        data[key] = String(value ?? '').trim();
+      });
+      return data;
+    }
+
+    function parseImportImageUrls(raw) {
+      if (!raw) return [];
+      return raw
+        .split(/[|;,]/)
+        .map((s) => s.trim())
+        .filter((s) => s.startsWith('http'))
+        .slice(0, MAX_PRODUCT_IMAGES);
+    }
+
+    function resolveImportCategory(raw) {
+      const key = String(raw || '').trim();
+      if (!key) return 'basket';
+      return categoryReverseMap[key] || categoryReverseMap[key.toLowerCase()] || 'basket';
+    }
+
+    function parseProductImportRows(rows) {
+      if (!rows.length) {
+        return { items: [], errors: ['ไฟล์ว่างหรือไม่มีข้อมูล'] };
+      }
+
+      const headerRowIndex = rows.findIndex((row) =>
+        row.some((cell) => {
+          const norm = normalizeImportHeader(cell);
+          return norm.includes('ชื่อสินค้า') || norm === 'name';
+        })
+      );
+      if (headerRowIndex < 0) {
+        return { items: [], errors: ['ไม่พบหัวคอลัมน์ "ชื่อสินค้า" ในไฟล์'] };
+      }
+
+      const headerMap = rows[headerRowIndex].map((cell) => {
+        const norm = normalizeImportHeader(cell);
+        return PRODUCT_IMPORT_ALIASES[norm] || PRODUCT_IMPORT_ALIASES[cell.trim()] || null;
+      });
+
+      const items = [];
+      const errors = [];
+
+      for (let i = headerRowIndex + 1; i < rows.length; i++) {
+        const row = rows[i];
+        if (!row || !row.some((v) => String(v || '').trim())) continue;
+
+        const data = mapImportRow(row, headerMap);
+        const name = data.name || '';
+        const priceRaw = (data.price || '').replace(/[^\d.]/g, '');
+        const price = parseFloat(priceRaw);
+
+        if (!name) {
+          errors.push(`แถว ${i + 1}: ไม่มีชื่อสินค้า — ข้าม`);
+          continue;
+        }
+        if (!priceRaw || isNaN(price) || price < 0) {
+          errors.push(`แถว ${i + 1}: ราคา "${data.price || ''}" ไม่ถูกต้อง — ข้าม`);
+          continue;
+        }
+
+        const cat = resolveImportCategory(data.cat);
+        const images = parseImportImageUrls(data.images);
+        items.push({
+          name,
+          price,
+          cat,
+          category: categoryMap[cat] || cat,
+          desc: data.desc || '',
+          detail: data.detail || '',
+          badge: data.badge || null,
+          emoji: data.emoji || '🧺',
+          images,
+          image: images[0] || null,
+        });
+      }
+
+      return { items, errors };
+    }
+
+    async function previewProductImport(file) {
+      const rows = await readSpreadsheetRows(file);
+      return parseProductImportRows(rows);
+    }
+
+    function applyProductImport(items, mode) {
+      if (!items.length) return { added: 0, updated: 0 };
+
+      if (mode === 'replace') {
+        products.length = 0;
+      }
+
+      let added = 0;
+      items.forEach((item) => {
+        products.push({
+          id: nextProductId++,
+          name: item.name,
+          price: item.price,
+          cat: item.cat,
+          category: item.category,
+          desc: item.desc,
+          detail: item.detail,
+          badge: item.badge,
+          emoji: item.emoji,
+          images: item.images,
+          image: item.image,
+        });
+        added++;
+      });
+
+      nextProductId = Math.max(...products.map((p) => p.id), 0) + 1;
+      const validIds = new Set(products.map((p) => p.id));
+      cart = cart.filter((c) => validIds.has(c.id));
+      saveProducts();
+      saveCart();
+      updateBadge();
+      renderProducts(document.querySelector('.filter-btn.active')?.dataset.filter || 'all');
+      return { added, updated: 0 };
+    }
+
     const adminOverlay = document.getElementById('adminOverlay');
     const adminContent = document.getElementById('adminContent');
     const adminLoginView = document.getElementById('adminLoginView');
@@ -2049,8 +2452,34 @@
       const editP = editingProductId ? products.find(p => p.id === editingProductId) : null;
 
       adminContent.innerHTML = `
+        <div class="admin-import-card">
+          <div class="admin-import-card__head">
+            <h3>📥 นำเข้าจาก Excel</h3>
+            <p>ดาวน์โหลดเทมเพลต → กรอกใน Excel / Google Sheets → นำเข้า · รูปและรายละเอียดอื่นแก้ไขทีหลังได้</p>
+          </div>
+          <div class="admin-import-steps">
+            <span>1. ดาวน์โหลดเทมเพลต</span>
+            <span>2. กรอกชื่อ ราคา หมวด (รูปว่างไว้ได้)</span>
+            <span>3. บันทึกแล้วนำเข้า</span>
+          </div>
+          <div class="admin-import-actions">
+            <button type="button" class="btn btn-primary btn-sm" id="apDownloadTemplateBtn">⬇️ ดาวน์โหลดเทมเพลต</button>
+            <button type="button" class="btn btn-outline btn-sm" id="apExportCsvBtn">📤 ส่งออก CSV ปัจจุบัน</button>
+            <label class="btn btn-outline btn-sm admin-import-file-btn">
+              📂 เลือกไฟล์
+              <input type="file" id="apImportFile" accept=".csv,.xlsx,.xls,text/csv" hidden />
+            </label>
+          </div>
+          <div class="admin-import-meta">
+            รองรับ CSV และ Excel (.xlsx) · คอลัมน์ <strong>ชื่อสินค้า</strong> และ <strong>ราคา</strong> จำเป็น ·
+            หมวดหมู่: ตะกร้าหวาย / เก้าอี้หวาย / ของใช้ในบ้าน · ลิงก์รูปคั่นด้วย <code>|</code> (ไม่บังคับ)
+          </div>
+          <div class="admin-import-preview" id="apImportPreview" hidden></div>
+        </div>
+
         <div class="admin-form-card">
           <h3>${editP ? '✏️ ' : '➕ '}${formTitle}</h3>
+          <p class="admin-form-sub">เพิ่มทีละรายการ หรือแก้ไขรูป/รายละเอียดหลังนำเข้า Excel</p>
           <div class="form-row">
             <div class="form-group">
               <label>ชื่อสินค้า *</label>
@@ -2087,7 +2516,7 @@
             <label>รูปสินค้า (หลายรูปได้)</label>
             <input type="file" id="apFile" accept="image/jpeg,image/png,image/webp,image/gif" multiple style="font-size:0.85rem;margin-bottom:0.5rem;" />
             <div style="font-size:0.75rem;color:var(--text-soft);line-height:1.4;margin-bottom:0.5rem;">
-              เลือกได้หลายไฟล์พร้อมกัน · JPG/PNG/WebP · แนะนำไม่เกิน 2 MB ต่อรูป
+              ใส่ได้สูงสุด ${MAX_PRODUCT_IMAGES} รูปต่อสินค้า · JPG/PNG/WebP · ระบบจะปรับให้พอดีกรอบอัตโนมัติ
             </div>
             <div style="display:flex;gap:0.5rem;margin-bottom:0.5rem;">
               <input type="url" id="apImageUrl" placeholder="หรือวางลิงก์รูป แล้วกดเพิ่ม" style="font-size:0.85rem;flex:1;" />
@@ -2137,6 +2566,75 @@
       window._apImages = editP ? getProductImages(editP).slice() : [];
       renderApGalleryList();
 
+      document.getElementById('apDownloadTemplateBtn').addEventListener('click', downloadProductImportTemplate);
+      document.getElementById('apExportCsvBtn').addEventListener('click', exportProductsToCsv);
+
+      const importPreview = document.getElementById('apImportPreview');
+      document.getElementById('apImportFile').addEventListener('change', async (e) => {
+        const file = e.target.files && e.target.files[0];
+        e.target.value = '';
+        if (!file) return;
+
+        importPreview.hidden = false;
+        importPreview.innerHTML = '<div class="admin-import-preview__loading">กำลังอ่านไฟล์...</div>';
+
+        try {
+          const { items, errors } = await previewProductImport(file);
+          if (!items.length) {
+            importPreview.innerHTML = `
+              <div class="admin-import-preview__empty">
+                <strong>ไม่พบรายการที่นำเข้าได้</strong>
+                ${errors.length ? `<ul>${errors.slice(0, 5).map((err) => `<li>${err}</li>`).join('')}</ul>` : ''}
+              </div>`;
+            return;
+          }
+
+          const sample = items.slice(0, 5).map((item) =>
+            `<li><strong>${item.name}</strong> · ${formatPrice(item.price)} · ${item.category}${item.images.length ? ` · ${item.images.length} รูป` : ''}</li>`
+          ).join('');
+
+          importPreview.innerHTML = `
+            <div class="admin-import-preview__summary">
+              <strong>พร้อมนำเข้า ${items.length} รายการ</strong> จากไฟล์ ${file.name}
+              ${errors.length ? `<div class="admin-import-preview__warn">ข้าม/เตือน ${errors.length} แถว</div>` : ''}
+            </div>
+            <ul class="admin-import-preview__list">${sample}${items.length > 5 ? `<li>… และอีก ${items.length - 5} รายการ</li>` : ''}</ul>
+            ${errors.length ? `<details class="admin-import-preview__errors"><summary>ดูข้อความเตือน</summary><ul>${errors.slice(0, 8).map((err) => `<li>${err}</li>`).join('')}</ul></details>` : ''}
+            <div class="admin-import-preview__actions">
+              <label class="admin-import-mode">
+                <input type="radio" name="apImportMode" value="append" checked />
+                เพิ่มต่อจากรายการเดิม
+              </label>
+              <label class="admin-import-mode admin-import-mode--danger">
+                <input type="radio" name="apImportMode" value="replace" />
+                แทนที่สินค้าทั้งหมด
+              </label>
+              <button type="button" class="btn btn-primary btn-sm" id="apConfirmImportBtn">✓ ยืนยันนำเข้า</button>
+              <button type="button" class="btn btn-outline btn-sm" id="apCancelImportBtn">ยกเลิก</button>
+            </div>
+          `;
+
+          document.getElementById('apCancelImportBtn').addEventListener('click', () => {
+            importPreview.hidden = true;
+            importPreview.innerHTML = '';
+          });
+
+          document.getElementById('apConfirmImportBtn').addEventListener('click', () => {
+            const mode = document.querySelector('input[name="apImportMode"]:checked')?.value || 'append';
+            if (mode === 'replace' && !confirm(`แทนที่สินค้าทั้งหมด (${products.length} รายการ) ด้วย ${items.length} รายการจากไฟล์?`)) {
+              return;
+            }
+            const result = applyProductImport(items, mode);
+            importPreview.hidden = true;
+            importPreview.innerHTML = '';
+            showToast(`นำเข้า ${result.added} รายการแล้ว ✓`);
+            renderAdminProducts();
+          });
+        } catch (err) {
+          importPreview.innerHTML = `<div class="admin-import-preview__empty"><strong>อ่านไฟล์ไม่สำเร็จ</strong><br>${err.message || err}</div>`;
+        }
+      });
+
       document.getElementById('apSaveBtn').addEventListener('click', saveAdminProduct);
       const cancelBtn = document.getElementById('apCancelBtn');
       if (cancelBtn) {
@@ -2154,17 +2652,18 @@
         let added = 0;
         for (const file of files) {
           if (!file.type.startsWith('image/')) continue;
-          if (file.size > 2.5 * 1024 * 1024) {
-            showToast(`${file.name} ใหญ่เกินไป`);
-            continue;
+          if ((window._apImages || []).length >= MAX_PRODUCT_IMAGES) {
+            showToast(`ใส่ได้สูงสุด ${MAX_PRODUCT_IMAGES} รูปต่อสินค้า`);
+            break;
           }
           try {
             const dataUrl = await readFileAsDataURL(file);
-            const compressed = await compressImage(dataUrl, 900, 0.75);
+            const compressed = await compressImage(dataUrl, { purpose: 'product' });
             window._apImages.push(compressed);
             added++;
           } catch (e) {
             console.warn(e);
+            showToast(`${file.name} อ่านไม่ได้`);
           }
         }
         fileInput.value = '';
@@ -2176,6 +2675,10 @@
         const url = document.getElementById('apImageUrl').value.trim();
         if (!url.startsWith('http')) {
           showToast('กรุณาใส่ลิงก์รูปที่ถูกต้อง');
+          return;
+        }
+        if ((window._apImages || []).length >= MAX_PRODUCT_IMAGES) {
+          showToast(`ใส่ได้สูงสุด ${MAX_PRODUCT_IMAGES} รูปต่อสินค้า`);
           return;
         }
         window._apImages.push(url);
@@ -2216,25 +2719,68 @@
       });
     }
 
-    function compressImage(dataUrl, maxWidth, quality) {
+    function compressImage(dataUrl, optionsOrMaxWidth, legacyQuality) {
+      const defaults = {
+        product: { aspectRatio: 1, mode: 'contain', maxEdge: 1200, background: '#efe6d6', quality: 0.82 },
+        hero: { aspectRatio: 16 / 10, mode: 'contain', maxEdge: 1400, background: '#1a120c', quality: 0.78 },
+      };
+
+      let opts;
+      if (typeof optionsOrMaxWidth === 'number') {
+        opts = { ...defaults.hero, maxEdge: optionsOrMaxWidth, quality: legacyQuality ?? defaults.hero.quality };
+      } else {
+        const purpose = optionsOrMaxWidth?.purpose === 'hero' ? 'hero' : 'product';
+        opts = { ...defaults[purpose], ...optionsOrMaxWidth };
+      }
+
+      const { aspectRatio, mode, maxEdge, background, quality } = opts;
+
       return new Promise((resolve, reject) => {
         const img = new Image();
         img.onload = () => {
-          let w = img.width;
-          let h = img.height;
-          if (w <= maxWidth && dataUrl.length < 400000) {
+          let canvasW;
+          let canvasH;
+          if (aspectRatio >= 1) {
+            canvasW = maxEdge;
+            canvasH = Math.max(1, Math.round(maxEdge / aspectRatio));
+          } else {
+            canvasH = maxEdge;
+            canvasW = Math.max(1, Math.round(maxEdge * aspectRatio));
+          }
+
+          const sourceEdge = Math.max(img.width, img.height);
+          if (sourceEdge < maxEdge) {
+            const shrink = sourceEdge / maxEdge;
+            canvasW = Math.max(1, Math.round(canvasW * shrink));
+            canvasH = Math.max(1, Math.round(canvasH * shrink));
+            if (aspectRatio >= 1) {
+              canvasH = Math.max(1, Math.round(canvasW / aspectRatio));
+            } else {
+              canvasW = Math.max(1, Math.round(canvasH * aspectRatio));
+            }
+          }
+
+          const canvas = document.createElement('canvas');
+          canvas.width = canvasW;
+          canvas.height = canvasH;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) {
             resolve(dataUrl);
             return;
           }
-          if (w > maxWidth) {
-            h = Math.round(h * maxWidth / w);
-            w = maxWidth;
-          }
-          const canvas = document.createElement('canvas');
-          canvas.width = w;
-          canvas.height = h;
-          const ctx = canvas.getContext('2d');
-          ctx.drawImage(img, 0, 0, w, h);
+
+          ctx.fillStyle = background;
+          ctx.fillRect(0, 0, canvasW, canvasH);
+
+          const scale = mode === 'cover'
+            ? Math.max(canvasW / img.width, canvasH / img.height)
+            : Math.min(canvasW / img.width, canvasH / img.height);
+          const drawW = img.width * scale;
+          const drawH = img.height * scale;
+          const x = (canvasW - drawW) / 2;
+          const y = (canvasH - drawH) / 2;
+          ctx.drawImage(img, x, y, drawW, drawH);
+
           try {
             resolve(canvas.toDataURL('image/jpeg', quality));
           } catch (e) {
@@ -2254,7 +2800,7 @@
       const desc = document.getElementById('apDesc').value.trim();
       const detail = document.getElementById('apDetail').value.trim();
       const badge = document.getElementById('apBadge').value.trim() || null;
-      const images = (window._apImages || []).slice();
+      const images = (window._apImages || []).slice(0, MAX_PRODUCT_IMAGES);
       const image = images[0] || null;
 
       if (!name || isNaN(price) || price < 0) {
