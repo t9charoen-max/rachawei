@@ -2209,6 +2209,27 @@
       transition: background 0.2s;
     }
 
+    a.contact-card {
+      display: block;
+      text-decoration: none;
+      color: inherit;
+      cursor: pointer;
+    }
+
+    .contact-card--map:hover {
+      background: rgba(255, 255, 255, 0.22);
+      transform: translateY(-1px);
+    }
+
+    .contact-card__cta {
+      display: inline-block;
+      margin-top: 0.55rem;
+      font-size: 0.78rem;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      opacity: 0.95;
+    }
+
     .contact-card:hover {
       background: rgba(255, 255, 255, 0.18);
     }

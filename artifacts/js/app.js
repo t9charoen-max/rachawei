@@ -1948,6 +1948,7 @@
             lineUrl: SHOP_CONFIG.lineUrl,
             facebookUrl: SHOP_CONFIG.facebookUrl,
             addressHtml: SHOP_CONFIG.addressHtml,
+            mapUrl: SHOP_CONFIG.mapUrl,
             adminPin: SHOP_CONFIG.adminPin,
             promoMin: SHOP_CONFIG.promoMin,
             promoDiscount: SHOP_CONFIG.promoDiscount,
@@ -1988,6 +1989,8 @@
             <input class="admin-input" id="setFb" value="${escapeHtml(c.facebookUrl||'')}" style="width:100%;margin-top:0.25rem;"></label>
           <label style="font-size:0.82rem;font-weight:600;">ที่อยู่ (รองรับ HTML ขึ้นบรรทัดใหม่ด้วย &lt;br&gt;)
             <textarea class="admin-input" id="setAddress" rows="3" style="width:100%;margin-top:0.25rem;">${escapeHtml(c.addressHtml||'')}</textarea></label>
+          <label style="font-size:0.82rem;font-weight:600;">ลิงก์ Google Maps
+            <input class="admin-input" id="setMapUrl" value="${escapeHtml(c.mapUrl||'')}" placeholder="https://maps.app.goo.gl/..." style="width:100%;margin-top:0.25rem;"></label>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.6rem;">
             <label style="font-size:0.82rem;font-weight:600;">โปร ยอดขั้นต่ำ (บาท)
               <input class="admin-input" type="number" id="setPromoMin" value="${c.promoMin||0}" style="width:100%;margin-top:0.25rem;"></label>
@@ -2123,6 +2126,7 @@
           lineUrl: document.getElementById('setLine').value.trim() || SHOP_CONFIG.lineUrl,
           facebookUrl: document.getElementById('setFb').value.trim() || SHOP_CONFIG.facebookUrl,
           addressHtml: document.getElementById('setAddress').value.trim() || SHOP_CONFIG.addressHtml,
+          mapUrl: document.getElementById('setMapUrl').value.trim() || SHOP_CONFIG.mapUrl,
           promoMin: Number(document.getElementById('setPromoMin').value) || 0,
           promoDiscount: Number(document.getElementById('setPromoDisc').value) || 0,
           bankName: document.getElementById('setBankName').value.trim(),
@@ -3139,6 +3143,12 @@
       document.querySelectorAll('a[href*="facebook.com"]').forEach(a => {
         a.href = c.facebookUrl;
       });
+      // Google Maps
+      const mapUrl = c.mapUrl || '';
+      ['shopMapCard', 'shopMapBtn'].forEach((id) => {
+        const el = document.getElementById(id);
+        if (el && mapUrl) el.href = mapUrl;
+      });
       // admin label
       const lbl = document.getElementById('adminUserLabel');
       if (lbl) lbl.textContent = c.shopName;
@@ -3147,13 +3157,14 @@
       const logoSub = document.querySelector('.logo-sub');
       if (logoSub && c.shopSub) logoSub.textContent = c.shopSub;
       // contact address card if present
-      const contactCards = document.querySelectorAll('.contact-card');
+      const mapCard = document.getElementById('shopMapCard');
+      if (mapCard) {
+        const p = mapCard.querySelector('p');
+        if (p) p.innerHTML = c.addressHtml;
+      }
+      const contactCards = document.querySelectorAll('.contact-card:not(.contact-card--map)');
       contactCards.forEach(card => {
         const h = card.querySelector('h3');
-        if (h && h.textContent.includes('ที่อยู่')) {
-          const p = card.querySelector('p');
-          if (p) p.innerHTML = c.addressHtml;
-        }
         if (h && h.textContent.includes('โทร')) {
           const p = card.querySelector('p');
           if (p) p.innerHTML = '<a href="tel:' + c.phoneTel + '">' + c.phoneDisplay + '</a>';
