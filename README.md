@@ -11,7 +11,19 @@
 
 ## เว็บไซต์จริง
 
-**[https://rachawei.vercel.app](https://rachawei.vercel.app)**
+**[https://rachawei.vercel.app](https://rachawei.vercel.app)** — ราชาหวาย (หวายสาน)
+
+## ราชาวัสดุ (แยกโปรเจกต์ — ไม่ฝังซ้ำในเว็บนี้)
+
+ร้านวัสดุก่อสร้างอยู่คนละ Vercel app ไม่ build ซ้ำเข้า `rachawei.vercel.app` อีกแล้ว
+
+- Live: **https://rachawei-f1it.vercel.app/**
+- โค้ด: `next-app/` → sync ไป branch `next-deploy`
+- ลิงก์เก่า `/rachawatsadu` บนเว็บราชาหวาย จะ redirect ไปแอปนี้
+
+```bash
+npm run dev:materials
+```
 
 ## ราชาวัสดุ Desk
 

@@ -27,18 +27,20 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Build deploy tree (root + next-app)
+      - name: Build deploy tree (next-app only, no duplicate nest)
         run: |
           rm -rf /tmp/next-deploy
-          mkdir -p /tmp/next-deploy/next-app
-          rsync -a --exclude='.github' --exclude='.next' --exclude='out' --exclude='node_modules' next-app/ /tmp/next-deploy/ || \
-            tar -C next-app -cf - --exclude='.github' --exclude='.next' --exclude='out' --exclude='node_modules' . | tar -C /tmp/next-deploy -xf -
-          rsync -a --exclude='.github' --exclude='.next' --exclude='out' --exclude='node_modules' next-app/ /tmp/next-deploy/next-app/ || \
-            tar -C next-app -cf - --exclude='.github' --exclude='.next' --exclude='out' --exclude='node_modules' . | tar -C /tmp/next-deploy/next-app -xf -
+          mkdir -p /tmp/next-deploy
+          # ไม่ copy .github — GITHUB_TOKEN ไม่มีสิทธิ์ push workflow ไป branch อื่น
+          # วางที่ root ของ branch เท่านั้น (ห้ามซ้ำทั้ง root และ next-app/)
+          rsync -a --exclude='.github' --exclude='.next' --exclude='out' --exclude='node_modules' next-app/ /tmp/next-deploy/
           cat > /tmp/next-deploy/DEPLOY_BRANCH.txt <<'EOF'
-          Branch สำหรับ Vercel deploy โดยตรง
-          - Root Directory ว่าง (./) หรือ next-app ใช้ได้ทั้งคู่
-          - Production Branch ตั้งเป็น next-deploy
+          Branch สำหรับ Vercel deploy ราชาวัสดุ (แยกจากราชาหวาย)
+          - Vercel project: rachawei-f1it (หรือชื่ออื่น)
+          - Root Directory: ./
+          - Production Branch: next-deploy
+          - ไม่ใช้ basePath — แอปอยู่ที่ root ของโดเมนแยก
+          Live: https://rachawei-f1it.vercel.app/
           EOF
 
       - name: Push to next-deploy branch

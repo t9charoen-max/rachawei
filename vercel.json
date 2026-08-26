@@ -1,22 +1,23 @@
 {
   "buildCommand": "npm run build",
-  "installCommand": "npm ci && npm ci --prefix next-app",
+  "installCommand": "npm ci",
   "outputDirectory": "dist",
   "framework": "vite",
   "cleanUrls": true,
   "ignoreCommand": "if [ \"$VERCEL_GIT_COMMIT_REF\" = \"next-deploy\" ]; then exit 0; fi; case \"$VERCEL_PROJECT_PRODUCTION_URL$VERCEL_URL\" in *rachawei-f1it*) exit 0 ;; esac; git diff HEAD^ HEAD --quiet -- . && exit 0 || exit 1",
   "redirects": [
-    { "source": "/rajawasu", "destination": "/rachawatsadu", "permanent": true },
-    { "source": "/rajawasu/", "destination": "/rachawatsadu/", "permanent": true },
-    { "source": "/rajawasu/:path*", "destination": "/rachawatsadu/:path*", "permanent": true }
+    { "source": "/rachawatsadu", "destination": "https://rachawei-f1it.vercel.app/", "permanent": true },
+    { "source": "/rachawatsadu/", "destination": "https://rachawei-f1it.vercel.app/", "permanent": true },
+    { "source": "/rachawatsadu/:path*", "destination": "https://rachawei-f1it.vercel.app/:path*", "permanent": true },
+    { "source": "/rajawasu", "destination": "https://rachawei-f1it.vercel.app/", "permanent": true },
+    { "source": "/rajawasu/", "destination": "https://rachawei-f1it.vercel.app/", "permanent": true },
+    { "source": "/rajawasu/:path*", "destination": "https://rachawei-f1it.vercel.app/:path*", "permanent": true }
   ],
   "rewrites": [
     { "source": "/mcp", "destination": "/api/mcp" },
     { "source": "/desk", "destination": "/desk/index.html" },
     { "source": "/store", "destination": "/store/index.html" },
-    { "source": "/rachawei-surin", "destination": "/store/index.html" },
-    { "source": "/rachawatsadu", "destination": "/rachawatsadu/index.html" },
-    { "source": "/rachawatsadu/products/:slug", "destination": "/rachawatsadu/products/:slug.html" }
+    { "source": "/rachawei-surin", "destination": "/store/index.html" }
   ],
   "functions": {
     "api/mcp.ts": {
@@ -53,12 +54,6 @@
     },
     {
       "source": "/store/(.*)",
-      "headers": [
-        { "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" }
-      ]
-    },
-    {
-      "source": "/rachawatsadu/(.*)",
       "headers": [
         { "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" }
       ]
