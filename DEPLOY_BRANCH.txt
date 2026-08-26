@@ -1,0 +1,6 @@
+Branch สำหรับ Vercel deploy ราชาวัสดุ (แยกจากราชาหวาย)
+- Vercel project: rachawei-f1it (หรือชื่ออื่น)
+- Root Directory: ./
+- Production Branch: next-deploy
+- ไม่ใช้ basePath — แอปอยู่ที่ root ของโดเมนแยก
+Live: https://rachawei-f1it.vercel.app/
