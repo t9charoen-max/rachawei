@@ -8,18 +8,19 @@
    - Project URL → `NEXT_PUBLIC_SUPABASE_URL`
    - anon public key → `NEXT_PUBLIC_SUPABASE_ANON_KEY`
 
-## 2) ตั้งค่า Vercel (โปรเจกต์ rachawei)
+## 2) ตั้งค่า Vercel (โปรเจกต์ราชาวัสดุแยก — เช่น rachawei-f1it)
 
-**Settings → Environment Variables** ใส่:
+**Settings → Environment Variables** ใส่ในโปรเจกต์วัสดุ (ไม่ใช่ราชาหวาย):
 
 | ชื่อ | ค่า |
 |------|-----|
 | `NEXT_PUBLIC_SUPABASE_URL` | `https://xxxx.supabase.co` |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | `eyJhbG...` |
 
-แล้ว **Redeploy** โปรเจกต์ (ต้อง rebuild เพื่อดึงสินค้าจาก Supabase)
+แล้ว **Redeploy** โปรเจกต์วัสดุ (branch `next-deploy` / Root Directory `./`)
 
-> หมายเหตุ: เว็บ deploy แบบ static ที่ `/rachawatsadu/` ไม่มี API server — ใช้ Supabase ฝั่ง browser โดยตรง
+> หมายเหตุ: deploy แบบ static ไม่มี API server — ใช้ Supabase ฝั่ง browser โดยตรง  
+> อย่าตั้ง `NEXT_PUBLIC_BASE_PATH` — แอปนี้อยู่ที่ root ของโดเมนแยก
 
 ## 3) Deploy Edge Function ส่ง Line OA
 
@@ -42,7 +43,7 @@ supabase functions deploy line-quote-notify --no-verify-jwt
 
 ## 4) ทดสอบ
 
-1. เปิด https://rachawei.vercel.app/rachawatsadu/
+1. เปิด https://rachawei-f1it.vercel.app/
 2. แบนเนอร์ "โหมดตัวอย่าง" ควรหายไป (ถ้า Supabase ตั้งถูก)
 3. กด **ขอราคา** → บันทึกลง Supabase + ส่งข้อความไป Line แอดมิน
 
