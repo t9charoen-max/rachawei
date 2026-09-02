@@ -3182,6 +3182,22 @@
       min-height: 70px;
     }
 
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.65rem;
+    }
+
+    @media (max-width: 520px) {
+      .form-row {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .cart-total-row--promo span:last-child {
+      color: #2e7d32;
+    }
+
     .pay-methods {
       display: flex;
       flex-direction: column;
@@ -3190,6 +3206,7 @@
     }
 
     .pay-method {
+      position: relative;
       display: flex;
       align-items: center;
       gap: 0.75rem;
@@ -3200,6 +3217,7 @@
       transition: all 0.2s;
       background: white;
       text-align: left;
+      user-select: none;
     }
 
     .pay-method:hover {
@@ -3214,7 +3232,21 @@
     }
 
     .pay-method input {
-      display: none;
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      opacity: 0;
+      cursor: pointer;
+      z-index: 2;
+    }
+
+    .pay-method-icon,
+    .pay-method-info {
+      position: relative;
+      z-index: 1;
+      pointer-events: none;
     }
 
     .pay-method-icon {
@@ -3475,7 +3507,7 @@
 
     /* ========== ADMIN PANEL ========== */
     .admin-link {
-      display: inline-block;
+      display: none !important;
       margin-top: 0.6rem;
       font-size: 0.75rem;
       color: var(--text-soft);
@@ -4630,4 +4662,31 @@
       .shop-app .product-image { height: 168px; }
       .shop-hero.hero--slides { min-height: 240px; }
       .shop-cat, .shop-cat img, .shop-cat .shop-cat__emoji { height: 128px; min-height: 128px; }
+    }
+
+    @media (min-width: 900px) {
+      .shop-tabbar {
+        display: none;
+      }
+
+      .shop-app {
+        padding-bottom: 1.5rem;
+      }
+
+      .shop-line {
+        bottom: 1.25rem;
+        right: 1.25rem;
+      }
+
+      .shop-grid.product-grid,
+      .shop-app .product-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+      }
+    }
+
+    @media (min-width: 1200px) {
+      .shop-grid.product-grid,
+      .shop-app .product-grid {
+        grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+      }
     }

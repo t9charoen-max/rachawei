@@ -186,14 +186,25 @@ export function mergeCatalog(base: CatalogItem[], drafts: CatalogItem[]): Catalo
 }
 
 export async function fetchBaseCatalog(): Promise<CatalogItem[]> {
-  const response = await fetch(`/catalog/products.json?v=${PRODUCT_IMAGE_VERSION}`, {
-    cache: 'no-cache',
-  });
-  if (!response.ok) {
-    throw new Error('โหลดรายการสินค้าไม่สำเร็จ');
+  const urls = [
+    `/catalog/products.json?v=${PRODUCT_IMAGE_VERSION}`,
+    '/catalog/products.json',
+  ];
+  let lastError: Error | null = null;
+  for (const url of urls) {
+    try {
+      const response = await fetch(url, { cache: 'no-cache' });
+      if (!response.ok) {
+        lastError = new Error('โหลดรายการสินค้าไม่สำเร็จ');
+        continue;
+      }
+      const data = (await response.json()) as CatalogItem[];
+      if (Array.isArray(data) && data.length > 0) return data;
+    } catch (err) {
+      lastError = err instanceof Error ? err : new Error('โหลดรายการสินค้าไม่สำเร็จ');
+    }
   }
-  const data = (await response.json()) as CatalogItem[];
-  return Array.isArray(data) ? data : [];
+  throw lastError ?? new Error('โหลดรายการสินค้าไม่สำเร็จ');
 }
 
 export async function loadProducts(): Promise<Product[]> {

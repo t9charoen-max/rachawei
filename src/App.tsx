@@ -169,7 +169,12 @@ export function App() {
 
       <main className={`flex-1 overflow-y-auto px-4 ${selected && tab === 'products' ? 'main--detail' : 'pb-4'}`}>
         {loading && <p className="contact-note">กำลังโหลดสินค้า…</p>}
-        {loadError && <p className="contact-note">{loadError}</p>}
+        {loadError && (
+          <p className="contact-note">
+            {loadError}{' '}
+            <a href="/store/" className="underline">เปิดร้านค้าเต็มรูปแบบที่ /store/</a>
+          </p>
+        )}
 
         {adminGate && tab === 'admin' && (
           <ProductAdminPage
