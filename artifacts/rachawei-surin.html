@@ -39,6 +39,13 @@
     <button type="button" class="install-banner__close" id="installClose" aria-label="ปิด">✕</button>
   </div>
 
+  <!-- Promo strip (thin bar — not a modal) -->
+  <div class="promo-bar" id="promoBar" hidden role="region" aria-label="โปรโมชั่น">
+    <p class="promo-bar__text" id="promoBarText">🎁 สั่งครบ 1,500 บาท ลดทันที 100 บาท</p>
+    <a href="#products" class="promo-bar__link" id="promoBarShop">เลือกสินค้า</a>
+    <button type="button" class="promo-bar__close" id="promoBarClose" aria-label="ปิดโปร">×</button>
+  </div>
+
   <!-- Header -->
   <header>
     <a href="#" class="logo">
@@ -756,30 +763,6 @@
           <button class="btn btn-primary" id="printLabelFromStatusBtn">🖨️ พิมพ์ใบปะหน้าไปรษณีย์</button>
           <button class="btn btn-outline" id="advanceStatusBtn">▶️ จำลองอัปเดตสถานะถัดไป</button>
         </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Promo Popup -->
-  <div class="promo-overlay" id="promoOverlay" role="dialog" aria-modal="true" aria-labelledby="promoTitle">
-    <div class="promo-card">
-      <div class="promo-ribbon">โปรโมชั่นพิเศษ</div>
-      <button type="button" class="promo-close" id="promoClose" aria-label="ปิด">×</button>
-      <div class="promo-body">
-        <div class="promo-emoji">🧺</div>
-        <h2 id="promoTitle">ชุดของขวัญหวาย ลดพิเศษ</h2>
-        <p class="promo-sub">สั่งตะกร้า / กระเช้าครบชุด รับส่วนลดจากร้าน</p>
-        <div class="promo-deal">
-          <div class="label">เมื่อสั่งครบ 1,500 บาท</div>
-          <div class="value">ลดทันที 100 บาท</div>
-          <div class="extra">+ แถมวิธีดูแลหวายฉบับร้าน</div>
-        </div>
-        <div class="promo-actions">
-          <a href="#products" class="btn btn-primary" id="promoShopBtn">เลือกชมสินค้า</a>
-          <a href="https://line.me/ti/p/~0814707089" target="_blank" rel="noopener" class="btn btn-outline">ทัก LINE สอบถาม</a>
-          <button type="button" class="promo-skip" id="promoSkip">ไว้ทีหลัง</button>
-        </div>
-        <p class="promo-footer-note">เงื่อนไขตามร้านกำหนด · ทักยืนยันก่อนโอน</p>
       </div>
     </div>
   </div>

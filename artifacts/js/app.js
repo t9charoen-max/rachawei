@@ -216,6 +216,23 @@
       return '฿' + n.toLocaleString('th-TH');
     }
 
+    function getProductStock(p) {
+      const n = Number(p?.stock);
+      return Number.isFinite(n) ? n : null;
+    }
+
+    function getStockLabel(p) {
+      const stock = getProductStock(p);
+      if (stock === null) return { text: 'พร้อมส่ง', className: 'in-stock' };
+      if (stock <= 0) return { text: 'หมดชั่วคราว', className: 'out-of-stock' };
+      return { text: `คงเหลือ ${stock} ชิ้น`, className: 'in-stock' };
+    }
+
+    function isProductAvailable(p) {
+      const stock = getProductStock(p);
+      return stock === null || stock > 0;
+    }
+
     function getCartCount() {
       return cart.reduce((sum, item) => sum + item.qty, 0);
     }
@@ -467,11 +484,12 @@
       grid.innerHTML = filtered.map((p, idx) => {
         const cardMedia = renderProductCardMedia(p);
         const delay = Math.min(idx * 0.05, 0.4);
-        const rating = productRating(p);
         const wish = isWished(p.id) ? '♥' : '♡';
         const badgeLabel = p.badge === 'ยอดนิยม' ? 'ขายดี' : p.badge;
+        const stock = getStockLabel(p);
+        const available = isProductAvailable(p);
         return `
-        <article class="product-card stagger" data-cat="${p.cat}" style="animation-delay:${delay}s" onclick="navigateToProduct(${p.id})">
+        <article class="product-card product-card--buy stagger" data-cat="${p.cat}" data-pid="${p.id}" style="animation-delay:${delay}s">
           <div class="product-image">
             ${badgeLabel ? `<span class="product-badge">${badgeLabel}</span>` : ''}
             <button type="button" class="shop-wish" aria-label="ถูกใจ" onclick="event.stopPropagation();toggleWish(${p.id})">${wish}</button>
@@ -479,16 +497,15 @@
             <span class="emoji" style="${cardMedia.emojiShow}">${p.emoji || '🧺'}</span>
           </div>
           <div class="product-body">
-            <div class="product-cat">${p.category}</div>
             <h3 class="product-title">${p.name}</h3>
-            <p class="product-desc">${p.desc}</p>
-            <div class="product-footer">
-              <div>
-                <div class="product-price">${formatPrice(p.price)}</div>
-                <div class="shop-card__rating">★ ${rating.score} <span>(${rating.count})</span></div>
-              </div>
-              <button class="btn btn-add btn-sm" onclick="event.stopPropagation();addToCart(${p.id})" aria-label="ใส่ตะกร้า">🛒</button>
+            <div class="product-card-buyrow">
+              <div class="product-price">${formatPrice(p.price)}</div>
+              <div class="product-stock product-stock--${stock.className}">${stock.text}</div>
             </div>
+            <button type="button" class="btn btn-primary btn-add-full" ${available ? '' : 'disabled'} onclick="addToCart(${p.id})" aria-label="ใส่ ${p.name} ลงตะกร้า">
+              🛒 ใส่ตะกร้า
+            </button>
+            <button type="button" class="product-detail-link" onclick="navigateToProduct(${p.id})">ดูรายละเอียด</button>
           </div>
         </article>
       `;
@@ -1075,7 +1092,18 @@
 
     // ========== CART ACTIONS ==========
     function addToCart(id) {
+      const p = products.find(item => item.id === id);
+      if (p && !isProductAvailable(p)) {
+        showToast('สินค้าหมดชั่วคราว');
+        return;
+      }
+      const stock = p ? getProductStock(p) : null;
       const existing = cart.find(item => item.id === id);
+      const nextQty = (existing?.qty || 0) + 1;
+      if (stock !== null && nextQty > stock) {
+        showToast(`มีในสต็อก ${stock} ชิ้น`);
+        return;
+      }
       if (existing) {
         existing.qty += 1;
       } else {
@@ -1083,7 +1111,7 @@
       }
       saveCart();
       updateBadge();
-      showToast('เพิ่มลงตะกร้าแล้ว ✓');
+      showToast('เพิ่มลงตะกร้าแล้ว ✓ — แตะ 🛒 ด้านบนเพื่อชำระเงิน');
     }
 
     function changeQty(id, delta) {
@@ -3473,15 +3501,14 @@
     // Sync icon with current theme
     setTheme(getTheme());
 
-    // ========== PROMO POPUP ==========
+    // ========== PROMO BAR (thin strip — no modal) ==========
     const PROMO_KEY = 'rachawei_promo_dismissed';
-    const promoOverlay = document.getElementById('promoOverlay');
+    const promoBar = document.getElementById('promoBar');
 
     function isPromoDismissed() {
       try {
         const raw = sessionStorage.getItem(PROMO_KEY) || localStorage.getItem(PROMO_KEY);
         if (!raw) return false;
-        // value can be '1' or timestamp — hide for 12 hours if timestamp
         if (raw === '1') return true;
         const t = parseInt(raw, 10);
         if (!isNaN(t) && Date.now() - t < 12 * 60 * 60 * 1000) return true;
@@ -3490,19 +3517,20 @@
     }
 
     function dismissPromo(rememberHours) {
-      promoOverlay.classList.remove('open');
+      if (promoBar) promoBar.hidden = true;
       try {
         const val = rememberHours ? String(Date.now()) : '1';
         sessionStorage.setItem(PROMO_KEY, val);
         if (rememberHours) localStorage.setItem(PROMO_KEY, val);
       } catch (e) {}
     }
+    window.dismissPromo = dismissPromo;
 
     function showPromo() {
-      if (isPromoDismissed()) return;
-      const banner = document.getElementById('installBanner');
-      if (banner && !banner.hidden) return;
-      promoOverlay.classList.add('open');
+      if (isPromoDismissed() || !promoBar) return;
+      const install = document.getElementById('installBanner');
+      if (install && !install.hidden) return;
+      promoBar.hidden = false;
     }
 
     let promoTimer = null;
@@ -3512,12 +3540,8 @@
     }
     window.schedulePromoAfterInstall = schedulePromoAfterInstall;
 
-    document.getElementById('promoClose').addEventListener('click', () => dismissPromo(true));
-    document.getElementById('promoSkip').addEventListener('click', () => dismissPromo(true));
-    document.getElementById('promoShopBtn').addEventListener('click', () => dismissPromo(true));
-    promoOverlay.addEventListener('click', (e) => {
-      if (e.target === promoOverlay) dismissPromo(true);
-    });
+    document.getElementById('promoBarClose')?.addEventListener('click', () => dismissPromo(true));
+    document.getElementById('promoBarShop')?.addEventListener('click', () => dismissPromo(true));
 
 
     // ========== PAGE NAV ==========
@@ -3791,6 +3815,10 @@
       document.querySelectorAll('.promo-deal .value').forEach(el => {
         el.textContent = 'ลดทันที ' + c.promoDiscount + ' บาท';
       });
+      const promoBarText = document.getElementById('promoBarText');
+      if (promoBarText && c.promoMin && c.promoDiscount) {
+        promoBarText.textContent = `🎁 สั่งครบ ${c.promoMin.toLocaleString('th-TH')} บาท ลดทันที ${c.promoDiscount} บาท`;
+      }
       renderStorefrontPhotos(c.storefrontPhotos);
       if (typeof refreshHeroSlides === 'function') refreshHeroSlides();
     }

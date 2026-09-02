@@ -25,10 +25,10 @@ try {
 
   await page.goto(BASE, { waitUntil: 'networkidle0' });
 
-  // Dismiss promo so it does not block interactions
+  // Dismiss promo bar so it does not block interactions
   await page.evaluate(() => {
     if (typeof dismissPromo === 'function') dismissPromo(true);
-    else document.getElementById('promoOverlay')?.classList.remove('open');
+    else document.getElementById('promoBar')?.setAttribute('hidden', '');
   });
 
   await page.waitForSelector('#productGrid .product-card');
@@ -54,8 +54,8 @@ try {
   ok('google map button link', front.mapBtn.includes('maps.app.goo.gl'), front.mapBtn);
   ok('video player API', front.openShopVideo && front.playShopVideo && front.buyFromShopVideo);
 
-  // Product detail modal
-  await page.click('#productGrid .product-card');
+  // Product detail modal (via detail link — card tap is add-to-cart)
+  await page.click('#productGrid .product-detail-link');
   await page.waitForSelector('#productDetailModal.open', { timeout: 5000 });
   const pdOpen = await page.evaluate(() => document.getElementById('productDetailModal')?.classList.contains('open'));
   ok('product detail modal opens', pdOpen);

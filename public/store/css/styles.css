@@ -1330,8 +1330,77 @@
       color: var(--rattan-deep);
     }
 
-    /* Promo popup */
-    /* Promo card — มุมล่าง ไม่บังทั้งจอ */
+    /* Promo thin bar — ไม่บังหน้าแรก */
+    .promo-bar {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.45rem 0.75rem;
+      padding-right: 2.25rem;
+      background: linear-gradient(90deg, #5c4033 0%, #7a5538 100%);
+      color: #fff8ef;
+      font-size: 0.78rem;
+      line-height: 1.35;
+      position: sticky;
+      top: 0;
+      z-index: 48;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+      box-shadow: 0 2px 8px rgba(44, 36, 27, 0.12);
+    }
+
+    .promo-bar[hidden] {
+      display: none !important;
+    }
+
+    .promo-bar__text {
+      flex: 1;
+      margin: 0;
+      font-weight: 600;
+      min-width: 0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .promo-bar__link {
+      flex-shrink: 0;
+      color: #fff;
+      background: rgba(255, 255, 255, 0.16);
+      border: 1px solid rgba(255, 255, 255, 0.28);
+      border-radius: 999px;
+      padding: 0.22rem 0.65rem;
+      font-size: 0.72rem;
+      font-weight: 700;
+      text-decoration: none;
+      white-space: nowrap;
+    }
+
+    .promo-bar__link:hover {
+      background: rgba(255, 255, 255, 0.24);
+    }
+
+    .promo-bar__close {
+      position: absolute;
+      right: 0.35rem;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 1.6rem;
+      height: 1.6rem;
+      border: none;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.14);
+      color: #fff;
+      font-size: 1rem;
+      line-height: 1;
+      cursor: pointer;
+    }
+
+    [data-theme="dark"] .promo-bar {
+      background: linear-gradient(90deg, #2a2218 0%, #3d2f22 100%);
+      color: #f6ede8;
+    }
+
+    /* Legacy promo popup (removed from HTML — keep minimal for safety) */
     .promo-overlay {
       position: fixed;
       inset: auto 0 0 0;
@@ -4574,6 +4643,71 @@
 
     .shop-app .product-cat,
     .shop-app .product-desc { display: none; }
+
+    .product-card--buy {
+      cursor: default;
+    }
+
+    .product-card-buyrow {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 0.35rem;
+      margin: 0.15rem 0 0.45rem;
+    }
+
+    .product-stock {
+      font-size: 0.68rem;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .product-stock--in-stock {
+      color: #2e7d32;
+    }
+
+    .product-stock--out-of-stock {
+      color: #c0392b;
+    }
+
+    .btn-add-full {
+      width: 100%;
+      justify-content: center;
+      padding: 0.55rem 0.75rem;
+      font-size: 0.82rem;
+      font-weight: 700;
+      border-radius: 999px;
+      margin-top: 0.1rem;
+    }
+
+    .btn-add-full:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+    }
+
+    .product-detail-link {
+      display: block;
+      width: 100%;
+      margin-top: 0.35rem;
+      padding: 0;
+      border: none;
+      background: none;
+      font-family: inherit;
+      font-size: 0.72rem;
+      font-weight: 600;
+      color: #8a7b6c;
+      text-decoration: underline;
+      text-underline-offset: 2px;
+      cursor: pointer;
+    }
+
+    .product-detail-link:hover {
+      color: var(--shop-brown);
+    }
+
+    [data-theme="dark"] .product-detail-link {
+      color: #c9b8a8;
+    }
 
     .shop-app .product-price small { display: none; }
 
