@@ -134,6 +134,72 @@
       });
     }
 
+    const PRODUCT_OVERLAY_KEYS = ['price', 'stock', 'size', 'badge', 'desc', 'detail', 'emoji'];
+
+    function mapStoreCatFromCategory(category, storeCat) {
+      if (storeCat) return storeCat;
+      if (category === 'เก้าอี้') return 'chair';
+      return 'basket';
+    }
+
+    function catalogItemToStoreProduct(item) {
+      const id = Number(item.id);
+      if (!Number.isFinite(id)) return null;
+      const images = (item.images || []).map((file) =>
+        String(file).startsWith('/') ? file : `/products/${file}`,
+      );
+      const badge = item.badge || (item.special ? 'พิเศษ' : null);
+      return {
+        id,
+        name: item.name,
+        cat: mapStoreCatFromCategory(item.category, item.storeCat),
+        category: item.category,
+        desc: String(item.description || item.desc || '').slice(0, 160),
+        detail: item.detail || item.description || item.desc || '',
+        price: Number(item.price) || 0,
+        stock: item.stock != null ? Number(item.stock) : null,
+        size: item.size || '',
+        emoji: item.emoji || (item.category === 'เก้าอี้' ? '🪑' : '🧺'),
+        badge,
+        images,
+        image: images[0] || '',
+      };
+    }
+
+    async function fetchLiveCatalogProducts() {
+      const ver = typeof CATALOG_SYNC_VERSION !== 'undefined' ? CATALOG_SYNC_VERSION : 'rachawei-catalog-v2';
+      try {
+        const res = await fetch(`/catalog/products.json?v=${ver}`, { cache: 'no-cache' });
+        if (!res.ok) return null;
+        const data = await res.json();
+        if (!Array.isArray(data) || !data.length) return null;
+        return data
+          .map(catalogItemToStoreProduct)
+          .filter(Boolean)
+          .sort((a, b) => a.id - b.id);
+      } catch (e) {
+        return null;
+      }
+    }
+
+    function mergeCatalogWithSaved(catalogList, savedList) {
+      const savedById = new Map((savedList || []).map((p) => [Number(p.id), p]));
+      return catalogList.map((base) => {
+        const saved = savedById.get(Number(base.id));
+        if (!saved) return { ...base };
+        const overlay = {};
+        PRODUCT_OVERLAY_KEYS.forEach((key) => {
+          if (saved[key] != null && saved[key] !== '') overlay[key] = saved[key];
+        });
+        return { ...base, ...overlay };
+      });
+    }
+
+    function sanitizeCartForProducts() {
+      const ids = new Set(products.map((p) => p.id));
+      cart = cart.filter((item) => ids.has(Number(item.id)));
+    }
+
     async function loadPersisted() {
       try {
         db = await openDB();
@@ -145,9 +211,24 @@
         const savedTheme = await idbGet('theme');
         const savedShop = await idbGet('shopSettings');
         const savedVideos = await idbGet('shopVideos');
+        const savedCatalogVer = await idbGet('catalogSyncVersion');
 
-        if (Array.isArray(savedProducts) && savedProducts.length > 0) {
-          products = savedProducts;
+        const catalogBase = await fetchLiveCatalogProducts();
+        const baseProducts = (catalogBase && catalogBase.length)
+          ? catalogBase
+          : DEFAULT_PRODUCTS.map(p => ({ ...p }));
+        const needsCatalogResync = savedCatalogVer !== CATALOG_SYNC_VERSION;
+
+        if (needsCatalogResync || !Array.isArray(savedProducts) || !savedProducts.length) {
+          products = baseProducts.map(p => ({ ...p }));
+        } else {
+          products = mergeCatalogWithSaved(baseProducts, savedProducts);
+        }
+
+        if (needsCatalogResync) {
+          sanitizeCartForProducts();
+          await idbSet('catalogSyncVersion', CATALOG_SYNC_VERSION);
+          await idbSet('products', products);
         }
         if (Array.isArray(savedVideos)) {
           shopVideos = savedVideos;
