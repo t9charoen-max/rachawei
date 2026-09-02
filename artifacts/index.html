@@ -706,12 +706,27 @@
         <div class="pay-detail-box" id="payDetailBox">
           <!-- filled by JS -->
         </div>
+        <div class="slip-upload-section" id="slipUploadSection" style="display:none;">
+          <div class="slip-upload-title">📎 แนบสลิปโอนเงิน (บนเว็บ)</div>
+          <p class="slip-upload-hint">อัปโหลดสลิปได้เลยที่นี่ — ไม่ต้องสลับไป LINE ร้านจะเห็นในระบบหลังร้านทันที</p>
+          <label class="slip-upload-zone" id="slipUploadZone" for="slipFileInput">
+            <input type="file" id="slipFileInput" accept="image/jpeg,image/png,image/webp,image/heic,image/heif" hidden />
+            <span class="slip-upload-placeholder" id="slipUploadPlaceholder">แตะเพื่อเลือกรูปสลิป หรือถ่ายภาพ</span>
+            <img id="slipPreview" class="slip-preview" alt="ตัวอย่างสลิป" hidden />
+          </label>
+          <button type="button" class="btn btn-outline btn-xs slip-remove-btn" id="slipRemoveBtn" style="display:none;">ลบรูปสลิป</button>
+        </div>
+        <div class="slip-alt-links" id="slipAltLinks" style="display:none;">
+          <span class="slip-alt-label">หรือส่งทางช่องทางอื่น (ไม่บังคับ):</span>
+          <div class="slip-alt-btns">
+            <a href="tel:+66814707089" class="btn btn-outline btn-xs">📞 โทรแจ้งร้าน</a>
+            <a href="https://www.facebook.com/p/%E0%B8%A3%E0%B9%89%E0%B8%B2%E0%B8%99-%E0%B8%A3%E0%B8%B2%E0%B8%8A%E0%B8%B2%E0%B8%AB%E0%B8%A7%E0%B8%B2%E0%B8%A2%E0%B8%AA%E0%B8%B8%E0%B8%A3%E0%B8%B4%E0%B8%99%E0%B8%97%E0%B8%A3%E0%B9%8C-100063725193085/" target="_blank" rel="noopener" class="btn btn-outline btn-xs">💬 Facebook</a>
+          </div>
+        </div>
         <div class="order-summary" id="orderSummary" style="display:none;"></div>
         <div class="modal-actions">
           <button class="btn btn-primary" id="confirmOrderBtn">✅ ยืนยันคำสั่งซื้อ</button>
           <button class="btn btn-outline" id="copyOrderBtn">📋 คัดลอกสรุปคำสั่งซื้อ</button>
-          <a href="tel:+66814707089" class="btn btn-outline">📞 โทรแจ้งร้าน 081-470-7089</a>
-          <a href="https://www.facebook.com/p/%E0%B8%A3%E0%B9%89%E0%B8%B2%E0%B8%99-%E0%B8%A3%E0%B8%B2%E0%B8%8A%E0%B8%B2%E0%B8%AB%E0%B8%A7%E0%B8%B2%E0%B8%A2%E0%B8%AA%E0%B8%B8%E0%B8%A3%E0%B8%B4%E0%B8%99%E0%B8%97%E0%B8%A3%E0%B9%8C-100063725193085/" target="_blank" rel="noopener" class="btn btn-outline">💬 ส่งสลิปทาง Facebook</a>
           <button class="btn btn-outline" id="backTo2">← กลับ</button>
         </div>
       </div>
@@ -724,6 +739,17 @@
           <div style="font-size:0.9rem;color:var(--text-soft);">บันทึกเลขที่ออเดอร์ไว้เพื่อตรวจสอบสถานะ</div>
         </div>
         <div class="status-order-id" id="successOrderBox"></div>
+        <div class="slip-upload-section slip-upload-success" id="successSlipSection" style="display:none;">
+          <div class="slip-upload-title">📎 แนบสลิปโอนเงิน</div>
+          <p class="slip-upload-hint">โอนแล้ว? อัปโหลดสลิปได้เลยที่นี่ ไม่ต้องไป LINE</p>
+          <label class="slip-upload-zone" id="successSlipZone" for="successSlipFileInput">
+            <input type="file" id="successSlipFileInput" accept="image/jpeg,image/png,image/webp,image/heic,image/heif" hidden />
+            <span class="slip-upload-placeholder" id="successSlipPlaceholder">แตะเพื่อเลือกรูปสลิป</span>
+            <img id="successSlipPreview" class="slip-preview" alt="ตัวอย่างสลิป" hidden />
+          </label>
+          <button type="button" class="btn btn-primary btn-sm" id="successSlipSubmitBtn" style="display:none;">ส่งสลิปให้ร้าน</button>
+        </div>
+        <div class="slip-attached-msg" id="successSlipAttached" style="display:none;">✓ ส่งสลิปให้ร้านแล้ว — รอร้านยืนยันการชำระเงิน</div>
         <div class="modal-actions">
           <button class="btn btn-primary" id="printLabelBtn">🖨️ พิมพ์ใบปะหน้าไปรษณีย์</button>
           <button class="btn btn-outline" id="viewStatusBtn">📦 ดูสถานะคำสั่งซื้อ</button>

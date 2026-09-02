@@ -1252,6 +1252,77 @@
     const copyOrderBtn = document.getElementById('copyOrderBtn');
     let payStep = 1;
     let selectedMethod = 'promptpay';
+    let pendingSlip = null;
+    let successPendingSlip = null;
+
+    function resetPendingSlip() {
+      pendingSlip = null;
+      const preview = document.getElementById('slipPreview');
+      const placeholder = document.getElementById('slipUploadPlaceholder');
+      const removeBtn = document.getElementById('slipRemoveBtn');
+      const input = document.getElementById('slipFileInput');
+      if (preview) {
+        preview.hidden = true;
+        preview.removeAttribute('src');
+      }
+      if (placeholder) placeholder.style.display = '';
+      if (removeBtn) removeBtn.style.display = 'none';
+      if (input) input.value = '';
+    }
+
+    function resetSuccessSlipUI() {
+      successPendingSlip = null;
+      const preview = document.getElementById('successSlipPreview');
+      const placeholder = document.getElementById('successSlipPlaceholder');
+      const submitBtn = document.getElementById('successSlipSubmitBtn');
+      const input = document.getElementById('successSlipFileInput');
+      if (preview) {
+        preview.hidden = true;
+        preview.removeAttribute('src');
+      }
+      if (placeholder) placeholder.style.display = '';
+      if (submitBtn) submitBtn.style.display = 'none';
+      if (input) input.value = '';
+    }
+
+    function updateSlipPreview(dataUrl) {
+      pendingSlip = dataUrl;
+      const preview = document.getElementById('slipPreview');
+      const placeholder = document.getElementById('slipUploadPlaceholder');
+      const removeBtn = document.getElementById('slipRemoveBtn');
+      if (preview) {
+        preview.src = dataUrl;
+        preview.hidden = false;
+      }
+      if (placeholder) placeholder.style.display = 'none';
+      if (removeBtn) removeBtn.style.display = 'inline-flex';
+    }
+
+    function toggleSlipUploadUI(show) {
+      const section = document.getElementById('slipUploadSection');
+      const alt = document.getElementById('slipAltLinks');
+      if (section) section.style.display = show ? 'block' : 'none';
+      if (alt) alt.style.display = show ? 'block' : 'none';
+    }
+
+    function paymentNeedsSlip(method) {
+      return method === 'promptpay' || method === 'bank';
+    }
+
+    function renderSuccessSlipSection(order) {
+      const section = document.getElementById('successSlipSection');
+      const attached = document.getElementById('successSlipAttached');
+      if (!section || !attached) return;
+      resetSuccessSlipUI();
+      const needsSlip = paymentNeedsSlip(order.method);
+      if (order.paymentSlip) {
+        section.style.display = 'none';
+        attached.style.display = needsSlip ? 'block' : 'none';
+        return;
+      }
+      attached.style.display = 'none';
+      section.style.display = needsSlip ? 'block' : 'none';
+    }
 
     function setPayStep(n) {
       payStep = n;
@@ -1286,6 +1357,8 @@
 
     function openCheckout() {
       if (cart.length === 0) return;
+      resetPendingSlip();
+      resetSuccessSlipUI();
       setPayStep(1);
       checkoutModal.classList.add('open');
       closeCart();
@@ -1364,7 +1437,7 @@
           <div class="pay-account">
             <strong>พร้อมเพย์:</strong> ${PAYMENT.promptpay.phone}<br>
             <strong>ชื่อบัญชี:</strong> ${PAYMENT.promptpay.name}<br>
-            <span style="font-size:0.78rem;color:var(--text-soft);">* โอนแล้วแจ้งสลิปให้ร้านทางโทร/Facebook</span>
+            <span style="font-size:0.78rem;color:var(--text-soft);">* โอนแล้วแนบสลิปด้านล่างได้เลย หรือส่งทาง Facebook/LINE (ไม่บังคับ)</span>
           </div>
         `;
       } else if (selectedMethod === 'bank') {
@@ -1375,7 +1448,7 @@
             <strong>ธนาคาร:</strong> ${PAYMENT.bank.bank}<br>
             <strong>เลขบัญชี:</strong> ${PAYMENT.bank.account}<br>
             <strong>ชื่อบัญชี:</strong> ${PAYMENT.bank.name}<br>
-            <span style="font-size:0.78rem;color:var(--text-soft);">* โอนแล้วแจ้งสลิปให้ร้านทางโทร/Facebook</span>
+            <span style="font-size:0.78rem;color:var(--text-soft);">* โอนแล้วแนบสลิปด้านล่างได้เลย หรือส่งทาง Facebook/LINE (ไม่บังคับ)</span>
           </div>
         `;
       } else {
@@ -1389,6 +1462,9 @@
           </div>
         `;
       }
+
+      toggleSlipUploadUI(paymentNeedsSlip(selectedMethod));
+      if (!paymentNeedsSlip(selectedMethod)) resetPendingSlip();
 
       // Build full order text for copy
       const name = document.getElementById('custName').value.trim();
@@ -1524,7 +1600,9 @@
         total,
         statusIndex: 0,
         history: [{ index: 0, at: now }],
-        createdAt: now
+        createdAt: now,
+        paymentSlip: pendingSlip || null,
+        slipUploadedAt: pendingSlip ? now : null
       };
       orders.unshift(order);
       lastOrderId = id;
@@ -1540,6 +1618,7 @@
 
     document.getElementById('confirmOrderBtn').addEventListener('click', () => {
       const order = createOrder();
+      resetPendingSlip();
       document.getElementById('successOrderBox').innerHTML = `
         <div>เลขที่ออเดอร์</div>
         <strong id="successOrderId">${order.id}</strong>
@@ -1550,8 +1629,74 @@
           วิธีชำระ: ${methodLabel(order.method)}
         </div>
       `;
+      renderSuccessSlipSection(order);
       setPayStep(4);
-      showToast('บันทึกคำสั่งซื้อแล้ว ✓');
+      if (order.paymentSlip) {
+        showToast('บันทึกคำสั่งซื้อและสลิปแล้ว ✓');
+      } else {
+        showToast('บันทึกคำสั่งซื้อแล้ว ✓');
+      }
+    });
+
+    async function processSlipFile(file, target) {
+      if (!file || !file.type.startsWith('image/')) {
+        showToast('กรุณาเลือกไฟล์รูปภาพ (JPG, PNG)');
+        return null;
+      }
+      if (file.size > 8 * 1024 * 1024) {
+        showToast('ไฟล์ใหญ่เกินไป กรุณาเลือกรูปไม่เกิน 8 MB');
+        return null;
+      }
+      try {
+        const dataUrl = await readFileAsDataURL(file);
+        return await compressSlipImage(dataUrl);
+      } catch (e) {
+        showToast('อ่านไฟล์ไม่สำเร็จ ลองใหม่อีกครั้ง');
+        return null;
+      }
+    }
+
+    document.getElementById('slipFileInput')?.addEventListener('change', async (e) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      const compressed = await processSlipFile(file, 'checkout');
+      if (compressed) {
+        updateSlipPreview(compressed);
+        showToast('แนบสลิปแล้ว ✓');
+      }
+    });
+
+    document.getElementById('slipRemoveBtn')?.addEventListener('click', () => {
+      resetPendingSlip();
+      showToast('ลบรูปสลิปแล้ว');
+    });
+
+    document.getElementById('successSlipFileInput')?.addEventListener('change', async (e) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      const compressed = await processSlipFile(file, 'success');
+      if (!compressed) return;
+      successPendingSlip = compressed;
+      const preview = document.getElementById('successSlipPreview');
+      const placeholder = document.getElementById('successSlipPlaceholder');
+      const submitBtn = document.getElementById('successSlipSubmitBtn');
+      if (preview) {
+        preview.src = compressed;
+        preview.hidden = false;
+      }
+      if (placeholder) placeholder.style.display = 'none';
+      if (submitBtn) submitBtn.style.display = 'inline-flex';
+    });
+
+    document.getElementById('successSlipSubmitBtn')?.addEventListener('click', () => {
+      if (!lastOrderId || !successPendingSlip) return;
+      const order = orders.find(x => x.id === lastOrderId);
+      if (!order) return;
+      order.paymentSlip = successPendingSlip;
+      order.slipUploadedAt = Date.now();
+      saveOrders();
+      renderSuccessSlipSection(order);
+      showToast('ส่งสลิปให้ร้านแล้ว ✓');
     });
 
     document.getElementById('copyOrderIdBtn').addEventListener('click', () => {
@@ -3136,6 +3281,37 @@
       });
     }
 
+    function compressSlipImage(dataUrl, maxEdge = 1400, quality = 0.85) {
+      return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => {
+          let w = img.width;
+          let h = img.height;
+          if (Math.max(w, h) > maxEdge) {
+            const scale = maxEdge / Math.max(w, h);
+            w = Math.round(w * scale);
+            h = Math.round(h * scale);
+          }
+          const canvas = document.createElement('canvas');
+          canvas.width = w;
+          canvas.height = h;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) {
+            resolve(dataUrl);
+            return;
+          }
+          ctx.drawImage(img, 0, 0, w, h);
+          try {
+            resolve(canvas.toDataURL('image/jpeg', quality));
+          } catch (e) {
+            resolve(dataUrl);
+          }
+        };
+        img.onerror = reject;
+        img.src = dataUrl;
+      });
+    }
+
     function compressImage(dataUrl, optionsOrMaxWidth, legacyQuality) {
       const defaults = {
         product: { aspectRatio: 1, mode: 'contain', maxEdge: 1200, background: '#efe6d6', quality: 0.82 },
@@ -3503,6 +3679,7 @@
                   <th>ลูกค้า / ที่อยู่</th>
                   <th>รายการ</th>
                   <th>ยอด</th>
+                  <th>สลิป</th>
                   <th>สถานะ</th>
                   <th>จัดการ</th>
                 </tr>
@@ -3524,6 +3701,11 @@
                     </td>
                     <td style="font-size:0.8rem;">${items}</td>
                     <td>${formatPrice(o.total)}<br><small>${methodLabel(o.method)}</small></td>
+                    <td style="font-size:0.78rem;">
+                      ${o.paymentSlip
+                        ? `<button type="button" class="btn btn-outline btn-xs" onclick="adminViewSlip('${o.id}')">🧾 ดูสลิป</button>`
+                        : (paymentNeedsSlip(o.method) ? '<span style="color:var(--text-soft);">รอสลิป</span>' : '—')}
+                    </td>
                     <td><span class="status-badge-tag ${st.badge}">${st.label}</span></td>
                     <td>
                       <select class="status-select" onchange="adminSetOrderStatus('${o.id}', this.value)">
@@ -3558,6 +3740,18 @@
     window.adminPrintOrder = function(id) {
       const o = orders.find(x => x.id === id);
       printShippingLabel(o);
+    };
+
+    window.adminViewSlip = function(id) {
+      const o = orders.find(x => x.id === id);
+      if (!o?.paymentSlip) return;
+      const w = window.open('', '_blank', 'noopener,noreferrer');
+      if (!w) {
+        showToast('เปิดหน้าต่างดูสลิปไม่ได้ — ลองปลดบล็อก popup');
+        return;
+      }
+      w.document.write(`<!DOCTYPE html><html lang="th"><head><meta charset="utf-8"><title>สลิป ${o.id}</title></head><body style="margin:0;background:#1a1612;display:flex;justify-content:center;padding:1rem;"><img src="${o.paymentSlip}" alt="สลิป ${o.id}" style="max-width:100%;height:auto;border-radius:8px;" /></body></html>`);
+      w.document.close();
     };
 
     // Also persist when customer advances status in track modal
