@@ -59,6 +59,23 @@ try {
   await page.click('#adminLoginBtn');
   await page.waitForSelector('#adminMainView', { visible: true });
 
+  await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
+  await page.click('.admin-tab[data-tab="dash"]');
+  await page.waitForSelector('.demo-hint');
+  const hintContrast = await page.evaluate(() => {
+    const lum = (rgb) => {
+      const m = rgb.match(/[\d.]+/g);
+      if (!m) return 1;
+      const [r, g, b] = m.map(Number).slice(0, 3).map((v) => v / 255);
+      return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+    };
+    const hint = document.querySelector('.demo-hint');
+    const color = getComputedStyle(hint).color;
+    const bg = getComputedStyle(hint).backgroundColor;
+    return { color, bg, darkText: lum(color) < 0.45 };
+  });
+  ok('admin demo-hint readable in dark mode', hintContrast.darkText, hintContrast.color);
+
   // Settings tab: change shop name + hero image list
   await page.click('.admin-tab[data-tab="settings"]');
   await page.waitForSelector('#setShopName');

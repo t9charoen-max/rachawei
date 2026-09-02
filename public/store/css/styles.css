@@ -3457,13 +3457,20 @@
     .status-not-found.show { display: block; }
 
     .demo-hint {
+      --surface-text: #4d3f32;
+      --surface-text-strong: #3a271c;
       font-size: 0.75rem;
-      color: var(--text-soft);
+      color: var(--surface-text);
       background: #faf6f0;
+      border: 1px solid rgba(184, 137, 90, 0.22);
       border-radius: 8px;
       padding: 0.6rem 0.8rem;
       margin-top: 0.8rem;
       line-height: 1.45;
+    }
+    .demo-hint strong {
+      color: var(--surface-text-strong);
+      font-weight: 700;
     }
 
     /* ========== ADMIN PANEL ========== */
