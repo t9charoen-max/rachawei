@@ -985,7 +985,10 @@
 
     function openProductDetail(id, opts = {}) {
       const p = products.find(x => x.id === id);
-      if (!p) return;
+      if (!p) {
+        showToast(`ไม่พบสินค้า #${id}`);
+        return;
+      }
       pdProductId = id;
       pdImages = getProductImages(p);
       pdIndex = 0;
@@ -1019,11 +1022,14 @@
       document.getElementById('productDetailModal').classList.add('open');
       document.title = `${p.name} — ${SHOP_CONFIG.shopName || 'ราชาหวายสุรินทร์'}`;
 
+      const hash = `product/${id}`;
       if (!opts.skipHash) {
-        const hash = `product/${id}`;
         const state = { product: id };
         if (opts.pushState !== false) history.pushState(state, '', `#${hash}`);
         else history.replaceState(state, '', `#${hash}`);
+      } else if (location.hash.replace(/^#/, '') !== hash) {
+        // Deep-link / back-forward: still normalize URL to #product/ID
+        history.replaceState({ product: id }, '', `#${hash}`);
       }
     }
 
@@ -1087,6 +1093,28 @@
 
     document.getElementById('pdClose').addEventListener('click', () => closeProductDetail());
     document.getElementById('pdCloseBtn').addEventListener('click', () => closeProductDetail());
+    document.getElementById('pdShareLink')?.addEventListener('click', async () => {
+      const id = pdProductId || parseProductHash();
+      if (!id) {
+        showToast('ยังไม่ได้เลือกสินค้า');
+        return;
+      }
+      const hash = `product/${id}`;
+      if (location.hash.replace(/^#/, '') !== hash) {
+        history.replaceState({ product: id }, '', `#${hash}`);
+      }
+      const url = productShareUrl(id);
+      try {
+        if (navigator.share) {
+          await navigator.share({ title: document.getElementById('pdName')?.textContent || 'ราชาหวาย', url });
+          showToast('แชร์ลิงก์สินค้าแล้ว ✓');
+          return;
+        }
+      } catch (e) {
+        if (e && e.name === 'AbortError') return;
+      }
+      copyText(url).then(() => showToast(`คัดลอกลิงก์ #product/${id} แล้ว`));
+    });
     document.getElementById('productDetailModal').addEventListener('click', (e) => {
       if (e.target.id === 'productDetailModal') closeProductDetail();
     });
@@ -1521,14 +1549,20 @@
       resetSuccessSlipUI();
       setPayStep(1);
       checkoutModal.classList.add('open');
+      document.body.classList.add('checkout-open');
       closeCart();
     }
 
     document.getElementById('checkoutBtn').addEventListener('click', openCheckout);
 
-    checkoutClose.addEventListener('click', () => checkoutModal.classList.remove('open'));
+    function closeCheckoutModal() {
+      checkoutModal.classList.remove('open');
+      document.body.classList.remove('checkout-open');
+    }
+
+    checkoutClose.addEventListener('click', closeCheckoutModal);
     checkoutModal.addEventListener('click', (e) => {
-      if (e.target === checkoutModal) checkoutModal.classList.remove('open');
+      if (e.target === checkoutModal) closeCheckoutModal();
     });
 
     // Step 1 → 2
@@ -1547,7 +1581,7 @@
     document.getElementById('backTo1').addEventListener('click', () => setPayStep(1));
     document.getElementById('backTo2').addEventListener('click', () => setPayStep(2));
 
-    // Payment method selection — use native radio hit areas (avoid misaligned label clicks)
+    // Payment method selection — whole card is a native <label>
     document.querySelectorAll('.pay-method input[name="payMethod"]').forEach((input) => {
       input.addEventListener('change', () => {
         selectedMethod = input.value;
@@ -1556,10 +1590,18 @@
         });
       });
     });
+    document.querySelectorAll('.pay-method').forEach((label) => {
+      label.addEventListener('click', () => {
+        const input = label.querySelector('input[name="payMethod"]');
+        if (!input) return;
+        input.checked = true;
+        input.dispatchEvent(new Event('change', { bubbles: true }));
+      });
+    });
 
     // Step 2 → 3
-    document.getElementById('toStep3').addEventListener('click', () => {
-      renderPayConfirm();
+    document.getElementById('toStep3').addEventListener('click', async () => {
+      await renderPayConfirm();
       setPayStep(3);
     });
 
@@ -1569,7 +1611,32 @@
       return 'ชำระเมื่อรับสินค้า (COD)';
     }
 
-    function renderPayConfirm() {
+    async function renderPromptPayQr(total) {
+      const payment = getPaymentInfo();
+      const id = payment.promptpay.id;
+      const box = document.createElement('div');
+      box.className = 'pay-qr is-loading';
+      box.title = `QR พร้อมเพย์ ${formatPrice(total)}`;
+      try {
+        if (!window.RachaweiPromptPay) throw new Error('missing promptpay helper');
+        const { dataUrl } = await window.RachaweiPromptPay.renderPromptPayDataUrl(id, total, 280);
+        const img = document.createElement('img');
+        img.src = dataUrl;
+        img.alt = `QR พร้อมเพย์ ยอด ${formatPrice(total)}`;
+        img.width = 280;
+        img.height = 280;
+        img.decoding = 'async';
+        box.appendChild(img);
+        box.classList.remove('is-loading');
+      } catch (err) {
+        console.warn('สร้าง QR พร้อมเพย์ไม่สำเร็จ', err);
+        box.classList.remove('is-loading');
+        box.innerHTML = `<span style="font-size:0.78rem;padding:0.6rem;color:var(--rattan-deep);">โอนด้วยหมายเลขพร้อมเพย์ด้านล่าง<br>${id}</span>`;
+      }
+      return box;
+    }
+
+    async function renderPayConfirm() {
       const subtotal = getCartSubtotal();
       const promo = getPromoDiscount();
       const shipping = getShippingFee();
@@ -1592,8 +1659,8 @@
       const payment = getPaymentInfo();
       if (selectedMethod === 'promptpay') {
         box.innerHTML = `
-          <div style="font-size:0.85rem;color:var(--text-soft);">สแกน QR พร้อมเพย์ หรือโอนตามหมายเลขด้านล่าง</div>
-          <div class="pay-qr" title="QR พร้อมเพย์ (ตัวอย่าง)"></div>
+          <div style="font-size:0.85rem;color:var(--text-soft);">สแกน QR พร้อมเพย์ตามยอดด้านล่าง</div>
+          <div id="payQrMount"></div>
           <div class="pay-amount">${formatPrice(total)}</div>
           <div class="pay-account">
             <strong>พร้อมเพย์:</strong> ${payment.promptpay.id}<br>
@@ -1601,6 +1668,8 @@
             <span style="font-size:0.78rem;color:var(--text-soft);">* โอนแล้วแนบสลิปด้านล่างได้เลย หรือส่งทาง Facebook/LINE (ไม่บังคับ)</span>
           </div>
         `;
+        const mount = document.getElementById('payQrMount');
+        if (mount) mount.replaceWith(await renderPromptPayQr(total));
       } else if (selectedMethod === 'bank') {
         const accountLine = payment.bank.account
           ? `<strong>เลขบัญชี:</strong> ${payment.bank.account}<br>`
@@ -1714,6 +1783,33 @@
 
     let lastOrderId = null;
     let currentTrackOrder = null;
+    let lastOrderNotifyText = '';
+
+    function buildShopNotifyText(order, summaryText) {
+      let text = summaryText || '';
+      if (!text.includes(order.id)) {
+        text += `\n\nเลขที่ออเดอร์: ${order.id}`;
+      }
+      text += `\nแจ้งร้านทันที — ราชาหวายสุรินทร์`;
+      return text.trim();
+    }
+
+    function lineShareOrderUrl(text) {
+      return `https://line.me/R/msg/text/?${encodeURIComponent(text)}`;
+    }
+
+    function notifyShopOfOrder(order, summaryText) {
+      lastOrderNotifyText = buildShopNotifyText(order, summaryText);
+      const lineBtn = document.getElementById('notifyShopLineBtn');
+      if (lineBtn) {
+        lineBtn.href = lineShareOrderUrl(lastOrderNotifyText);
+        lineBtn.style.display = '';
+      }
+      copyText(lastOrderNotifyText).catch(() => {});
+      try {
+        window.open(lineShareOrderUrl(lastOrderNotifyText), '_blank', 'noopener');
+      } catch (e) {}
+    }
 
     function genOrderId() {
       const d = new Date();
@@ -1782,6 +1878,7 @@
     }
 
     document.getElementById('confirmOrderBtn').addEventListener('click', () => {
+      const summaryText = orderSummary?.textContent || '';
       const order = createOrder();
       resetPendingSlip();
       document.getElementById('successOrderBox').innerHTML = `
@@ -1796,11 +1893,8 @@
       `;
       renderSuccessSlipSection(order);
       setPayStep(4);
-      if (order.paymentSlip) {
-        showToast('บันทึกคำสั่งซื้อและสลิปแล้ว ✓');
-      } else {
-        showToast('บันทึกคำสั่งซื้อแล้ว ✓');
-      }
+      notifyShopOfOrder(order, summaryText);
+      showToast('บันทึกออเดอร์แล้ว — กำลังเปิด LINE เพื่อแจ้งร้าน');
     });
 
     async function processSlipFile(file, target) {
@@ -1872,11 +1966,11 @@
     });
 
     document.getElementById('closeSuccessBtn').addEventListener('click', () => {
-      checkoutModal.classList.remove('open');
+      closeCheckoutModal();
     });
 
     document.getElementById('viewStatusBtn').addEventListener('click', () => {
-      checkoutModal.classList.remove('open');
+      closeCheckoutModal();
       openStatusModal(lastOrderId);
     });
 
