@@ -82,10 +82,35 @@ try {
   await page.type('#custZip', '32000');
   await page.click('#toStep2');
   await page.click('#toStep3');
-  await page.waitForSelector('#payDetailBox strong');
-  const payText = await page.evaluate(() => document.getElementById('payDetailBox')?.innerText || '');
-  ok('checkout shows พร้อมเพย์ label', payText.includes('พร้อมเพย์:'));
-  ok('checkout shows ชื่อรับเงิน', payText.includes('ชื่อรับเงิน'));
+  await page.waitForSelector('#payDetailBox .pay-amount');
+  const pay = await page.evaluate(async () => {
+    const box = document.getElementById('payDetailBox');
+    const img = box?.querySelector('.pay-qr img');
+    const text = box?.innerText || '';
+    const amountText = box?.querySelector('.pay-amount')?.textContent || '';
+    // Hit-target check: radio should not cover full card with opacity 0
+    const radio = document.querySelector('.pay-method input');
+    const radioStyle = radio ? getComputedStyle(radio) : null;
+    return {
+      text,
+      amountText,
+      hasQrImg: !!img,
+      qrSrc: img?.getAttribute('src') || '',
+      radioOpacity: radioStyle?.opacity || '',
+      radioPosition: radioStyle?.position || '',
+      bodyCheckout: document.body.classList.contains('checkout-open'),
+      payloadSample: window.RachaweiPromptPay
+        ? window.RachaweiPromptPay.generatePromptPayPayload('0814707089', 1570).slice(0, 20)
+        : '',
+    };
+  });
+  ok('checkout shows พร้อมเพย์ label', pay.text.includes('พร้อมเพย์:'));
+  ok('checkout shows ชื่อรับเงิน', pay.text.includes('ชื่อรับเงิน'));
+  ok('checkout QR is real image not placeholder', pay.hasQrImg && !/ตัวอย่าง/.test(pay.text), pay.qrSrc.slice(0, 40));
+  ok('checkout amount visible', /บาท|฿|\d/.test(pay.amountText), pay.amountText);
+  ok('pay-method radio is visible control', pay.radioOpacity !== '0' && pay.radioPosition !== 'absolute', `${pay.radioPosition}/${pay.radioOpacity}`);
+  ok('checkout-open body class', pay.bodyCheckout);
+  ok('promptpay payload helper works', pay.payloadSample.startsWith('000201'), pay.payloadSample);
   ok('checkout has slip upload section', !!(await page.$('#slipUploadSection')));
 
   const slipVisible = await page.evaluate(() => document.getElementById('slipUploadSection')?.style.display !== 'none');

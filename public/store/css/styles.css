@@ -2566,10 +2566,12 @@
       transform: translateX(100%);
       transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
       box-shadow: -8px 0 40px rgba(0,0,0,0.15);
+      pointer-events: none;
     }
 
     .cart-drawer.open {
       transform: translateX(0);
+      pointer-events: auto;
     }
 
     .cart-header {
@@ -3370,6 +3372,7 @@
       background: white;
       text-align: left;
       user-select: none;
+      -webkit-tap-highlight-color: transparent;
     }
 
     .pay-method:hover {
@@ -3384,26 +3387,24 @@
     }
 
     .pay-method input {
-      position: absolute;
-      inset: 0;
-      width: 100%;
-      height: 100%;
+      flex: 0 0 auto;
+      width: 1.15rem;
+      height: 1.15rem;
       margin: 0;
-      opacity: 0;
+      accent-color: var(--rattan-deep);
       cursor: pointer;
-      z-index: 2;
     }
 
     .pay-method-icon,
     .pay-method-info {
       position: relative;
-      z-index: 1;
-      pointer-events: none;
+      flex: 1 1 auto;
+      min-width: 0;
     }
 
     .pay-method-icon {
+      flex: 0 0 auto;
       font-size: 1.5rem;
-      flex-shrink: 0;
     }
 
     .pay-method-info strong {
@@ -3417,6 +3418,29 @@
       color: var(--text-soft);
     }
 
+    #payPanel2 .modal-actions,
+    #payPanel1 .modal-actions,
+    #payPanel3 .modal-actions {
+      position: relative;
+      z-index: 5;
+      gap: 0.55rem;
+    }
+
+    #toStep2,
+    #toStep3,
+    #confirmOrderBtn {
+      position: relative;
+      z-index: 6;
+      min-height: 48px;
+      touch-action: manipulation;
+    }
+
+    body.checkout-open .shop-tabbar,
+    body.checkout-open .shop-line,
+    body.checkout-open .install-banner {
+      pointer-events: none;
+    }
+
     .pay-detail-box {
       background: #f5ebe0;
       border-radius: 14px;
@@ -3426,14 +3450,10 @@
     }
 
     .pay-qr {
-      width: 160px;
-      height: 160px;
+      width: 180px;
+      height: 180px;
       margin: 0.6rem auto 0.8rem;
-      background:
-        repeating-linear-gradient(0deg, #2c241b 0 4px, transparent 4px 8px),
-        repeating-linear-gradient(90deg, #2c241b 0 4px, transparent 4px 8px);
-      background-size: 16px 16px;
-      background-color: white;
+      background: #fff;
       border: 3px solid var(--rattan-deep);
       border-radius: 12px;
       display: flex;
@@ -3441,17 +3461,26 @@
       justify-content: center;
       position: relative;
       overflow: hidden;
+      padding: 0.35rem;
     }
 
-    .pay-qr::after {
-      content: 'QR';
+    .pay-qr img {
+      display: block;
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+
+    .pay-qr.is-loading::after {
+      content: 'กำลังสร้าง QR…';
       position: absolute;
-      background: white;
-      padding: 0.3rem 0.6rem;
-      font-weight: 700;
-      font-size: 0.85rem;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      background: rgba(255, 255, 255, 0.92);
       color: var(--rattan-deep);
-      border-radius: 6px;
+      font-size: 0.82rem;
+      font-weight: 700;
     }
 
     .pay-amount {

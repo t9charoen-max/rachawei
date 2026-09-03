@@ -63,8 +63,15 @@ try {
   // Product detail modal (via detail link — card tap is add-to-cart)
   await page.click('#productGrid .product-detail-link');
   await page.waitForSelector('#productDetailModal.open', { timeout: 5000 });
-  const pdOpen = await page.evaluate(() => document.getElementById('productDetailModal')?.classList.contains('open'));
-  ok('product detail modal opens', pdOpen);
+  const pdOpen = await page.evaluate(() => ({
+    open: document.getElementById('productDetailModal')?.classList.contains('open'),
+    hash: location.hash,
+    shareBtn: !!document.getElementById('pdShareLink'),
+    productId: typeof pdProductId !== 'undefined' ? pdProductId : null,
+  }));
+  ok('product detail modal opens', pdOpen.open);
+  ok('product URL uses #product/ID', /^#product\/\d+$/.test(pdOpen.hash), pdOpen.hash);
+  ok('product share link button present', pdOpen.shareBtn);
   await page.click('#pdClose');
 
   // Add to cart
