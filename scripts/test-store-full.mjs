@@ -48,6 +48,21 @@ try {
   }));
 
   ok('products grid', front.products >= 4, `count=${front.products}`);
+
+  const certs = await page.evaluate(() => {
+    const card = document.querySelector('#productGrid .product-card');
+    const cert = card?.querySelector('.product-cert');
+    const buy = card?.querySelector('.btn-add-full');
+    const seals = [...(cert?.querySelectorAll('.product-cert__seal') || [])].map((el) => el.getAttribute('title') || '');
+    return {
+      cardsWithCert: document.querySelectorAll('#productGrid .product-card .product-cert').length,
+      seals: seals.length,
+      titles: seals.join(' | '),
+      certBeforeBuy: !!(cert && buy && cert.compareDocumentPosition(buy) & Node.DOCUMENT_POSITION_FOLLOWING),
+    };
+  });
+  ok('OTOP/community marks on product cards', certs.cardsWithCert >= 4 && certs.seals >= 2, `cards=${certs.cardsWithCert} seals=${certs.seals}`);
+  ok('cert logos sit above buy button', certs.certBeforeBuy, certs.titles);
   ok('shop videos section exists', front.videosBlock);
   ok('shop videos hidden when empty', front.videosHidden && front.videoCards === 0, `cards=${front.videoCards} hidden=${front.videosHidden}`);
   ok('google map card link', front.mapCard.includes('maps.app.goo.gl'), front.mapCard);
@@ -59,6 +74,16 @@ try {
   await page.waitForSelector('#productDetailModal.open', { timeout: 5000 });
   const pdOpen = await page.evaluate(() => document.getElementById('productDetailModal')?.classList.contains('open'));
   ok('product detail modal opens', pdOpen);
+  const pdCert = await page.evaluate(() => {
+    const cert = document.querySelector('#productDetailModal #pdCert');
+    const buy = document.getElementById('pdAddCart');
+    return {
+      seals: cert?.querySelectorAll('.product-cert__seal').length || 0,
+      caption: cert?.querySelector('.product-cert__caption')?.textContent || '',
+      beforeBuy: !!(cert && buy && cert.compareDocumentPosition(buy) & Node.DOCUMENT_POSITION_FOLLOWING),
+    };
+  });
+  ok('product detail OTOP marks above buy', pdCert.seals >= 2 && pdCert.beforeBuy, pdCert.caption);
   await page.click('#pdClose');
 
   // Add to cart

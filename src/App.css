@@ -1689,6 +1689,39 @@
   gap: 0.55rem;
 }
 
+.product-cert {
+  display: flex;
+  align-items: center;
+  gap: 0.32rem;
+  min-height: 32px;
+}
+
+.product-cert__seal {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  line-height: 0;
+  filter: drop-shadow(0 1px 2px rgba(58, 39, 28, 0.2));
+}
+
+.product-cert__seal svg {
+  display: block;
+  width: 32px;
+  height: 32px;
+}
+
+.product-cert--detail .product-cert__seal svg {
+  width: 40px;
+  height: 40px;
+}
+
+.product-cert__caption {
+  font-size: 0.78rem;
+  font-weight: 700;
+  line-height: 1.3;
+  color: #5c4033;
+}
+
 .products-showcase__buy.order-form-btn,
 .order-form-btn.products-showcase__buy {
   width: 100%;
