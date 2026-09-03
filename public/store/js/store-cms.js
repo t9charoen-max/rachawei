@@ -3,8 +3,18 @@
  * โหลดหลัง store-content.js และก่อน/พร้อมกับ app.js (เรียกใช้ตอน runtime)
  */
 (function storeCmsModule() {
+  /** Escape for HTML text nodes (may turn newlines into <br> via app escapeHtml). */
   function esc(str) {
     if (typeof escapeHtml === 'function') return escapeHtml(str);
+    return String(str ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  /** Escape for form field values — keep real newlines (do not convert to <br>). */
+  function escField(str) {
     return String(str ?? '')
       .replace(/&/g, '&amp;')
       .replace(/</g, '&lt;')
@@ -335,10 +345,10 @@
   function field(label, id, value, multiline, rows) {
     if (multiline) {
       return `<label style="font-size:0.82rem;font-weight:600;display:block;">${label}
-        <textarea class="admin-input" id="${id}" rows="${rows || 3}" style="width:100%;margin-top:0.25rem;">${esc(value || '')}</textarea></label>`;
+        <textarea class="admin-input" id="${id}" rows="${rows || 3}" style="width:100%;margin-top:0.25rem;">${escField(value || '')}</textarea></label>`;
     }
     return `<label style="font-size:0.82rem;font-weight:600;display:block;">${label}
-      <input class="admin-input" id="${id}" value="${esc(value || '')}" style="width:100%;margin-top:0.25rem;"></label>`;
+      <input class="admin-input" id="${id}" value="${escField(value || '')}" style="width:100%;margin-top:0.25rem;"></label>`;
   }
 
   function details(title, inner) {
@@ -867,7 +877,12 @@
           desc: document.getElementById('cmsHeroDesc').value.trim(),
           cta: document.getElementById('cmsHeroCta').value.trim(),
         },
-        trust: trustRaw.split('\n').map((s) => s.trim()).filter(Boolean),
+        trust: trustRaw
+          .replace(/\r\n/g, '\n')
+          .replace(/<br\s*\/?>/gi, '\n')
+          .split('\n')
+          .map((s) => s.trim())
+          .filter(Boolean),
         home: {
           popularTitle: document.getElementById('cmsPopularTitle').value.trim(),
           popularMore: document.getElementById('cmsPopularMore').value.trim(),
