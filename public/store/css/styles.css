@@ -2644,14 +2644,32 @@
       gap: 0.5rem;
     }
 
+    .cart-item-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+      margin-top: 0.55rem;
+    }
+
+    .qty-stepper {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0.2rem;
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.7);
+      border: 1px solid rgba(196, 164, 132, 0.35);
+    }
+
     .qty-btn {
-      width: 28px;
-      height: 28px;
-      border-radius: 8px;
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
       border: 1.5px solid var(--rattan);
       background: white;
       color: var(--rattan-deep);
-      font-size: 1rem;
+      font-size: 1.25rem;
       font-weight: 600;
       cursor: pointer;
       display: flex;
@@ -2659,11 +2677,42 @@
       justify-content: center;
       transition: all 0.15s;
       font-family: inherit;
+      flex-shrink: 0;
+      touch-action: manipulation;
     }
 
     .qty-btn:hover {
       background: var(--rattan);
       color: white;
+    }
+
+    .qty-btn:active {
+      transform: scale(0.96);
+    }
+
+    .qty-input {
+      width: 3.2rem;
+      height: 40px;
+      border: none;
+      background: transparent;
+      text-align: center;
+      font-weight: 700;
+      font-size: 1rem;
+      color: var(--rattan-deep);
+      font-family: inherit;
+      -moz-appearance: textfield;
+    }
+
+    .qty-input::-webkit-outer-spin-button,
+    .qty-input::-webkit-inner-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
+    }
+
+    .qty-input:focus {
+      outline: 2px solid rgba(139, 105, 20, 0.35);
+      outline-offset: 1px;
+      border-radius: 8px;
     }
 
     .qty-value {
@@ -2673,16 +2722,23 @@
       font-size: 0.95rem;
     }
 
+    .cart-item-stock {
+      font-size: 0.75rem;
+      color: var(--text-soft);
+      margin-top: 0.15rem;
+    }
+
     .cart-item-remove {
       background: none;
       border: none;
       color: #c0392b;
-      font-size: 0.8rem;
+      font-size: 0.82rem;
       cursor: pointer;
-      margin-left: auto;
-      padding: 0.2rem 0.4rem;
-      opacity: 0.8;
+      margin-top: 0.45rem;
+      padding: 0.15rem 0;
+      opacity: 0.85;
       font-family: inherit;
+      text-align: left;
     }
 
     .cart-item-remove:hover { opacity: 1; text-decoration: underline; }
@@ -3007,6 +3063,15 @@
       background: #2a241c;
       border-color: rgba(212, 184, 150, 0.3);
       color: var(--rattan-deep);
+    }
+
+    [data-theme="dark"] .qty-stepper {
+      background: rgba(255, 255, 255, 0.04);
+      border-color: rgba(212, 184, 150, 0.2);
+    }
+
+    [data-theme="dark"] .qty-input {
+      color: #f5ebe0;
     }
 
     [data-theme="dark"] footer {

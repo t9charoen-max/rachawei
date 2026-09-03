@@ -67,6 +67,7 @@
     const DB_NAME = 'rachawei_surin_db';
     const DB_VER = 1;
     const STORE = 'app';
+    const CART_LS_KEY = 'rachawei_cart';
     const DEFAULT_ADMIN_PIN_HASH = '2085881665';
 
     function hashAdminPin(pin) {
@@ -200,6 +201,32 @@
       cart = cart.filter((item) => ids.has(Number(item.id)));
     }
 
+    function normalizeCart(raw) {
+      if (!Array.isArray(raw)) return [];
+      return raw
+        .map((item) => ({
+          id: Number(item.id),
+          qty: Math.max(1, Math.floor(Number(item.qty) || 1)),
+        }))
+        .filter((item) => Number.isFinite(item.id) && item.qty > 0);
+    }
+
+    function loadCartFromLocalStorage() {
+      try {
+        const raw = localStorage.getItem(CART_LS_KEY);
+        if (!raw) return null;
+        return normalizeCart(JSON.parse(raw));
+      } catch (e) {
+        return null;
+      }
+    }
+
+    function saveCartToLocalStorage() {
+      try {
+        localStorage.setItem(CART_LS_KEY, JSON.stringify(cart));
+      } catch (e) { /* quota / sandbox */ }
+    }
+
     async function loadPersisted() {
       try {
         db = await openDB();
@@ -233,7 +260,14 @@
         if (Array.isArray(savedVideos)) {
           shopVideos = savedVideos;
         }
-        if (Array.isArray(savedCart)) cart = savedCart;
+        if (Array.isArray(savedCart)) {
+          cart = normalizeCart(savedCart);
+        } else {
+          const lsCart = loadCartFromLocalStorage();
+          if (lsCart) cart = lsCart;
+        }
+        sanitizeCartForProducts();
+        saveCartToLocalStorage();
         if (Array.isArray(savedOrders)) orders = savedOrders;
         if (typeof savedSeq === 'number' && savedSeq > 0) orderSeq = savedSeq;
         if (savedTheme === 'dark' || savedTheme === 'light') {
@@ -259,7 +293,12 @@
       } catch (e) {
         db = null;
         dbReady = false;
-        console.warn('IndexedDB ไม่พร้อม — ใช้หน่วยความจำชั่วคราว', e);
+        const lsCart = loadCartFromLocalStorage();
+        if (lsCart) {
+          cart = lsCart;
+          sanitizeCartForProducts();
+        }
+        console.warn('IndexedDB ไม่พร้อม — ใช้ localStorage สำหรับตะกร้า', e);
         return false;
       }
     }
@@ -278,7 +317,10 @@
     }
 
     function saveCart() {
-      persistAll();
+      saveCartToLocalStorage();
+      if (dbReady && db) {
+        idbSet('cart', cart).catch((e) => console.warn('บันทึกตะกร้า IndexedDB ไม่สำเร็จ', e));
+      }
     }
 
     function saveProducts() {
@@ -1125,7 +1167,7 @@
           <div class="cart-empty">
             <div class="empty-icon">🛒</div>
             <p>ยังไม่มีสินค้าในตะกร้า</p>
-            <p style="font-size:0.85rem;margin-top:0.4rem;">เลือกสินค้าที่ชอบแล้วกด “เพิ่ม”</p>
+            <p style="font-size:0.85rem;margin-top:0.4rem;">เลือกสินค้าที่ชอบแล้วกด “ใส่ตะกร้า”</p>
           </div>
         `;
         cartFooter.style.display = 'none';
@@ -1135,21 +1177,27 @@
       cartFooter.style.display = 'block';
 
       cartBody.innerHTML = cart.map(item => {
-        const p = products.find(x => x.id === item.id);
+        const p = products.find(x => Number(x.id) === Number(item.id));
         if (!p) return '';
+        const stock = getProductStock(p);
+        const maxAttr = stock !== null ? ` max="${stock}"` : '';
+        const stockHint = stock !== null ? `<div class="cart-item-stock">คงเหลือ ${stock} ชิ้น</div>` : '';
         return `
-          <div class="cart-item">
+          <div class="cart-item" data-cart-id="${p.id}">
             <div class="cart-item-emoji">${p.emoji}</div>
             <div class="cart-item-info">
               <div class="cart-item-name">${p.name}</div>
               <div class="cart-item-price">${formatPrice(p.price)} / ชิ้น</div>
-              <div class="cart-item-controls">
-                <button class="qty-btn" onclick="changeQty(${p.id}, -1)">−</button>
-                <span class="qty-value">${item.qty}</span>
-                <button class="qty-btn" onclick="changeQty(${p.id}, 1)">+</button>
-                <button class="cart-item-remove" onclick="removeFromCart(${p.id})">ลบ</button>
+              ${stockHint}
+              <div class="cart-item-row">
+                <div class="qty-stepper">
+                  <button type="button" class="qty-btn" data-qty-action="dec" data-id="${p.id}" aria-label="ลดจำนวน ${p.name}">−</button>
+                  <input type="number" class="qty-input" min="1"${maxAttr} value="${item.qty}" data-id="${p.id}" inputmode="numeric" pattern="[0-9]*" aria-label="จำนวน ${p.name}" />
+                  <button type="button" class="qty-btn" data-qty-action="inc" data-id="${p.id}" aria-label="เพิ่มจำนวน ${p.name}">+</button>
+                </div>
+                <div class="cart-item-subtotal">${formatPrice(p.price * item.qty)}</div>
               </div>
-              <div class="cart-item-subtotal">${formatPrice(p.price * item.qty)}</div>
+              <button type="button" class="cart-item-remove" data-remove-id="${p.id}">ลบรายการ</button>
             </div>
           </div>
         `;
@@ -1171,24 +1219,80 @@
     cartClose.addEventListener('click', closeCart);
     cartOverlay.addEventListener('click', closeCart);
 
+    cartBody.addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-qty-action]');
+      if (btn) {
+        const id = Number(btn.dataset.id);
+        if (btn.dataset.qtyAction === 'inc') changeQty(id, 1);
+        else if (btn.dataset.qtyAction === 'dec') changeQty(id, -1);
+        return;
+      }
+      const removeBtn = e.target.closest('[data-remove-id]');
+      if (removeBtn) removeFromCart(Number(removeBtn.dataset.removeId));
+    });
+
+    cartBody.addEventListener('change', (e) => {
+      const input = e.target.closest('.qty-input');
+      if (!input) return;
+      setCartQty(Number(input.dataset.id), input.value);
+    });
+
+    cartBody.addEventListener('keydown', (e) => {
+      if (e.key !== 'Enter') return;
+      const input = e.target.closest('.qty-input');
+      if (!input) return;
+      e.preventDefault();
+      input.blur();
+    });
+
     // ========== CART ACTIONS ==========
+    function findCartItem(id) {
+      return cart.find(x => Number(x.id) === Number(id));
+    }
+
+    function getMaxQtyForProduct(p) {
+      const stock = p ? getProductStock(p) : null;
+      return stock !== null ? stock : 999;
+    }
+
+    function setCartQty(id, qty) {
+      const item = findCartItem(id);
+      if (!item) return;
+      const p = products.find(x => Number(x.id) === Number(id));
+      const maxQty = getMaxQtyForProduct(p);
+      let n = Math.floor(Number(qty));
+      if (!Number.isFinite(n) || n < 1) n = 1;
+      if (n > maxQty) {
+        n = maxQty;
+        if (maxQty < 999) showToast(`มีในสต็อก ${maxQty} ชิ้น`);
+      }
+      if (item.qty === n) {
+        renderCart();
+        return;
+      }
+      item.qty = n;
+      saveCart();
+      renderCart();
+    }
+
     function addToCart(id) {
-      const p = products.find(item => item.id === id);
+      const numId = Number(id);
+      const p = products.find(item => Number(item.id) === numId);
       if (p && !isProductAvailable(p)) {
         showToast('สินค้าหมดชั่วคราว');
         return;
       }
-      const stock = p ? getProductStock(p) : null;
-      const existing = cart.find(item => item.id === id);
+      const maxQty = getMaxQtyForProduct(p);
+      const existing = findCartItem(numId);
       const nextQty = (existing?.qty || 0) + 1;
-      if (stock !== null && nextQty > stock) {
-        showToast(`มีในสต็อก ${stock} ชิ้น`);
+      if (nextQty > maxQty) {
+        showToast(maxQty < 999 ? `มีในสต็อก ${maxQty} ชิ้น` : 'ไม่สามารถเพิ่มได้');
         return;
       }
       if (existing) {
         existing.qty += 1;
       } else {
-        cart.push({ id, qty: 1 });
+        cart.push({ id: numId, qty: 1 });
       }
       saveCart();
       updateBadge();
@@ -1196,18 +1300,26 @@
     }
 
     function changeQty(id, delta) {
-      const item = cart.find(x => x.id === id);
+      const item = findCartItem(id);
       if (!item) return;
-      item.qty += delta;
-      if (item.qty <= 0) {
-        cart = cart.filter(x => x.id !== id);
+      const next = item.qty + delta;
+      if (next <= 0) {
+        removeFromCart(id);
+        return;
       }
-      saveCart();
-      renderCart();
+      if (delta > 0) {
+        const p = products.find(x => Number(x.id) === Number(id));
+        const maxQty = getMaxQtyForProduct(p);
+        if (item.qty >= maxQty) {
+          if (maxQty < 999) showToast(`มีในสต็อก ${maxQty} ชิ้น`);
+          return;
+        }
+      }
+      setCartQty(id, next);
     }
 
     function removeFromCart(id) {
-      cart = cart.filter(x => x.id !== id);
+      cart = cart.filter(x => Number(x.id) !== Number(id));
       saveCart();
       renderCart();
       showToast('ลบสินค้าออกแล้ว');
@@ -4107,6 +4219,13 @@
       }
       nextProductId = Math.max(...products.map(p => p.id), 0) + 1;
       nextVideoId = Math.max(...shopVideos.map((v) => v.id), 0) + 1;
+      if (!ok && cart.length === 0) {
+        const lsCart = loadCartFromLocalStorage();
+        if (lsCart?.length) {
+          cart = lsCart;
+          sanitizeCartForProducts();
+        }
+      }
       renderProducts();
       updateBadge();
       setTheme(getTheme());
