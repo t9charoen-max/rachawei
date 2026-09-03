@@ -342,15 +342,15 @@
     }
 
     function saveProducts() {
-      persistAll();
+      return persistAll();
     }
 
     function saveShopVideos() {
-      persistAll();
+      return persistAll();
     }
 
     function saveOrders() {
-      persistAll();
+      return persistAll();
     }
 
     function formatPrice(n) {

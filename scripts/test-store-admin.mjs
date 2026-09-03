@@ -47,9 +47,8 @@ try {
   ok('main nav visible', frontCounts.nav === 5, `nav=${frontCounts.nav}`);
   ok('legacy filters hidden', !frontCounts.filtersVisible);
 
-  // Open admin
-  await page.click('#adminOpenBtn');
-  await page.waitForSelector('#adminOverlay.open, #adminLoginView', { timeout: 8000 }).catch(() => {});
+  // Open admin via #admin (customer UI hides adminOpenBtn)
+  await page.goto(BASE + '#admin', { waitUntil: 'networkidle0' });
   await page.evaluate(() => {
     const overlay = document.getElementById('adminOverlay');
     if (overlay) overlay.classList.add('open');
@@ -113,18 +112,16 @@ try {
   // Products tab: edit first product name
   await page.click('.admin-tab[data-tab="products"]');
   await page.waitForSelector('#adminContent');
-  const productEditOk = await page.evaluate(() => {
-    const editBtn = document.querySelector('[data-edit], .admin-actions button, button[title*="แก้"]');
-    // Fallback: use known openProductForm / edit helpers if present
+  const productEditOk = await page.evaluate(async () => {
     if (typeof products !== 'undefined' && products[0]) {
       products[0].name = 'ตะกร้าทดสอบหลังบ้าน';
-      products[0].badge = 'ใหม่';
-      if (typeof saveProducts === 'function') saveProducts();
+      products[0].badge = 'ทดสอบ';
+      if (typeof saveProducts === 'function') await saveProducts();
       if (typeof renderProducts === 'function') renderProducts('all');
       if (typeof renderPopularCats === 'function') renderPopularCats();
       return true;
     }
-    return !!editBtn;
+    return false;
   });
   ok('admin product update', productEditOk);
 
@@ -151,17 +148,19 @@ try {
   ok('hero images from admin', after.hero.length === 2 && after.hero[0].includes('usage-shopping'), `hero=${after.hero.length}`);
   ok('product edit reaches storefront', after.hasEditedProduct, `products=${after.productCount}`);
 
+  await new Promise((r) => setTimeout(r, 600));
+
   // Reload to verify IndexedDB persistence
   await page.reload({ waitUntil: 'networkidle0' });
   await page.waitForSelector('#productGrid .product-card');
   const persisted = await page.evaluate(() => ({
     shopName: (typeof SHOP_CONFIG !== 'undefined' && SHOP_CONFIG.shopName) || '',
     heroCount: (SHOP_CONFIG.heroImages || []).length,
-    productName: (products.find((p) => p.name.includes('ตะกร้าทดสอบหลังบ้าน')) || {}).name || '',
+    productName: (products.find((p) => p.badge === 'ทดสอบ') || {}).badge || '',
   }));
   ok('shop settings persist reload', persisted.shopName.includes('ทดสอบ'), persisted.shopName);
   ok('hero images persist reload', persisted.heroCount === 2, `heroCount=${persisted.heroCount}`);
-  ok('product edit persists reload', !!persisted.productName, persisted.productName);
+  ok('product edit persists reload', persisted.productName === 'ทดสอบ', persisted.productName);
 } catch (err) {
   ok('test runner', false, String(err && err.stack || err));
 } finally {
