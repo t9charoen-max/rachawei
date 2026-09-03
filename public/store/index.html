@@ -28,15 +28,18 @@
   <link rel="stylesheet" href="css/styles.css" />
 </head>
 <body class="shop-app">
-  <!-- Install banner -->
-  <div class="install-banner" id="installBanner" hidden>
-    <img class="install-banner__icon" src="/brand/rachawei-logo-square.png?v=1940" alt="" width="40" height="40" />
-    <div class="install-banner__text">
-      <p class="install-banner__title">ติดตั้งแอปราชาหวาย</p>
-      <p class="install-banner__desc" id="installDesc">เปิดเร็ว สั่งซื้อง่าย เหมือนแอปทั่วไป</p>
-    </div>
+  <!-- Install hint (compact, above tab bar — does not block header/cart) -->
+  <div class="install-banner install-banner--compact" id="installBanner" hidden>
+    <p class="install-banner__title" id="installDesc">ติดตั้งแอปราชาหวาย</p>
     <button type="button" class="install-banner__install" id="installBtn" hidden>ติดตั้ง</button>
     <button type="button" class="install-banner__close" id="installClose" aria-label="ปิด">✕</button>
+  </div>
+
+  <!-- Promo strip (thin bar — not a modal) -->
+  <div class="promo-bar" id="promoBar" hidden role="region" aria-label="โปรโมชั่น">
+    <p class="promo-bar__text" id="promoBarText">🎁 สั่งครบ 1,500 บาท ลดทันที 100 บาท</p>
+    <a href="#products" class="promo-bar__link" id="promoBarShop">เลือกสินค้า</a>
+    <button type="button" class="promo-bar__close" id="promoBarClose" aria-label="ปิดโปร">×</button>
   </div>
 
   <!-- Header -->
@@ -543,7 +546,7 @@
   <footer>
     <p>© 2026 <strong>ราชาหวายสุรินทร์</strong> · งานหัตถกรรมหวายจากบ้านบุทม สุรินทร์</p>
     <p style="margin-top:0.3rem;font-size:0.8rem;">สืบสานภูมิปัญญา · สร้างรายได้ให้ชุมชน</p>
-    <button type="button" class="admin-link" id="adminOpenBtn">🔐 เมนูหลังร้าน</button>
+    <button type="button" class="admin-link" id="adminOpenBtn" hidden aria-hidden="true">🔐 เมนูหลังร้าน</button>
   </footer>
 
   <a class="shop-line" id="shopLineBtn" href="https://line.me/ti/p/~0814707089" target="_blank" rel="noopener">
@@ -583,11 +586,12 @@
         <span>จำนวนชิ้น</span>
         <span id="cartCountText">0 ชิ้น</span>
       </div>
+      <div id="cartBreakdown"></div>
       <div class="cart-total-row grand">
-        <span>รวมประมาณ</span>
+        <span>รวมทั้งสิ้น</span>
         <span id="cartTotalText">฿0</span>
       </div>
-      <p class="cart-note">* ราคาเป็นราคาประมาณ ยืนยันราคากับร้านก่อนสั่งซื้อจริง</p>
+      <p class="cart-note">* รวมค่าจัดส่งและส่วนลดโปรโมชั่น (ถ้ามี) แล้ว</p>
       <div class="cart-actions">
         <button class="btn btn-primary" id="checkoutBtn">💳 ชำระเงิน / สั่งซื้อ</button>
         <button class="btn btn-outline" id="clearCartBtn">ล้างตะกร้า</button>
@@ -616,13 +620,37 @@
         </div>
         <div class="form-group">
           <label for="custPhone">เบอร์โทรผู้รับ *</label>
-          <input type="tel" id="custPhone" placeholder="08x-xxx-xxxx" autocomplete="tel" />
-          <div class="form-error" id="errPhone">กรุณากรอกเบอร์โทรผู้รับ</div>
+          <input type="tel" id="custPhone" placeholder="08x-xxx-xxxx" autocomplete="tel" inputmode="tel" />
+          <div class="form-error" id="errPhone">กรุณากรอกเบอร์มือถือไทย 10 หลัก (เช่น 081-470-7089)</div>
         </div>
         <div class="form-group">
-          <label for="custAddress">ที่อยู่จัดส่ง *</label>
-          <textarea id="custAddress" placeholder="บ้านเลขที่ หมู่ ซอย ถนน&#10;ตำบล/แขวง อำเภอ/เขต&#10;จังหวัด รหัสไปรษณีย์"></textarea>
-          <div class="form-error" id="errAddress">กรุณากรอกที่อยู่จัดส่งให้ครบ</div>
+          <label for="custStreet">บ้านเลขที่ / หมู่ / ซอย / ถนน *</label>
+          <input type="text" id="custStreet" placeholder="126 หมู่ 4 ถนนบ้านบุทม" autocomplete="address-line1" />
+          <div class="form-error" id="errStreet">กรุณากรอกที่อยู่</div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="custSubdistrict">ตำบล/แขวง *</label>
+            <input type="text" id="custSubdistrict" placeholder="เมืองที" autocomplete="address-level3" />
+            <div class="form-error" id="errSubdistrict">กรุณากรอกตำบล/แขวง</div>
+          </div>
+          <div class="form-group">
+            <label for="custDistrict">อำเภอ/เขต *</label>
+            <input type="text" id="custDistrict" placeholder="เมือง" autocomplete="address-level2" />
+            <div class="form-error" id="errDistrict">กรุณากรอกอำเภอ/เขต</div>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="custProvince">จังหวัด *</label>
+            <input type="text" id="custProvince" placeholder="สุรินทร์" autocomplete="address-level1" />
+            <div class="form-error" id="errProvince">กรุณากรอกจังหวัด</div>
+          </div>
+          <div class="form-group">
+            <label for="custZip">รหัสไปรษณีย์ *</label>
+            <input type="text" id="custZip" placeholder="32000" inputmode="numeric" maxlength="5" autocomplete="postal-code" />
+            <div class="form-error" id="errZip">กรุณากรอกรหัสไปรษณีย์ 5 หลัก</div>
+          </div>
         </div>
         <div class="form-group">
           <label for="custNote">หมายเหตุถึงร้าน (ถ้ามี)</label>
@@ -674,12 +702,27 @@
         <div class="pay-detail-box" id="payDetailBox">
           <!-- filled by JS -->
         </div>
+        <div class="slip-upload-section" id="slipUploadSection" style="display:none;">
+          <div class="slip-upload-title">📎 แนบสลิปโอนเงิน (บนเว็บ)</div>
+          <p class="slip-upload-hint">อัปโหลดสลิปได้เลยที่นี่ — ไม่ต้องสลับไป LINE ร้านจะเห็นในระบบหลังร้านทันที</p>
+          <label class="slip-upload-zone" id="slipUploadZone" for="slipFileInput">
+            <input type="file" id="slipFileInput" accept="image/jpeg,image/png,image/webp,image/heic,image/heif" hidden />
+            <span class="slip-upload-placeholder" id="slipUploadPlaceholder">แตะเพื่อเลือกรูปสลิป หรือถ่ายภาพ</span>
+            <img id="slipPreview" class="slip-preview" alt="ตัวอย่างสลิป" hidden />
+          </label>
+          <button type="button" class="btn btn-outline btn-xs slip-remove-btn" id="slipRemoveBtn" style="display:none;">ลบรูปสลิป</button>
+        </div>
+        <div class="slip-alt-links" id="slipAltLinks" style="display:none;">
+          <span class="slip-alt-label">หรือส่งทางช่องทางอื่น (ไม่บังคับ):</span>
+          <div class="slip-alt-btns">
+            <a href="tel:+66814707089" class="btn btn-outline btn-xs">📞 โทรแจ้งร้าน</a>
+            <a href="https://www.facebook.com/p/%E0%B8%A3%E0%B9%89%E0%B8%B2%E0%B8%99-%E0%B8%A3%E0%B8%B2%E0%B8%8A%E0%B8%B2%E0%B8%AB%E0%B8%A7%E0%B8%B2%E0%B8%A2%E0%B8%AA%E0%B8%B8%E0%B8%A3%E0%B8%B4%E0%B8%99%E0%B8%97%E0%B8%A3%E0%B9%8C-100063725193085/" target="_blank" rel="noopener" class="btn btn-outline btn-xs">💬 Facebook</a>
+          </div>
+        </div>
         <div class="order-summary" id="orderSummary" style="display:none;"></div>
         <div class="modal-actions">
           <button class="btn btn-primary" id="confirmOrderBtn">✅ ยืนยันคำสั่งซื้อ</button>
           <button class="btn btn-outline" id="copyOrderBtn">📋 คัดลอกสรุปคำสั่งซื้อ</button>
-          <a href="tel:+66814707089" class="btn btn-outline">📞 โทรแจ้งร้าน 081-470-7089</a>
-          <a href="https://www.facebook.com/p/%E0%B8%A3%E0%B9%89%E0%B8%B2%E0%B8%99-%E0%B8%A3%E0%B8%B2%E0%B8%8A%E0%B8%B2%E0%B8%AB%E0%B8%A7%E0%B8%B2%E0%B8%A2%E0%B8%AA%E0%B8%B8%E0%B8%A3%E0%B8%B4%E0%B8%99%E0%B8%97%E0%B8%A3%E0%B9%8C-100063725193085/" target="_blank" rel="noopener" class="btn btn-outline">💬 ส่งสลิปทาง Facebook</a>
           <button class="btn btn-outline" id="backTo2">← กลับ</button>
         </div>
       </div>
@@ -692,6 +735,17 @@
           <div style="font-size:0.9rem;color:var(--text-soft);">บันทึกเลขที่ออเดอร์ไว้เพื่อตรวจสอบสถานะ</div>
         </div>
         <div class="status-order-id" id="successOrderBox"></div>
+        <div class="slip-upload-section slip-upload-success" id="successSlipSection" style="display:none;">
+          <div class="slip-upload-title">📎 แนบสลิปโอนเงิน</div>
+          <p class="slip-upload-hint">โอนแล้ว? อัปโหลดสลิปได้เลยที่นี่ ไม่ต้องไป LINE</p>
+          <label class="slip-upload-zone" id="successSlipZone" for="successSlipFileInput">
+            <input type="file" id="successSlipFileInput" accept="image/jpeg,image/png,image/webp,image/heic,image/heif" hidden />
+            <span class="slip-upload-placeholder" id="successSlipPlaceholder">แตะเพื่อเลือกรูปสลิป</span>
+            <img id="successSlipPreview" class="slip-preview" alt="ตัวอย่างสลิป" hidden />
+          </label>
+          <button type="button" class="btn btn-primary btn-sm" id="successSlipSubmitBtn" style="display:none;">ส่งสลิปให้ร้าน</button>
+        </div>
+        <div class="slip-attached-msg" id="successSlipAttached" style="display:none;">✓ ส่งสลิปให้ร้านแล้ว — รอร้านยืนยันการชำระเงิน</div>
         <div class="modal-actions">
           <button class="btn btn-primary" id="printLabelBtn">🖨️ พิมพ์ใบปะหน้าไปรษณีย์</button>
           <button class="btn btn-outline" id="viewStatusBtn">📦 ดูสถานะคำสั่งซื้อ</button>
@@ -735,30 +789,6 @@
     </div>
   </div>
 
-  <!-- Promo Popup -->
-  <div class="promo-overlay" id="promoOverlay" role="dialog" aria-modal="true" aria-labelledby="promoTitle">
-    <div class="promo-card">
-      <div class="promo-ribbon">โปรโมชั่นพิเศษ</div>
-      <button type="button" class="promo-close" id="promoClose" aria-label="ปิด">×</button>
-      <div class="promo-body">
-        <div class="promo-emoji">🧺</div>
-        <h2 id="promoTitle">ชุดของขวัญหวาย ลดพิเศษ</h2>
-        <p class="promo-sub">สั่งตะกร้า / กระเช้าครบชุด รับส่วนลดจากร้าน</p>
-        <div class="promo-deal">
-          <div class="label">เมื่อสั่งครบ 1,500 บาท</div>
-          <div class="value">ลดทันที 100 บาท</div>
-          <div class="extra">+ แถมวิธีดูแลหวายฉบับร้าน</div>
-        </div>
-        <div class="promo-actions">
-          <a href="#products" class="btn btn-primary" id="promoShopBtn">เลือกชมสินค้า</a>
-          <a href="https://line.me/ti/p/~0814707089" target="_blank" rel="noopener" class="btn btn-outline">ทัก LINE สอบถาม</a>
-          <button type="button" class="promo-skip" id="promoSkip">ไว้ทีหลัง</button>
-        </div>
-        <p class="promo-footer-note">เงื่อนไขตามร้านกำหนด · ทักยืนยันก่อนโอน</p>
-      </div>
-    </div>
-  </div>
-
   <!-- Product Detail Modal -->
   <div class="modal-overlay" id="productDetailModal">
     <div class="modal pd-modal">
@@ -798,8 +828,8 @@
       <div class="admin-body" id="adminLoginView">
         <div class="admin-login">
           <img class="logo-mark" src="/brand/rachawei-logo-square.png?v=1940" alt="" width="64" height="64" style="margin:0 auto 0.75rem;display:block;" />
-          <h3>เข้าสู่ระบบหลังร้าน</h3>
-          <p>รหัสผ่านสำหรับเจ้าของร้าน<br><small>กำหนดใน SHOP_CONFIG.adminPin</small></p>
+          <h3 id="adminLoginTitle">เข้าสู่ระบบหลังร้าน</h3>
+          <p id="adminLoginHint">รหัสผ่านสำหรับเจ้าของร้าน<br><small>เข้าผ่านลิงก์ #admin หรือเปลี่ยน PIN ในแท็บตั้งค่า</small></p>
           <div class="form-group" style="text-align:left;">
             <label for="adminPin">รหัสผ่าน</label>
             <input type="password" id="adminPin" placeholder="••••" maxlength="12" />
@@ -852,6 +882,7 @@
   <div class="toast" id="toast"></div>
 
   <script src="js/config.js"></script>
+  <script src="js/catalog-products.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>

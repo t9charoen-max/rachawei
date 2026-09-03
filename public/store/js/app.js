@@ -67,6 +67,40 @@
     const DB_NAME = 'rachawei_surin_db';
     const DB_VER = 1;
     const STORE = 'app';
+    const CART_LS_KEY = 'rachawei_cart';
+    function hashAdminPin(pin) {
+      let h = 5381;
+      const s = String(pin || '');
+      for (let i = 0; i < s.length; i++) h = ((h << 5) + h) ^ s.charCodeAt(i);
+      return String(h >>> 0);
+    }
+
+    function getAdminPinHash() {
+      return SHOP_CONFIG.adminPinHash || null;
+    }
+
+    function hasAdminPinConfigured() {
+      return Boolean(getAdminPinHash());
+    }
+
+    function verifyAdminPin(pin) {
+      const hash = getAdminPinHash();
+      if (!hash) return false;
+      return hashAdminPin(pin) === hash;
+    }
+
+    function migratePaymentFields() {
+      if (SHOP_CONFIG.promptPayNo) return;
+      const legacy = String(SHOP_CONFIG.bankAccountNo || '').trim();
+      const digits = legacy.replace(/\D/g, '');
+      const looksLikePhone = digits.length >= 9 && digits.length <= 10;
+      if (legacy && looksLikePhone) {
+        SHOP_CONFIG.promptPayNo = legacy;
+        SHOP_CONFIG.bankAccountNo = '';
+      } else {
+        SHOP_CONFIG.promptPayNo = SHOP_CONFIG.phoneDisplay || '';
+      }
+    }
 
     function openDB() {
       return new Promise((resolve, reject) => {
@@ -118,6 +152,98 @@
       });
     }
 
+    const PRODUCT_OVERLAY_KEYS = ['price', 'stock', 'size', 'badge', 'desc', 'detail', 'emoji'];
+
+    function mapStoreCatFromCategory(category, storeCat) {
+      if (storeCat) return storeCat;
+      if (category === 'เก้าอี้') return 'chair';
+      return 'basket';
+    }
+
+    function catalogItemToStoreProduct(item) {
+      const id = Number(item.id);
+      if (!Number.isFinite(id)) return null;
+      const images = (item.images || []).map((file) =>
+        String(file).startsWith('/') ? file : `/products/${file}`,
+      );
+      const badge = item.badge || (item.special ? 'พิเศษ' : null);
+      return {
+        id,
+        name: item.name,
+        cat: mapStoreCatFromCategory(item.category, item.storeCat),
+        category: item.category,
+        desc: String(item.description || item.desc || '').slice(0, 160),
+        detail: item.detail || item.description || item.desc || '',
+        price: Number(item.price) || 0,
+        stock: item.stock != null ? Number(item.stock) : null,
+        size: item.size || '',
+        emoji: item.emoji || (item.category === 'เก้าอี้' ? '🪑' : '🧺'),
+        badge,
+        images,
+        image: images[0] || '',
+      };
+    }
+
+    async function fetchLiveCatalogProducts() {
+      const ver = typeof CATALOG_SYNC_VERSION !== 'undefined' ? CATALOG_SYNC_VERSION : 'rachawei-catalog-v2';
+      try {
+        const res = await fetch(`/catalog/products.json?v=${ver}`, { cache: 'no-cache' });
+        if (!res.ok) return null;
+        const data = await res.json();
+        if (!Array.isArray(data) || !data.length) return null;
+        return data
+          .map(catalogItemToStoreProduct)
+          .filter(Boolean)
+          .sort((a, b) => a.id - b.id);
+      } catch (e) {
+        return null;
+      }
+    }
+
+    function mergeCatalogWithSaved(catalogList, savedList) {
+      const savedById = new Map((savedList || []).map((p) => [Number(p.id), p]));
+      return catalogList.map((base) => {
+        const saved = savedById.get(Number(base.id));
+        if (!saved) return { ...base };
+        const overlay = {};
+        PRODUCT_OVERLAY_KEYS.forEach((key) => {
+          if (saved[key] != null && saved[key] !== '') overlay[key] = saved[key];
+        });
+        return { ...base, ...overlay };
+      });
+    }
+
+    function sanitizeCartForProducts() {
+      const ids = new Set(products.map((p) => p.id));
+      cart = cart.filter((item) => ids.has(Number(item.id)));
+    }
+
+    function normalizeCart(raw) {
+      if (!Array.isArray(raw)) return [];
+      return raw
+        .map((item) => ({
+          id: Number(item.id),
+          qty: Math.max(1, Math.floor(Number(item.qty) || 1)),
+        }))
+        .filter((item) => Number.isFinite(item.id) && item.qty > 0);
+    }
+
+    function loadCartFromLocalStorage() {
+      try {
+        const raw = localStorage.getItem(CART_LS_KEY);
+        if (!raw) return null;
+        return normalizeCart(JSON.parse(raw));
+      } catch (e) {
+        return null;
+      }
+    }
+
+    function saveCartToLocalStorage() {
+      try {
+        localStorage.setItem(CART_LS_KEY, JSON.stringify(cart));
+      } catch (e) { /* quota / sandbox */ }
+    }
+
     async function loadPersisted() {
       try {
         db = await openDB();
@@ -129,14 +255,36 @@
         const savedTheme = await idbGet('theme');
         const savedShop = await idbGet('shopSettings');
         const savedVideos = await idbGet('shopVideos');
+        const savedCatalogVer = await idbGet('catalogSyncVersion');
 
-        if (Array.isArray(savedProducts) && savedProducts.length > 0) {
-          products = savedProducts;
+        const catalogBase = await fetchLiveCatalogProducts();
+        const baseProducts = (catalogBase && catalogBase.length)
+          ? catalogBase
+          : DEFAULT_PRODUCTS.map(p => ({ ...p }));
+        const needsCatalogResync = savedCatalogVer !== CATALOG_SYNC_VERSION;
+
+        if (needsCatalogResync || !Array.isArray(savedProducts) || !savedProducts.length) {
+          products = baseProducts.map(p => ({ ...p }));
+        } else {
+          products = mergeCatalogWithSaved(baseProducts, savedProducts);
+        }
+
+        if (needsCatalogResync) {
+          sanitizeCartForProducts();
+          await idbSet('catalogSyncVersion', CATALOG_SYNC_VERSION);
+          await idbSet('products', products);
         }
         if (Array.isArray(savedVideos)) {
           shopVideos = savedVideos;
         }
-        if (Array.isArray(savedCart)) cart = savedCart;
+        if (Array.isArray(savedCart)) {
+          cart = normalizeCart(savedCart);
+        } else {
+          const lsCart = loadCartFromLocalStorage();
+          if (lsCart) cart = lsCart;
+        }
+        sanitizeCartForProducts();
+        saveCartToLocalStorage();
         if (Array.isArray(savedOrders)) orders = savedOrders;
         if (typeof savedSeq === 'number' && savedSeq > 0) orderSeq = savedSeq;
         if (savedTheme === 'dark' || savedTheme === 'light') {
@@ -144,6 +292,11 @@
         }
         if (savedShop && typeof savedShop === 'object') {
           Object.assign(SHOP_CONFIG, savedShop);
+          if (savedShop.adminPin && !savedShop.adminPinHash) {
+            SHOP_CONFIG.adminPinHash = hashAdminPin(String(savedShop.adminPin));
+            delete SHOP_CONFIG.adminPin;
+          }
+          migratePaymentFields();
           // Migrate older subtitle variants to the single-line brand line
           const legacySubs = [
             'งานหัตถกรรมหวาย · บ้านบุทม',
@@ -158,7 +311,12 @@
       } catch (e) {
         db = null;
         dbReady = false;
-        console.warn('IndexedDB ไม่พร้อม — ใช้หน่วยความจำชั่วคราว', e);
+        const lsCart = loadCartFromLocalStorage();
+        if (lsCart) {
+          cart = lsCart;
+          sanitizeCartForProducts();
+        }
+        console.warn('IndexedDB ไม่พร้อม — ใช้ localStorage สำหรับตะกร้า', e);
         return false;
       }
     }
@@ -177,7 +335,10 @@
     }
 
     function saveCart() {
-      persistAll();
+      saveCartToLocalStorage();
+      if (dbReady && db) {
+        idbSet('cart', cart).catch((e) => console.warn('บันทึกตะกร้า IndexedDB ไม่สำเร็จ', e));
+      }
     }
 
     function saveProducts() {
@@ -196,15 +357,94 @@
       return '฿' + n.toLocaleString('th-TH');
     }
 
+    function getProductStock(p) {
+      const n = Number(p?.stock);
+      return Number.isFinite(n) ? n : null;
+    }
+
+    function getStockLabel(p) {
+      const stock = getProductStock(p);
+      if (stock === null) return { text: 'พร้อมส่ง', className: 'in-stock' };
+      if (stock <= 0) return { text: 'หมดชั่วคราว', className: 'out-of-stock' };
+      return { text: `คงเหลือ ${stock} ชิ้น`, className: 'in-stock' };
+    }
+
+    function isProductAvailable(p) {
+      const stock = getProductStock(p);
+      return stock === null || stock > 0;
+    }
+
     function getCartCount() {
       return cart.reduce((sum, item) => sum + item.qty, 0);
     }
 
-    function getCartTotal() {
+    function getCartSubtotal() {
       return cart.reduce((sum, item) => {
         const p = products.find(x => x.id === item.id);
         return sum + (p ? p.price * item.qty : 0);
       }, 0);
+    }
+
+    function getPromoDiscount() {
+      const min = Number(SHOP_CONFIG.promoMin) || 0;
+      const discount = Number(SHOP_CONFIG.promoDiscount) || 0;
+      if (min <= 0 || discount <= 0) return 0;
+      return getCartSubtotal() >= min ? discount : 0;
+    }
+
+    function getShippingFee() {
+      const subtotal = getCartSubtotal() - getPromoDiscount();
+      const freeMin = Number(SHOP_CONFIG.freeShippingMin) || 0;
+      if (freeMin > 0 && subtotal >= freeMin) return 0;
+      const fee = Number(SHOP_CONFIG.shippingFee);
+      return Number.isFinite(fee) ? Math.max(0, fee) : 80;
+    }
+
+    function getCartTotal() {
+      return getCartSubtotal() - getPromoDiscount() + getShippingFee();
+    }
+
+    function isValidThaiPhone(raw) {
+      const digits = String(raw || '').replace(/\D/g, '');
+      if (digits.length === 10 && digits.startsWith('0')) {
+        return /^0[689]\d{8}$/.test(digits);
+      }
+      if (digits.length === 9) {
+        return /^[689]\d{8}$/.test(digits);
+      }
+      return false;
+    }
+
+    function formatPhoneDisplay(raw) {
+      const digits = String(raw || '').replace(/\D/g, '');
+      if (digits.length === 10 && digits.startsWith('0')) {
+        return `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6)}`;
+      }
+      return raw.trim();
+    }
+
+    function getCustomerAddress() {
+      const street = document.getElementById('custStreet')?.value.trim() || '';
+      const sub = document.getElementById('custSubdistrict')?.value.trim() || '';
+      const district = document.getElementById('custDistrict')?.value.trim() || '';
+      const province = document.getElementById('custProvince')?.value.trim() || '';
+      const zip = document.getElementById('custZip')?.value.trim() || '';
+      return [street, sub, district, province, zip].filter(Boolean).join('\n');
+    }
+
+    function validateCustomerAddress() {
+      const street = document.getElementById('custStreet')?.value.trim() || '';
+      const sub = document.getElementById('custSubdistrict')?.value.trim() || '';
+      const district = document.getElementById('custDistrict')?.value.trim() || '';
+      const province = document.getElementById('custProvince')?.value.trim() || '';
+      const zip = document.getElementById('custZip')?.value.trim() || '';
+      const zipOk = /^\d{5}$/.test(zip);
+      document.getElementById('errStreet')?.classList.toggle('show', !street);
+      document.getElementById('errSubdistrict')?.classList.toggle('show', !sub);
+      document.getElementById('errDistrict')?.classList.toggle('show', !district);
+      document.getElementById('errProvince')?.classList.toggle('show', !province);
+      document.getElementById('errZip')?.classList.toggle('show', !zipOk);
+      return street && sub && district && province && zipOk;
     }
 
     // ========== RENDER PRODUCTS ==========
@@ -385,11 +625,12 @@
       grid.innerHTML = filtered.map((p, idx) => {
         const cardMedia = renderProductCardMedia(p);
         const delay = Math.min(idx * 0.05, 0.4);
-        const rating = productRating(p);
         const wish = isWished(p.id) ? '♥' : '♡';
         const badgeLabel = p.badge === 'ยอดนิยม' ? 'ขายดี' : p.badge;
+        const stock = getStockLabel(p);
+        const available = isProductAvailable(p);
         return `
-        <article class="product-card stagger" data-cat="${p.cat}" style="animation-delay:${delay}s" onclick="openProductDetail(${p.id})">
+        <article class="product-card product-card--buy stagger" data-cat="${p.cat}" data-pid="${p.id}" style="animation-delay:${delay}s">
           <div class="product-image">
             ${badgeLabel ? `<span class="product-badge">${badgeLabel}</span>` : ''}
             <button type="button" class="shop-wish" aria-label="ถูกใจ" onclick="event.stopPropagation();toggleWish(${p.id})">${wish}</button>
@@ -397,16 +638,15 @@
             <span class="emoji" style="${cardMedia.emojiShow}">${p.emoji || '🧺'}</span>
           </div>
           <div class="product-body">
-            <div class="product-cat">${p.category}</div>
             <h3 class="product-title">${p.name}</h3>
-            <p class="product-desc">${p.desc}</p>
-            <div class="product-footer">
-              <div>
-                <div class="product-price">${formatPrice(p.price)}</div>
-                <div class="shop-card__rating">★ ${rating.score} <span>(${rating.count})</span></div>
-              </div>
-              <button class="btn btn-add btn-sm" onclick="event.stopPropagation();addToCart(${p.id})" aria-label="ใส่ตะกร้า">🛒</button>
+            <div class="product-card-buyrow">
+              <div class="product-price">${formatPrice(p.price)}</div>
+              <div class="product-stock product-stock--${stock.className}">${stock.text}</div>
             </div>
+            <button type="button" class="btn btn-primary btn-add-full" ${available ? '' : 'disabled'} onclick="addToCart(${p.id})" aria-label="ใส่ ${p.name} ลงตะกร้า">
+              🛒 ใส่ตะกร้า
+            </button>
+            <button type="button" class="product-detail-link" onclick="navigateToProduct(${p.id})">ดูรายละเอียด</button>
           </div>
         </article>
       `;
@@ -641,6 +881,8 @@
       const desc = document.getElementById('installDesc');
       if (!banner) return;
 
+      const INSTALL_DELAY_MS = 8000;
+
       const standalone = window.matchMedia('(display-mode: standalone)').matches
         || window.navigator.standalone === true;
       if (standalone) return;
@@ -650,18 +892,32 @@
 
       const isIos = /iphone|ipad|ipod/i.test(navigator.userAgent);
       let deferredPrompt = null;
+      let revealTimer = null;
+
+      const schedulePromoIfReady = () => {
+        if (typeof schedulePromoAfterInstall === 'function') schedulePromoAfterInstall();
+      };
+
+      const revealBanner = (message, showInstall) => {
+        if (revealTimer) clearTimeout(revealTimer);
+        revealTimer = setTimeout(() => {
+          try {
+            if (localStorage.getItem('rachawei-store-install-dismissed')) return;
+          } catch (_) {}
+          if (desc && message) desc.textContent = message;
+          banner.hidden = false;
+          if (installBtn) installBtn.hidden = !showInstall;
+        }, INSTALL_DELAY_MS);
+      };
 
       window.addEventListener('beforeinstallprompt', (event) => {
         event.preventDefault();
         deferredPrompt = event;
-        banner.hidden = false;
-        if (installBtn) installBtn.hidden = false;
-        if (desc) desc.textContent = 'เปิดเร็ว สั่งซื้อง่าย เหมือนแอปทั่วไป';
+        revealBanner('ติดตั้งแอป — เปิดร้านได้เร็วขึ้น', true);
       });
 
       if (isIos) {
-        banner.hidden = false;
-        if (desc) desc.textContent = 'กดปุ่มแชร์ ⎋ แล้วเลือก “เพิ่มลงหน้าจอโฮม”';
+        revealBanner('ติดตั้ง: แชร์ ⎋ → เพิ่มลงหน้าจอโฮม', false);
       }
 
       if (installBtn) {
@@ -673,6 +929,7 @@
           if (choice.outcome === 'accepted') {
             banner.hidden = true;
             try { localStorage.setItem('rachawei-store-install-dismissed', '1'); } catch (_) {}
+            schedulePromoIfReady();
           }
         });
       }
@@ -680,7 +937,9 @@
       if (closeBtn) {
         closeBtn.addEventListener('click', () => {
           banner.hidden = true;
+          if (revealTimer) clearTimeout(revealTimer);
           try { localStorage.setItem('rachawei-store-install-dismissed', '1'); } catch (_) {}
+          schedulePromoIfReady();
         });
       }
     }
@@ -699,8 +958,20 @@
     let pdImages = [];
     let pdIndex = 0;
     let pdProductId = null;
+    const PAGE_HASHES = ['home', 'story', 'process', 'care', 'media'];
 
-    function openProductDetail(id) {
+    function parseProductHash() {
+      const h = (location.hash || '').replace('#', '');
+      const m = h.match(/^product\/(\d+)$/);
+      return m ? Number(m[1]) : null;
+    }
+
+    function productShareUrl(id) {
+      const base = `${location.origin}${location.pathname}`;
+      return `${base}#product/${id}`;
+    }
+
+    function openProductDetail(id, opts = {}) {
       const p = products.find(x => x.id === id);
       if (!p) return;
       pdProductId = id;
@@ -709,7 +980,12 @@
 
       document.getElementById('pdCat').textContent = p.category || '';
       document.getElementById('pdName').textContent = p.name;
-      document.getElementById('pdPrice').innerHTML = `${formatPrice(p.price)} <small>โดยประมาณ</small>`;
+      const priceBits = [formatPrice(p.price)];
+      if (p.size) priceBits.push(`<small>${p.size}</small>`);
+      if (p.stock != null) {
+        priceBits.push(`<small>${p.stock > 0 ? `คงเหลือ ${p.stock} ชิ้น` : 'หมดชั่วคราว'}</small>`);
+      }
+      document.getElementById('pdPrice').innerHTML = priceBits.join(' ');
 
       const meta = document.getElementById('pdMeta');
       let chips = '';
@@ -729,6 +1005,29 @@
 
       renderPdGallery();
       document.getElementById('productDetailModal').classList.add('open');
+      document.title = `${p.name} — ${SHOP_CONFIG.shopName || 'ราชาหวายสุรินทร์'}`;
+
+      if (!opts.skipHash) {
+        const hash = `product/${id}`;
+        const state = { product: id };
+        if (opts.pushState !== false) history.pushState(state, '', `#${hash}`);
+        else history.replaceState(state, '', `#${hash}`);
+      }
+    }
+
+    function closeProductDetail(fromPopState = false) {
+      document.getElementById('productDetailModal').classList.remove('open');
+      pdProductId = null;
+      document.title = `${SHOP_CONFIG.shopName || 'ราชาหวายสุรินทร์'} — งานหัตถกรรมหวาย`;
+      if (fromPopState) return;
+      if (parseProductHash()) {
+        if (history.state && history.state.product) history.back();
+        else history.replaceState(null, '', `${location.pathname}${location.search}`);
+      }
+    }
+
+    function navigateToProduct(id) {
+      openProductDetail(id);
     }
 
     function renderPdGallery() {
@@ -774,25 +1073,21 @@
       renderPdGallery();
     }
 
-    document.getElementById('pdClose').addEventListener('click', () => {
-      document.getElementById('productDetailModal').classList.remove('open');
-    });
-    document.getElementById('pdCloseBtn').addEventListener('click', () => {
-      document.getElementById('productDetailModal').classList.remove('open');
-    });
+    document.getElementById('pdClose').addEventListener('click', () => closeProductDetail());
+    document.getElementById('pdCloseBtn').addEventListener('click', () => closeProductDetail());
     document.getElementById('productDetailModal').addEventListener('click', (e) => {
-      if (e.target.id === 'productDetailModal') {
-        document.getElementById('productDetailModal').classList.remove('open');
-      }
+      if (e.target.id === 'productDetailModal') closeProductDetail();
     });
     document.getElementById('pdAddCart').addEventListener('click', () => {
       if (pdProductId != null) {
         addToCart(pdProductId);
-        document.getElementById('productDetailModal').classList.remove('open');
+        closeProductDetail();
       }
     });
 
     window.openProductDetail = openProductDetail;
+    window.navigateToProduct = navigateToProduct;
+    window.productShareUrl = productShareUrl;
     window.pdGo = pdGo;
     window.pdPrev = pdPrev;
     window.pdNext = pdNext;
@@ -880,17 +1175,30 @@
     function renderCart() {
       updateBadge();
       const count = getCartCount();
+      const subtotal = getCartSubtotal();
+      const promo = getPromoDiscount();
+      const shipping = getShippingFee();
       const total = getCartTotal();
 
       cartCountText.textContent = count + ' ชิ้น';
       cartTotalText.textContent = formatPrice(total);
+
+      const breakdown = document.getElementById('cartBreakdown');
+      if (breakdown) {
+        let lines = `<div class="cart-total-row"><span>ยอดสินค้า</span><span>${formatPrice(subtotal)}</span></div>`;
+        if (promo > 0) {
+          lines += `<div class="cart-total-row cart-total-row--promo"><span>ส่วนลดโปรโมชั่น</span><span>-${formatPrice(promo)}</span></div>`;
+        }
+        lines += `<div class="cart-total-row"><span>ค่าจัดส่ง</span><span>${shipping > 0 ? formatPrice(shipping) : 'ฟรี'}</span></div>`;
+        breakdown.innerHTML = lines;
+      }
 
       if (cart.length === 0) {
         cartBody.innerHTML = `
           <div class="cart-empty">
             <div class="empty-icon">🛒</div>
             <p>ยังไม่มีสินค้าในตะกร้า</p>
-            <p style="font-size:0.85rem;margin-top:0.4rem;">เลือกสินค้าที่ชอบแล้วกด “เพิ่ม”</p>
+            <p style="font-size:0.85rem;margin-top:0.4rem;">เลือกสินค้าที่ชอบแล้วกด “ใส่ตะกร้า”</p>
           </div>
         `;
         cartFooter.style.display = 'none';
@@ -900,21 +1208,27 @@
       cartFooter.style.display = 'block';
 
       cartBody.innerHTML = cart.map(item => {
-        const p = products.find(x => x.id === item.id);
+        const p = products.find(x => Number(x.id) === Number(item.id));
         if (!p) return '';
+        const stock = getProductStock(p);
+        const maxAttr = stock !== null ? ` max="${stock}"` : '';
+        const stockHint = stock !== null ? `<div class="cart-item-stock">คงเหลือ ${stock} ชิ้น</div>` : '';
         return `
-          <div class="cart-item">
+          <div class="cart-item" data-cart-id="${p.id}">
             <div class="cart-item-emoji">${p.emoji}</div>
             <div class="cart-item-info">
               <div class="cart-item-name">${p.name}</div>
               <div class="cart-item-price">${formatPrice(p.price)} / ชิ้น</div>
-              <div class="cart-item-controls">
-                <button class="qty-btn" onclick="changeQty(${p.id}, -1)">−</button>
-                <span class="qty-value">${item.qty}</span>
-                <button class="qty-btn" onclick="changeQty(${p.id}, 1)">+</button>
-                <button class="cart-item-remove" onclick="removeFromCart(${p.id})">ลบ</button>
+              ${stockHint}
+              <div class="cart-item-row">
+                <div class="qty-stepper">
+                  <button type="button" class="qty-btn" data-qty-action="dec" data-id="${p.id}" aria-label="ลดจำนวน ${p.name}">−</button>
+                  <input type="number" class="qty-input" min="1"${maxAttr} value="${item.qty}" data-id="${p.id}" inputmode="numeric" pattern="[0-9]*" aria-label="จำนวน ${p.name}" />
+                  <button type="button" class="qty-btn" data-qty-action="inc" data-id="${p.id}" aria-label="เพิ่มจำนวน ${p.name}">+</button>
+                </div>
+                <div class="cart-item-subtotal">${formatPrice(p.price * item.qty)}</div>
               </div>
-              <div class="cart-item-subtotal">${formatPrice(p.price * item.qty)}</div>
+              <button type="button" class="cart-item-remove" data-remove-id="${p.id}">ลบรายการ</button>
             </div>
           </div>
         `;
@@ -936,32 +1250,107 @@
     cartClose.addEventListener('click', closeCart);
     cartOverlay.addEventListener('click', closeCart);
 
-    // ========== CART ACTIONS ==========
-    function addToCart(id) {
-      const existing = cart.find(item => item.id === id);
-      if (existing) {
-        existing.qty += 1;
-      } else {
-        cart.push({ id, qty: 1 });
+    cartBody.addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-qty-action]');
+      if (btn) {
+        const id = Number(btn.dataset.id);
+        if (btn.dataset.qtyAction === 'inc') changeQty(id, 1);
+        else if (btn.dataset.qtyAction === 'dec') changeQty(id, -1);
+        return;
       }
-      saveCart();
-      updateBadge();
-      showToast('เพิ่มลงตะกร้าแล้ว ✓');
+      const removeBtn = e.target.closest('[data-remove-id]');
+      if (removeBtn) removeFromCart(Number(removeBtn.dataset.removeId));
+    });
+
+    cartBody.addEventListener('change', (e) => {
+      const input = e.target.closest('.qty-input');
+      if (!input) return;
+      setCartQty(Number(input.dataset.id), input.value);
+    });
+
+    cartBody.addEventListener('keydown', (e) => {
+      if (e.key !== 'Enter') return;
+      const input = e.target.closest('.qty-input');
+      if (!input) return;
+      e.preventDefault();
+      input.blur();
+    });
+
+    // ========== CART ACTIONS ==========
+    function findCartItem(id) {
+      return cart.find(x => Number(x.id) === Number(id));
     }
 
-    function changeQty(id, delta) {
-      const item = cart.find(x => x.id === id);
+    function getMaxQtyForProduct(p) {
+      const stock = p ? getProductStock(p) : null;
+      return stock !== null ? stock : 999;
+    }
+
+    function setCartQty(id, qty) {
+      const item = findCartItem(id);
       if (!item) return;
-      item.qty += delta;
-      if (item.qty <= 0) {
-        cart = cart.filter(x => x.id !== id);
+      const p = products.find(x => Number(x.id) === Number(id));
+      const maxQty = getMaxQtyForProduct(p);
+      let n = Math.floor(Number(qty));
+      if (!Number.isFinite(n) || n < 1) n = 1;
+      if (n > maxQty) {
+        n = maxQty;
+        if (maxQty < 999) showToast(`มีในสต็อก ${maxQty} ชิ้น`);
       }
+      if (item.qty === n) {
+        renderCart();
+        return;
+      }
+      item.qty = n;
       saveCart();
       renderCart();
     }
 
+    function addToCart(id) {
+      const numId = Number(id);
+      const p = products.find(item => Number(item.id) === numId);
+      if (p && !isProductAvailable(p)) {
+        showToast('สินค้าหมดชั่วคราว');
+        return;
+      }
+      const maxQty = getMaxQtyForProduct(p);
+      const existing = findCartItem(numId);
+      const nextQty = (existing?.qty || 0) + 1;
+      if (nextQty > maxQty) {
+        showToast(maxQty < 999 ? `มีในสต็อก ${maxQty} ชิ้น` : 'ไม่สามารถเพิ่มได้');
+        return;
+      }
+      if (existing) {
+        existing.qty += 1;
+      } else {
+        cart.push({ id: numId, qty: 1 });
+      }
+      saveCart();
+      updateBadge();
+      showToast('เพิ่มลงตะกร้าแล้ว ✓ — แตะ 🛒 ด้านบนเพื่อชำระเงิน');
+    }
+
+    function changeQty(id, delta) {
+      const item = findCartItem(id);
+      if (!item) return;
+      const next = item.qty + delta;
+      if (next <= 0) {
+        removeFromCart(id);
+        return;
+      }
+      if (delta > 0) {
+        const p = products.find(x => Number(x.id) === Number(id));
+        const maxQty = getMaxQtyForProduct(p);
+        if (item.qty >= maxQty) {
+          if (maxQty < 999) showToast(`มีในสต็อก ${maxQty} ชิ้น`);
+          return;
+        }
+      }
+      setCartQty(id, next);
+    }
+
     function removeFromCart(id) {
-      cart = cart.filter(x => x.id !== id);
+      cart = cart.filter(x => Number(x.id) !== Number(id));
       saveCart();
       renderCart();
       showToast('ลบสินค้าออกแล้ว');
@@ -987,17 +1376,22 @@
     }
 
     // ========== PAYMENT INFO (ดึงจาก SHOP_CONFIG — แก้ที่หัวสคริปต์) ==========
-    const PAYMENT = {
-      promptpay: {
-        phone: SHOP_CONFIG.bankAccountNo || SHOP_CONFIG.phoneDisplay,
-        name: SHOP_CONFIG.bankAccountName || SHOP_CONFIG.shopName
-      },
-      bank: {
-        bank: SHOP_CONFIG.bankName || 'ธนาคาร',
-        account: SHOP_CONFIG.bankAccountNo || SHOP_CONFIG.phoneDisplay,
-        name: SHOP_CONFIG.bankAccountName || SHOP_CONFIG.shopName
-      }
-    };
+    function getPaymentInfo() {
+      migratePaymentFields();
+      const promptPayNo = SHOP_CONFIG.promptPayNo || SHOP_CONFIG.phoneDisplay;
+      const bankAccountNo = String(SHOP_CONFIG.bankAccountNo || '').trim();
+      return {
+        promptpay: {
+          id: promptPayNo,
+          name: SHOP_CONFIG.bankAccountName || SHOP_CONFIG.shopName
+        },
+        bank: {
+          bank: SHOP_CONFIG.bankName || 'ธนาคาร',
+          account: bankAccountNo,
+          name: SHOP_CONFIG.bankAccountName || SHOP_CONFIG.shopName
+        }
+      };
+    }
 
     // ========== CHECKOUT / PAYMENT ==========
     const checkoutModal = document.getElementById('checkoutModal');
@@ -1006,13 +1400,93 @@
     const copyOrderBtn = document.getElementById('copyOrderBtn');
     let payStep = 1;
     let selectedMethod = 'promptpay';
+    let pendingSlip = null;
+    let successPendingSlip = null;
+
+    function resetPendingSlip() {
+      pendingSlip = null;
+      const preview = document.getElementById('slipPreview');
+      const placeholder = document.getElementById('slipUploadPlaceholder');
+      const removeBtn = document.getElementById('slipRemoveBtn');
+      const input = document.getElementById('slipFileInput');
+      if (preview) {
+        preview.hidden = true;
+        preview.removeAttribute('src');
+      }
+      if (placeholder) placeholder.style.display = '';
+      if (removeBtn) removeBtn.style.display = 'none';
+      if (input) input.value = '';
+    }
+
+    function resetSuccessSlipUI() {
+      successPendingSlip = null;
+      const preview = document.getElementById('successSlipPreview');
+      const placeholder = document.getElementById('successSlipPlaceholder');
+      const submitBtn = document.getElementById('successSlipSubmitBtn');
+      const input = document.getElementById('successSlipFileInput');
+      if (preview) {
+        preview.hidden = true;
+        preview.removeAttribute('src');
+      }
+      if (placeholder) placeholder.style.display = '';
+      if (submitBtn) submitBtn.style.display = 'none';
+      if (input) input.value = '';
+    }
+
+    function updateSlipPreview(dataUrl) {
+      pendingSlip = dataUrl;
+      const preview = document.getElementById('slipPreview');
+      const placeholder = document.getElementById('slipUploadPlaceholder');
+      const removeBtn = document.getElementById('slipRemoveBtn');
+      if (preview) {
+        preview.src = dataUrl;
+        preview.hidden = false;
+      }
+      if (placeholder) placeholder.style.display = 'none';
+      if (removeBtn) removeBtn.style.display = 'inline-flex';
+    }
+
+    function toggleSlipUploadUI(show) {
+      const section = document.getElementById('slipUploadSection');
+      const alt = document.getElementById('slipAltLinks');
+      if (section) section.style.display = show ? 'block' : 'none';
+      if (alt) alt.style.display = show ? 'block' : 'none';
+    }
+
+    function paymentNeedsSlip(method) {
+      return method === 'promptpay' || method === 'bank';
+    }
+
+    function renderSuccessSlipSection(order) {
+      const section = document.getElementById('successSlipSection');
+      const attached = document.getElementById('successSlipAttached');
+      if (!section || !attached) return;
+      resetSuccessSlipUI();
+      const needsSlip = paymentNeedsSlip(order.method);
+      if (order.paymentSlip) {
+        section.style.display = 'none';
+        attached.style.display = needsSlip ? 'block' : 'none';
+        return;
+      }
+      attached.style.display = 'none';
+      section.style.display = needsSlip ? 'block' : 'none';
+    }
 
     function setPayStep(n) {
       payStep = n;
-      document.getElementById('payPanel1').style.display = n === 1 ? 'block' : 'none';
-      document.getElementById('payPanel2').style.display = n === 2 ? 'block' : 'none';
-      document.getElementById('payPanel3').style.display = n === 3 ? 'block' : 'none';
-      document.getElementById('payPanel4').style.display = n === 4 ? 'block' : 'none';
+      const panels = [
+        document.getElementById('payPanel1'),
+        document.getElementById('payPanel2'),
+        document.getElementById('payPanel3'),
+        document.getElementById('payPanel4'),
+      ];
+      panels.forEach((panel, idx) => {
+        if (!panel) return;
+        const active = idx + 1 === n;
+        panel.style.display = active ? 'block' : 'none';
+        panel.style.pointerEvents = active ? 'auto' : 'none';
+        panel.setAttribute('aria-hidden', active ? 'false' : 'true');
+      });
       [1, 2, 3].forEach(i => {
         const el = document.getElementById('step' + i);
         if (!el) return;
@@ -1031,6 +1505,8 @@
 
     function openCheckout() {
       if (cart.length === 0) return;
+      resetPendingSlip();
+      resetSuccessSlipUI();
       setPayStep(1);
       checkoutModal.classList.add('open');
       closeCart();
@@ -1047,25 +1523,25 @@
     document.getElementById('toStep2').addEventListener('click', () => {
       const name = document.getElementById('custName').value.trim();
       const phone = document.getElementById('custPhone').value.trim();
-      const address = document.getElementById('custAddress').value.trim();
+      const phoneOk = isValidThaiPhone(phone);
       let ok = true;
       document.getElementById('errName').classList.toggle('show', !name);
-      document.getElementById('errPhone').classList.toggle('show', !phone);
-      document.getElementById('errAddress').classList.toggle('show', !address);
-      if (!name || !phone || !address) ok = false;
+      document.getElementById('errPhone').classList.toggle('show', !phoneOk);
+      if (!validateCustomerAddress()) ok = false;
+      if (!name || !phoneOk) ok = false;
       if (ok) setPayStep(2);
     });
 
     document.getElementById('backTo1').addEventListener('click', () => setPayStep(1));
     document.getElementById('backTo2').addEventListener('click', () => setPayStep(2));
 
-    // Payment method selection
-    document.querySelectorAll('.pay-method').forEach(el => {
-      el.addEventListener('click', () => {
-        document.querySelectorAll('.pay-method').forEach(m => m.classList.remove('selected'));
-        el.classList.add('selected');
-        el.querySelector('input').checked = true;
-        selectedMethod = el.dataset.method;
+    // Payment method selection — use native radio hit areas (avoid misaligned label clicks)
+    document.querySelectorAll('.pay-method input[name="payMethod"]').forEach((input) => {
+      input.addEventListener('change', () => {
+        selectedMethod = input.value;
+        document.querySelectorAll('.pay-method').forEach((m) => {
+          m.classList.toggle('selected', m.dataset.method === selectedMethod);
+        });
       });
     });
 
@@ -1082,6 +1558,9 @@
     }
 
     function renderPayConfirm() {
+      const subtotal = getCartSubtotal();
+      const promo = getPromoDiscount();
+      const shipping = getShippingFee();
       const total = getCartTotal();
       const lines = document.getElementById('payOrderLines');
       let html = '';
@@ -1091,30 +1570,37 @@
           html += `<div><span>${p.emoji} ${p.name} × ${item.qty}</span><span>${formatPrice(p.price * item.qty)}</span></div>`;
         }
       });
-      html += `<div style="font-weight:700;border:none;padding-top:0.5rem;"><span>รวมประมาณ</span><span>${formatPrice(total)}</span></div>`;
+      html += `<div><span>ยอดสินค้า</span><span>${formatPrice(subtotal)}</span></div>`;
+      if (promo > 0) html += `<div><span>ส่วนลดโปรโมชั่น</span><span>-${formatPrice(promo)}</span></div>`;
+      html += `<div><span>ค่าจัดส่ง</span><span>${shipping > 0 ? formatPrice(shipping) : 'ฟรี'}</span></div>`;
+      html += `<div style="font-weight:700;border:none;padding-top:0.5rem;"><span>รวมทั้งสิ้น</span><span>${formatPrice(total)}</span></div>`;
       lines.innerHTML = html;
 
       const box = document.getElementById('payDetailBox');
+      const payment = getPaymentInfo();
       if (selectedMethod === 'promptpay') {
         box.innerHTML = `
-          <div style="font-size:0.85rem;color:var(--text-soft);">สแกน QR พร้อมเพย์ หรือโอนตามเบอร์ด้านล่าง</div>
+          <div style="font-size:0.85rem;color:var(--text-soft);">สแกน QR พร้อมเพย์ หรือโอนตามหมายเลขด้านล่าง</div>
           <div class="pay-qr" title="QR พร้อมเพย์ (ตัวอย่าง)"></div>
           <div class="pay-amount">${formatPrice(total)}</div>
           <div class="pay-account">
-            <strong>พร้อมเพย์:</strong> ${PAYMENT.promptpay.phone}<br>
-            <strong>ชื่อบัญชี:</strong> ${PAYMENT.promptpay.name}<br>
-            <span style="font-size:0.78rem;color:var(--text-soft);">* โอนแล้วแจ้งสลิปให้ร้านทางโทร/Facebook</span>
+            <strong>พร้อมเพย์:</strong> ${payment.promptpay.id}<br>
+            <strong>ชื่อรับเงิน:</strong> ${payment.promptpay.name}<br>
+            <span style="font-size:0.78rem;color:var(--text-soft);">* โอนแล้วแนบสลิปด้านล่างได้เลย หรือส่งทาง Facebook/LINE (ไม่บังคับ)</span>
           </div>
         `;
       } else if (selectedMethod === 'bank') {
+        const accountLine = payment.bank.account
+          ? `<strong>เลขบัญชี:</strong> ${payment.bank.account}<br>`
+          : `<span style="font-size:0.82rem;color:var(--text-soft);">ยังไม่ได้ตั้งเลขบัญชี — โทร ${SHOP_CONFIG.phoneDisplay} เพื่อขอเลขบัญชี</span><br>`;
         box.innerHTML = `
           <div style="font-size:0.85rem;color:var(--text-soft);">โอนเงินเข้าบัญชีธนาคาร</div>
           <div class="pay-amount">${formatPrice(total)}</div>
           <div class="pay-account">
-            <strong>ธนาคาร:</strong> ${PAYMENT.bank.bank}<br>
-            <strong>เลขบัญชี:</strong> ${PAYMENT.bank.account}<br>
-            <strong>ชื่อบัญชี:</strong> ${PAYMENT.bank.name}<br>
-            <span style="font-size:0.78rem;color:var(--text-soft);">* โอนแล้วแจ้งสลิปให้ร้านทางโทร/Facebook</span>
+            <strong>ธนาคาร:</strong> ${payment.bank.bank}<br>
+            ${accountLine}
+            <strong>ชื่อบัญชี:</strong> ${payment.bank.name}<br>
+            <span style="font-size:0.78rem;color:var(--text-soft);">* โอนแล้วแนบสลิปด้านล่างได้เลย หรือส่งทาง Facebook/LINE (ไม่บังคับ)</span>
           </div>
         `;
       } else {
@@ -1129,10 +1615,13 @@
         `;
       }
 
+      toggleSlipUploadUI(paymentNeedsSlip(selectedMethod));
+      if (!paymentNeedsSlip(selectedMethod)) resetPendingSlip();
+
       // Build full order text for copy
       const name = document.getElementById('custName').value.trim();
       const phone = document.getElementById('custPhone').value.trim();
-      const address = document.getElementById('custAddress').value.trim();
+      const address = getCustomerAddress();
       const note = document.getElementById('custNote').value.trim();
 
       let text = '🛒 สั่งซื้อจากร้านราชาหวายสุรินทร์\n';
@@ -1150,12 +1639,16 @@
         }
       });
       text += '─────────────────\n';
-      text += `รวมประมาณ: ${formatPrice(total)}\n`;
+      text += `ยอดสินค้า: ${formatPrice(getCartSubtotal())}\n`;
+      if (getPromoDiscount() > 0) text += `ส่วนลด: -${formatPrice(getPromoDiscount())}\n`;
+      text += `ค่าจัดส่ง: ${getShippingFee() > 0 ? formatPrice(getShippingFee()) : 'ฟรี'}\n`;
+      text += `รวมทั้งสิ้น: ${formatPrice(total)}\n`;
       text += `จำนวน: ${getCartCount()} ชิ้น\n\n`;
       if (selectedMethod === 'promptpay') {
-        text += `โอนพร้อมเพย์: ${PAYMENT.promptpay.phone}\nชื่อ: ${PAYMENT.promptpay.name}\n`;
+        text += `พร้อมเพย์: ${getPaymentInfo().promptpay.id}\nชื่อรับเงิน: ${getPaymentInfo().promptpay.name}\n`;
       } else if (selectedMethod === 'bank') {
-        text += `โอน ${PAYMENT.bank.bank}\nบัญชี: ${PAYMENT.bank.account}\nชื่อ: ${PAYMENT.bank.name}\n`;
+        const bank = getPaymentInfo().bank;
+        text += `โอน ${bank.bank}\nบัญชี: ${bank.account || '(ติดต่อร้าน)'}\nชื่อ: ${bank.name}\n`;
       } else {
         text += 'ชำระเงินสดตอนรับสินค้า\n';
       }
@@ -1229,9 +1722,13 @@
 
     function createOrder() {
       const name = document.getElementById('custName').value.trim();
-      const phone = document.getElementById('custPhone').value.trim();
-      const address = document.getElementById('custAddress').value.trim();
+      const phoneRaw = document.getElementById('custPhone').value.trim();
+      const phoneDisplay = formatPhoneDisplay(phoneRaw);
+      const address = getCustomerAddress();
       const note = document.getElementById('custNote').value.trim();
+      const subtotal = getCartSubtotal();
+      const promo = getPromoDiscount();
+      const shipping = getShippingFee();
       const total = getCartTotal();
       const items = cart.map(item => {
         const p = products.find(x => x.id === item.id);
@@ -1244,16 +1741,21 @@
       const order = {
         id,
         name,
-        phone: phone.replace(/[-\s]/g, ''),
-        phoneDisplay: phone,
+        phone: phoneDisplay.replace(/\D/g, ''),
+        phoneDisplay,
         address,
         note,
         method: selectedMethod,
         items,
+        subtotal,
+        promoDiscount: promo,
+        shippingFee: shipping,
         total,
         statusIndex: 0,
         history: [{ index: 0, at: now }],
-        createdAt: now
+        createdAt: now,
+        paymentSlip: pendingSlip || null,
+        slipUploadedAt: pendingSlip ? now : null
       };
       orders.unshift(order);
       lastOrderId = id;
@@ -1269,18 +1771,85 @@
 
     document.getElementById('confirmOrderBtn').addEventListener('click', () => {
       const order = createOrder();
+      resetPendingSlip();
       document.getElementById('successOrderBox').innerHTML = `
         <div>เลขที่ออเดอร์</div>
         <strong id="successOrderId">${order.id}</strong>
         <div style="margin-top:0.5rem;font-size:0.85rem;">
           ลูกค้า: ${order.name}<br>
           โทร: ${order.phoneDisplay}<br>
-          ยอดประมาณ: ${formatPrice(order.total)}<br>
+          ยอดรวม: ${formatPrice(order.total)}<br>
           วิธีชำระ: ${methodLabel(order.method)}
         </div>
       `;
+      renderSuccessSlipSection(order);
       setPayStep(4);
-      showToast('บันทึกคำสั่งซื้อแล้ว ✓');
+      if (order.paymentSlip) {
+        showToast('บันทึกคำสั่งซื้อและสลิปแล้ว ✓');
+      } else {
+        showToast('บันทึกคำสั่งซื้อแล้ว ✓');
+      }
+    });
+
+    async function processSlipFile(file, target) {
+      if (!file || !file.type.startsWith('image/')) {
+        showToast('กรุณาเลือกไฟล์รูปภาพ (JPG, PNG)');
+        return null;
+      }
+      if (file.size > 8 * 1024 * 1024) {
+        showToast('ไฟล์ใหญ่เกินไป กรุณาเลือกรูปไม่เกิน 8 MB');
+        return null;
+      }
+      try {
+        const dataUrl = await readFileAsDataURL(file);
+        return await compressSlipImage(dataUrl);
+      } catch (e) {
+        showToast('อ่านไฟล์ไม่สำเร็จ ลองใหม่อีกครั้ง');
+        return null;
+      }
+    }
+
+    document.getElementById('slipFileInput')?.addEventListener('change', async (e) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      const compressed = await processSlipFile(file, 'checkout');
+      if (compressed) {
+        updateSlipPreview(compressed);
+        showToast('แนบสลิปแล้ว ✓');
+      }
+    });
+
+    document.getElementById('slipRemoveBtn')?.addEventListener('click', () => {
+      resetPendingSlip();
+      showToast('ลบรูปสลิปแล้ว');
+    });
+
+    document.getElementById('successSlipFileInput')?.addEventListener('change', async (e) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      const compressed = await processSlipFile(file, 'success');
+      if (!compressed) return;
+      successPendingSlip = compressed;
+      const preview = document.getElementById('successSlipPreview');
+      const placeholder = document.getElementById('successSlipPlaceholder');
+      const submitBtn = document.getElementById('successSlipSubmitBtn');
+      if (preview) {
+        preview.src = compressed;
+        preview.hidden = false;
+      }
+      if (placeholder) placeholder.style.display = 'none';
+      if (submitBtn) submitBtn.style.display = 'inline-flex';
+    });
+
+    document.getElementById('successSlipSubmitBtn')?.addEventListener('click', () => {
+      if (!lastOrderId || !successPendingSlip) return;
+      const order = orders.find(x => x.id === lastOrderId);
+      if (!order) return;
+      order.paymentSlip = successPendingSlip;
+      order.slipUploadedAt = Date.now();
+      saveOrders();
+      renderSuccessSlipSection(order);
+      showToast('ส่งสลิปให้ร้านแล้ว ✓');
     });
 
     document.getElementById('copyOrderIdBtn').addEventListener('click', () => {
@@ -1636,7 +2205,11 @@
     }
 
     document.getElementById('printLabelBtn').addEventListener('click', () => {
-      const order = orders.find(o => o.id === lastOrderId) || orders[0];
+      const order = orders.find(o => o.id === lastOrderId);
+      if (!order) {
+        showToast('ไม่พบข้อมูลออเดอร์ล่าสุด');
+        return;
+      }
       printShippingLabel(order);
     });
 
@@ -1645,7 +2218,6 @@
     });
 
     // ========== ADMIN PANEL ==========
-    function getAdminPin() { return (SHOP_CONFIG.adminPin || '1234'); }
     let adminLoggedIn = false;
     let adminTab = 'dash';
     let editingProductId = null;
@@ -1998,7 +2570,23 @@
     const adminLoginView = document.getElementById('adminLoginView');
     const adminMainView = document.getElementById('adminMainView');
 
-    document.getElementById('adminOpenBtn').addEventListener('click', () => {
+    function refreshAdminLoginView() {
+      const title = document.getElementById('adminLoginTitle');
+      const hint = document.getElementById('adminLoginHint');
+      const btn = document.getElementById('adminLoginBtn');
+      const err = document.getElementById('errAdminPin');
+      const setup = hasAdminPinConfigured();
+      if (title) title.textContent = setup ? 'เข้าสู่ระบบหลังร้าน' : 'ตั้งรหัสหลังร้านครั้งแรก';
+      if (hint) {
+        hint.innerHTML = setup
+          ? 'รหัสผ่านสำหรับเจ้าของร้าน<br><small>เข้าผ่านลิงก์ #admin หรือเปลี่ยน PIN ในแท็บตั้งค่า</small>'
+          : 'ยังไม่มีรหัสในเครื่องนี้ — ตั้งรหัส 4 หลักขึ้นไป (เก็บเฉพาะเบราว์เซอร์นี้)';
+      }
+      if (btn) btn.textContent = setup ? 'เข้าสู่ระบบ' : 'บันทึกรหัสและเข้าใช้งาน';
+      if (err) err.textContent = setup ? 'รหัสผ่านไม่ถูกต้อง' : 'กรุณาตั้งรหัสอย่างน้อย 4 หลัก';
+    }
+
+    function openAdminPanel() {
       adminOverlay.classList.add('open');
       if (adminLoggedIn) {
         showAdminMain();
@@ -2007,8 +2595,11 @@
         adminMainView.style.display = 'none';
         document.getElementById('adminPin').value = '';
         document.getElementById('errAdminPin').classList.remove('show');
+        refreshAdminLoginView();
       }
-    });
+    }
+
+    document.getElementById('adminOpenBtn')?.addEventListener('click', openAdminPanel);
 
     document.getElementById('adminCloseBtn').addEventListener('click', () => {
       adminOverlay.classList.remove('open');
@@ -2023,8 +2614,21 @@
     });
 
     function doAdminLogin() {
-      const pin = document.getElementById('adminPin').value;
-      if (pin === getAdminPin()) {
+      const pin = document.getElementById('adminPin').value.trim();
+      if (!hasAdminPinConfigured()) {
+        if (pin.length < 4) {
+          document.getElementById('errAdminPin').classList.add('show');
+          return;
+        }
+        SHOP_CONFIG.adminPinHash = hashAdminPin(pin);
+        saveShopSettings({});
+        adminLoggedIn = true;
+        document.getElementById('errAdminPin').classList.remove('show');
+        showAdminMain();
+        showToast('ตั้งรหัสหลังร้านแล้ว ✓');
+        return;
+      }
+      if (verifyAdminPin(pin)) {
         adminLoggedIn = true;
         document.getElementById('errAdminPin').classList.remove('show');
         showAdminMain();
@@ -2074,11 +2678,14 @@
             facebookUrl: SHOP_CONFIG.facebookUrl,
             addressHtml: SHOP_CONFIG.addressHtml,
             mapUrl: SHOP_CONFIG.mapUrl,
-            adminPin: SHOP_CONFIG.adminPin,
+            adminPinHash: getAdminPinHash(),
             promoMin: SHOP_CONFIG.promoMin,
             promoDiscount: SHOP_CONFIG.promoDiscount,
+            shippingFee: SHOP_CONFIG.shippingFee,
+            freeShippingMin: SHOP_CONFIG.freeShippingMin,
             bankName: SHOP_CONFIG.bankName,
             bankAccountName: SHOP_CONFIG.bankAccountName,
+            promptPayNo: SHOP_CONFIG.promptPayNo,
             bankAccountNo: SHOP_CONFIG.bankAccountNo,
             bankNote: SHOP_CONFIG.bankNote,
             heroImages: Array.isArray(SHOP_CONFIG.heroImages) ? SHOP_CONFIG.heroImages : []
@@ -2126,12 +2733,14 @@
             <input class="admin-input" id="setBankName" value="${escapeHtml(c.bankName||'')}" style="width:100%;margin-top:0.25rem;"></label>
           <label style="font-size:0.82rem;font-weight:600;">ชื่อบัญชี
             <input class="admin-input" id="setBankAccName" value="${escapeHtml(c.bankAccountName||'')}" style="width:100%;margin-top:0.25rem;"></label>
-          <label style="font-size:0.82rem;font-weight:600;">เลขบัญชี / พร้อมเพย์
-            <input class="admin-input" id="setBankAccNo" value="${escapeHtml(c.bankAccountNo||'')}" style="width:100%;margin-top:0.25rem;"></label>
+          <label style="font-size:0.82rem;font-weight:600;">พร้อมเพย์ (เบอร์/เลข)
+            <input class="admin-input" id="setPromptPayNo" value="${escapeHtml(c.promptPayNo || c.phoneDisplay || '')}" style="width:100%;margin-top:0.25rem;"></label>
+          <label style="font-size:0.82rem;font-weight:600;">เลขบัญชีธนาคาร
+            <input class="admin-input" id="setBankAccNo" value="${escapeHtml(c.bankAccountNo || '')}" placeholder="แยกจากพร้อมเพย์" style="width:100%;margin-top:0.25rem;"></label>
           <label style="font-size:0.82rem;font-weight:600;">หมายเหตุการโอน
             <input class="admin-input" id="setBankNote" value="${escapeHtml(c.bankNote||'')}" style="width:100%;margin-top:0.25rem;"></label>
-          <label style="font-size:0.82rem;font-weight:600;">รหัสหลังร้าน (PIN)
-            <input class="admin-input" id="setAdminPin" value="${escapeHtml(c.adminPin||'')}" style="width:100%;margin-top:0.25rem;"></label>
+          <label style="font-size:0.82rem;font-weight:600;">รหัสหลังร้าน (PIN ใหม่)
+            <input class="admin-input" type="password" id="setAdminPin" placeholder="เว้นว่าง = ไม่เปลี่ยน" autocomplete="new-password" style="width:100%;margin-top:0.25rem;"></label>
 
           <div class="admin-section-title" style="margin-top:0.5rem;">ภาพพื้นหลังหน้าแรก</div>
           <p style="font-size:0.82rem;color:var(--text-soft);margin:0;line-height:1.5;">
@@ -2244,7 +2853,8 @@
           const digits = phoneDisplay.replace(/\D/g, '');
           phoneTel = digits.startsWith('0') ? '+66' + digits.slice(1) : (digits ? '+' + digits : SHOP_CONFIG.phoneTel);
         }
-        saveShopSettings({
+        const nextPin = document.getElementById('setAdminPin').value.trim();
+        const settingsPatch = {
           shopName: document.getElementById('setShopName').value.trim() || SHOP_CONFIG.shopName,
           phoneDisplay: phoneDisplay || SHOP_CONFIG.phoneDisplay,
           phoneTel: phoneTel || SHOP_CONFIG.phoneTel,
@@ -2256,11 +2866,13 @@
           promoDiscount: Number(document.getElementById('setPromoDisc').value) || 0,
           bankName: document.getElementById('setBankName').value.trim(),
           bankAccountName: document.getElementById('setBankAccName').value.trim(),
+          promptPayNo: document.getElementById('setPromptPayNo').value.trim(),
           bankAccountNo: document.getElementById('setBankAccNo').value.trim(),
           bankNote: document.getElementById('setBankNote').value.trim(),
-          adminPin: document.getElementById('setAdminPin').value.trim() || '1234',
           heroImages: (window._heroImagesDraft || []).slice(0, 10)
-        });
+        };
+        if (nextPin) settingsPatch.adminPinHash = hashAdminPin(nextPin);
+        saveShopSettings(settingsPatch);
         refreshHeroSlides();
       };
 
@@ -2856,6 +3468,37 @@
       });
     }
 
+    function compressSlipImage(dataUrl, maxEdge = 1400, quality = 0.85) {
+      return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => {
+          let w = img.width;
+          let h = img.height;
+          if (Math.max(w, h) > maxEdge) {
+            const scale = maxEdge / Math.max(w, h);
+            w = Math.round(w * scale);
+            h = Math.round(h * scale);
+          }
+          const canvas = document.createElement('canvas');
+          canvas.width = w;
+          canvas.height = h;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) {
+            resolve(dataUrl);
+            return;
+          }
+          ctx.drawImage(img, 0, 0, w, h);
+          try {
+            resolve(canvas.toDataURL('image/jpeg', quality));
+          } catch (e) {
+            resolve(dataUrl);
+          }
+        };
+        img.onerror = reject;
+        img.src = dataUrl;
+      });
+    }
+
     function compressImage(dataUrl, optionsOrMaxWidth, legacyQuality) {
       const defaults = {
         product: { aspectRatio: 1, mode: 'contain', maxEdge: 1200, background: '#efe6d6', quality: 0.82 },
@@ -3223,6 +3866,7 @@
                   <th>ลูกค้า / ที่อยู่</th>
                   <th>รายการ</th>
                   <th>ยอด</th>
+                  <th>สลิป</th>
                   <th>สถานะ</th>
                   <th>จัดการ</th>
                 </tr>
@@ -3244,6 +3888,11 @@
                     </td>
                     <td style="font-size:0.8rem;">${items}</td>
                     <td>${formatPrice(o.total)}<br><small>${methodLabel(o.method)}</small></td>
+                    <td style="font-size:0.78rem;">
+                      ${o.paymentSlip
+                        ? `<button type="button" class="btn btn-outline btn-xs" onclick="adminViewSlip('${o.id}')">🧾 ดูสลิป</button>`
+                        : (paymentNeedsSlip(o.method) ? '<span style="color:var(--text-soft);">รอสลิป</span>' : '—')}
+                    </td>
                     <td><span class="status-badge-tag ${st.badge}">${st.label}</span></td>
                     <td>
                       <select class="status-select" onchange="adminSetOrderStatus('${o.id}', this.value)">
@@ -3280,6 +3929,18 @@
       printShippingLabel(o);
     };
 
+    window.adminViewSlip = function(id) {
+      const o = orders.find(x => x.id === id);
+      if (!o?.paymentSlip) return;
+      const w = window.open('', '_blank', 'noopener,noreferrer');
+      if (!w) {
+        showToast('เปิดหน้าต่างดูสลิปไม่ได้ — ลองปลดบล็อก popup');
+        return;
+      }
+      w.document.write(`<!DOCTYPE html><html lang="th"><head><meta charset="utf-8"><title>สลิป ${o.id}</title></head><body style="margin:0;background:#1a1612;display:flex;justify-content:center;padding:1rem;"><img src="${o.paymentSlip}" alt="สลิป ${o.id}" style="max-width:100%;height:auto;border-radius:8px;" /></body></html>`);
+      w.document.close();
+    };
+
     // Also persist when customer advances status in track modal
     const _origAdvance = document.getElementById('advanceStatusBtn');
     // already updates currentTrackOrder which is in orders array — hook after advance
@@ -3302,15 +3963,14 @@
     // Sync icon with current theme
     setTheme(getTheme());
 
-    // ========== PROMO POPUP ==========
+    // ========== PROMO BAR (thin strip — no modal) ==========
     const PROMO_KEY = 'rachawei_promo_dismissed';
-    const promoOverlay = document.getElementById('promoOverlay');
+    const promoBar = document.getElementById('promoBar');
 
     function isPromoDismissed() {
       try {
         const raw = sessionStorage.getItem(PROMO_KEY) || localStorage.getItem(PROMO_KEY);
         if (!raw) return false;
-        // value can be '1' or timestamp — hide for 12 hours if timestamp
         if (raw === '1') return true;
         const t = parseInt(raw, 10);
         if (!isNaN(t) && Date.now() - t < 12 * 60 * 60 * 1000) return true;
@@ -3319,29 +3979,38 @@
     }
 
     function dismissPromo(rememberHours) {
-      promoOverlay.classList.remove('open');
+      if (promoBar) promoBar.hidden = true;
       try {
         const val = rememberHours ? String(Date.now()) : '1';
         sessionStorage.setItem(PROMO_KEY, val);
         if (rememberHours) localStorage.setItem(PROMO_KEY, val);
       } catch (e) {}
     }
+    window.dismissPromo = dismissPromo;
 
     function showPromo() {
-      if (isPromoDismissed()) return;
-      promoOverlay.classList.add('open');
+      if (isPromoDismissed() || !promoBar) return;
+      const install = document.getElementById('installBanner');
+      if (install && !install.hidden) return;
+      promoBar.hidden = false;
     }
 
-    document.getElementById('promoClose').addEventListener('click', () => dismissPromo(true));
-    document.getElementById('promoSkip').addEventListener('click', () => dismissPromo(true));
-    document.getElementById('promoShopBtn').addEventListener('click', () => dismissPromo(true));
-    promoOverlay.addEventListener('click', (e) => {
-      if (e.target === promoOverlay) dismissPromo(true);
-    });
+    let promoTimer = null;
+    function schedulePromoAfterInstall(delayMs = 900) {
+      if (promoTimer) clearTimeout(promoTimer);
+      promoTimer = setTimeout(showPromo, delayMs);
+    }
+    window.schedulePromoAfterInstall = schedulePromoAfterInstall;
+
+    document.getElementById('promoBarClose')?.addEventListener('click', () => dismissPromo(true));
+    document.getElementById('promoBarShop')?.addEventListener('click', () => dismissPromo(true));
 
 
     // ========== PAGE NAV ==========
     function showPage(name) {
+      if (document.getElementById('productDetailModal')?.classList.contains('open')) {
+        closeProductDetail(true);
+      }
       document.querySelectorAll('.page-panel').forEach(p => p.classList.remove('active'));
       document.querySelectorAll('#mainNav button').forEach(b => b.classList.remove('active'));
       const panel = document.getElementById('page-' + name);
@@ -3380,8 +4049,29 @@
     }
     (function () {
       const h = (location.hash || '').replace('#', '');
-      if (['home','story','process','care','media'].includes(h)) showPage(h);
+      if (PAGE_HASHES.includes(h)) showPage(h);
     })();
+
+    window.addEventListener('popstate', () => {
+      const productId = parseProductHash();
+      if (productId) {
+        openProductDetail(productId, { skipHash: true });
+        return;
+      }
+      if (document.getElementById('productDetailModal')?.classList.contains('open')) {
+        closeProductDetail(true);
+      }
+      const h = (location.hash || '').replace('#', '');
+      if (PAGE_HASHES.includes(h)) showPage(h);
+    });
+
+    window.addEventListener('hashchange', () => {
+      if (location.hash === '#admin') openAdminPanel();
+      const productId = parseProductHash();
+      if (productId) openProductDetail(productId, { skipHash: true });
+    });
+
+    if (location.hash === '#admin') openAdminPanel();
 
 
     // ========== VIDEO MODAL ==========
@@ -3524,6 +4214,7 @@
         return;
       }
       section.hidden = false;
+      grid.classList.toggle('shop-front-photos__grid--solo', items.length === 1);
       grid.innerHTML = items.map((p) => `
         <figure class="shop-front-photo">
           <img src="${p.src}" alt="${(p.alt || 'ภาพหน้าร้าน').replace(/"/g, '&quot;')}" loading="lazy" />
@@ -3586,6 +4277,10 @@
       document.querySelectorAll('.promo-deal .value').forEach(el => {
         el.textContent = 'ลดทันที ' + c.promoDiscount + ' บาท';
       });
+      const promoBarText = document.getElementById('promoBarText');
+      if (promoBarText && c.promoMin && c.promoDiscount) {
+        promoBarText.textContent = `🎁 สั่งครบ ${c.promoMin.toLocaleString('th-TH')} บาท ลดทันที ${c.promoDiscount} บาท`;
+      }
       renderStorefrontPhotos(c.storefrontPhotos);
       if (typeof refreshHeroSlides === 'function') refreshHeroSlides();
     }
@@ -3594,17 +4289,32 @@
     (async function initApp() {
       applyShopConfig();
       const ok = await loadPersisted();
+      migratePaymentFields();
+      if (!Array.isArray(products) || products.length === 0) {
+        products = DEFAULT_PRODUCTS.map(p => ({ ...p }));
+      }
       nextProductId = Math.max(...products.map(p => p.id), 0) + 1;
       nextVideoId = Math.max(...shopVideos.map((v) => v.id), 0) + 1;
+      if (!ok && cart.length === 0) {
+        const lsCart = loadCartFromLocalStorage();
+        if (lsCart?.length) {
+          cart = lsCart;
+          sanitizeCartForProducts();
+        }
+      }
       renderProducts();
       updateBadge();
       setTheme(getTheme());
       if (ok) {
         console.log('โหลดข้อมูลถาวรจาก IndexedDB สำเร็จ');
+      } else if (!products.length) {
+        grid.innerHTML = `<div class="product-card" style="grid-column:1/-1;min-height:120px;align-items:center;justify-content:center;padding:1.25rem;text-align:center;color:#8a4b12;">โหลดรายการสินค้าไม่สำเร็จ — กรุณารีเฟรชหน้า</div>`;
       }
 
-      // แสดงโปรโมชั่นหลังโหลดหน้าเล็กน้อย
-      setTimeout(showPromo, 900);
+      const deepProductId = parseProductHash();
+      if (deepProductId) openProductDetail(deepProductId, { skipHash: true, pushState: false });
+
+      schedulePromoAfterInstall(900);
 
       // Scroll reveal
       try {

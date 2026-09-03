@@ -1,67 +1,40 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { SHOP_INFO, productMatchesCategory, type Category, type Product } from './data/products';
+import { SHOP_INFO, type Product } from './data/products';
 import {
   loadProducts,
   loadSiteSettings,
   resolveSiteImage,
   type SiteSettings,
 } from './data/catalog';
-import { ProductsPage } from './components/products/ProductsPage';
-import { ProductDetail } from './components/ProductDetail';
 import { ErrorBoundary } from './components/ErrorBoundary';
-import { FloatingCallButton } from './components/FloatingCallButton';
-import { OrderActions } from './components/OrderActions';
 import { ShopMap } from './components/ShopMap';
 import { VirtualTour } from './components/VirtualTour';
 import { AboutPage } from './components/about/AboutPage';
 import { HomePage } from './components/home/HomePage';
-import { ProductAdminPage } from './components/admin/ProductAdminPage';
 import { BrandMark } from './components/BrandMark';
 import { InstallAppBanner } from './components/InstallAppBanner';
-import {
-  setAdminUnlocked,
-  shouldOpenAdminGate,
-  wantsAdminUrl,
-} from './utils/adminAccess';
+import { goToStore, STORE_URL } from './lib/storeUrl';
 
-type Tab = 'home' | 'products' | 'about' | 'contact' | 'admin';
+type Tab = 'home' | 'about' | 'contact';
 
 const CUSTOMER_NAV = [
   { id: 'home' as const, icon: '🏠', label: 'หน้าแรก' },
-  { id: 'products' as const, icon: '🛍️', label: 'สินค้า' },
+  { id: 'shop' as const, icon: '🛍️', label: 'สั่งซื้อ', href: STORE_URL },
   { id: 'about' as const, icon: '📖', label: 'เกี่ยวกับ' },
   { id: 'contact' as const, icon: '📞', label: 'ติดต่อ' },
 ];
 
-function clearAdminFromUrl() {
-  const url = new URL(window.location.href);
-  url.searchParams.delete('admin');
-  if (url.hash === '#admin') url.hash = '';
-  window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
-}
-
 export function App() {
-  const [adminGate, setAdminGate] = useState(() => shouldOpenAdminGate());
-  const [tab, setTab] = useState<Tab>(() => (wantsAdminUrl() ? 'admin' : 'home'));
-  const [category, setCategory] = useState<Category>('ทั้งหมด');
-  const [selected, setSelected] = useState<Product | null>(null);
+  const [tab, setTab] = useState<Tab>('home');
   const [products, setProducts] = useState<Product[]>([]);
   const [site, setSite] = useState<SiteSettings | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
 
   useEffect(() => {
-    const syncAdminGate = () => {
-      const open = shouldOpenAdminGate();
-      setAdminGate(open);
-      if (wantsAdminUrl()) setTab('admin');
-    };
-    window.addEventListener('hashchange', syncAdminGate);
-    window.addEventListener('popstate', syncAdminGate);
-    return () => {
-      window.removeEventListener('hashchange', syncAdminGate);
-      window.removeEventListener('popstate', syncAdminGate);
-    };
+    if (window.location.hash === '#admin' || new URLSearchParams(window.location.search).get('admin') === '1') {
+      window.location.replace('/store/#admin');
+    }
   }, []);
 
   const refreshCatalog = useCallback(async () => {
@@ -70,10 +43,6 @@ export function App() {
       setProducts(nextProducts);
       setSite(nextSite);
       setLoadError('');
-      setSelected((current) => {
-        if (!current) return null;
-        return nextProducts.find((item) => item.id === current.id) ?? null;
-      });
     } catch {
       setLoadError('โหลดรายการสินค้าไม่สำเร็จ');
     } finally {
@@ -95,47 +64,9 @@ export function App() {
   const aboutImageAlt = site?.aboutImageAlt;
   const aboutStory = site?.story || SHOP_INFO.story;
 
-  const filtered = useMemo(
-    () => products.filter((p) => productMatchesCategory(p, category)),
-    [category, products],
-  );
+  const goTo = (next: Tab) => setTab(next);
 
-  const goTo = (next: Tab) => {
-    if (next === 'admin' && !adminGate) return;
-    setTab(next);
-    if (next !== 'products') setSelected(null);
-  };
-
-  /** กลับดูหน้าร้าน — ยังเป็นแอดมินอยู่ กดแท็บหลังร้านกลับมาแก้ได้ */
-  const goStorefront = () => {
-    setTab('home');
-    setSelected(null);
-    clearAdminFromUrl();
-  };
-
-  /** ออกจากโหมดแอดมินทั้งเครื่องนี้ — เหลือเฉพาะหน้าร้าน */
-  const exitAdminMode = () => {
-    setAdminUnlocked(false);
-    setAdminGate(false);
-    setTab('home');
-    setSelected(null);
-    clearAdminFromUrl();
-  };
-
-  const handleAdminUnlocked = () => {
-    setAdminUnlocked(true);
-    setAdminGate(true);
-    setTab('admin');
-  };
-
-  const selectProduct = (product: Product) => {
-    setSelected(product);
-    setTab('products');
-  };
-
-  const navItems = adminGate
-    ? [...CUSTOMER_NAV, { id: 'admin' as const, icon: '⚙️', label: 'หลังร้าน' }]
-    : CUSTOMER_NAV;
+  const featuredProducts = useMemo(() => products.slice(0, 12), [products]);
 
   return (
     <div className="relative mx-auto flex min-h-dvh max-w-lg flex-col bg-earth-950">
@@ -158,6 +89,14 @@ export function App() {
             />
           </button>
           <a
+            href={STORE_URL}
+            className="header-call-btn"
+            aria-label="เปิดร้านค้าสั่งซื้อ"
+            title="สั่งซื้อ / ตะกร้า"
+          >
+            🛒
+          </a>
+          <a
             href={`tel:${shopPhone.replace(/-/g, '')}`}
             className="header-call-btn"
             aria-label="โทรสั่งซื้อ"
@@ -167,48 +106,22 @@ export function App() {
         </div>
       </header>
 
-      <main className={`flex-1 overflow-y-auto px-4 ${selected && tab === 'products' ? 'main--detail' : 'pb-4'}`}>
-        {loading && <p className="contact-note">กำลังโหลดสินค้า…</p>}
-        {loadError && <p className="contact-note">{loadError}</p>}
-
-        {adminGate && tab === 'admin' && (
-          <ProductAdminPage
-            products={products}
-            site={site}
-            onCatalogChange={() => void refreshCatalog()}
-            onClose={goStorefront}
-            onExitAdmin={exitAdminMode}
-            onUnlocked={handleAdminUnlocked}
-            onViewAbout={() => goTo('about')}
-          />
+      <main className="flex-1 overflow-y-auto px-4 pb-4">
+        {loading && <p className="contact-note">กำลังโหลด…</p>}
+        {loadError && (
+          <p className="contact-note">
+            {loadError}{' '}
+            <a href={STORE_URL} className="underline">เปิดร้านค้าที่ {STORE_URL}</a>
+          </p>
         )}
 
         {tab === 'home' && !loading && (
           <HomePage
-            products={products}
+            products={featuredProducts}
             coverImages={coverImages}
             coverImageAlt={coverImageAlt}
-            onViewProducts={() => goTo('products')}
+            onViewProducts={() => goToStore()}
             onContact={() => goTo('contact')}
-            onSelectProduct={selectProduct}
-          />
-        )}
-
-        {tab === 'products' && !selected && !loading && (
-          <ProductsPage
-            products={filtered}
-            category={category}
-            onCategoryChange={setCategory}
-            onSelectProduct={selectProduct}
-            shopName={shopName}
-          />
-        )}
-
-        {tab === 'products' && selected && (
-          <ProductDetail
-            product={selected}
-            products={products}
-            onBack={() => setSelected(null)}
           />
         )}
 
@@ -227,9 +140,17 @@ export function App() {
           <section className="screen contact-screen py-4">
             <h2 className="section-title">ติดต่อสั่งซื้อ</h2>
             <p className="contact-note contact-note--top">
-              กรอกฟอร์มสั่งซื้อสั้น ๆ แล้วส่งเข้า LINE ได้ทันที หรือโทรคุยกับร้านโดยตรง
+              สั่งซื้อ ชำระเงิน และติดตามออเดอร์ทำได้ที่ร้านค้าหลัก — ตะกร้าและแนบสลิปครบในเว็บ
             </p>
-            <OrderActions products={products} layout="stack" size="lg" />
+            <div className="order-actions order-actions--stack order-actions--lg">
+              <a href={STORE_URL} className="order-actions__btn order-actions__btn--order">
+                เปิดร้านค้าสั่งซื้อ
+              </a>
+              <a href={`tel:${shopPhone.replace(/-/g, '')}`} className="order-actions__btn order-actions__btn--call">
+                <span aria-hidden>📞</span>
+                โทร
+              </a>
+            </div>
             <div className="contact-card">
               <div className="contact-row">
                 <span className="contact-row__icon">📍</span>
@@ -253,7 +174,7 @@ export function App() {
                 </div>
               </div>
             </div>
-            <p className="contact-note">สนใจสินค้าใด กรอกฟอร์มหรือโทรสอบถามได้เลย</p>
+            <p className="contact-note">หน้านี้เป็นข้อมูลร้าน — การสั่งซื้อทำที่ <a href={STORE_URL} className="underline">{STORE_URL}</a></p>
             <ShopMap />
             <ErrorBoundary
               fallback={
@@ -268,17 +189,27 @@ export function App() {
         )}
       </main>
 
-      {tab === 'products' && !selected && <FloatingCallButton products={products} />}
-
       <nav className="sticky bottom-0 z-20 mx-3 mb-3 rounded-2xl border border-gold-400/10 bg-earth-900/90 p-1 shadow-2xl shadow-black/40 backdrop-blur-xl">
-        <div className={`grid ${adminGate ? 'grid-cols-5' : 'grid-cols-4'}`}>
-          {navItems.map(({ id, icon, label }) => {
-            const active = tab === id;
+        <div className="grid grid-cols-4">
+          {CUSTOMER_NAV.map(({ id, icon, label, href }) => {
+            const active = !href && tab === id;
+            if (href) {
+              return (
+                <a
+                  key={id}
+                  href={href}
+                  className="flex flex-col items-center gap-0.5 rounded-xl py-2 text-[0.62rem] font-medium text-cream-300/50 transition-all duration-200 hover:text-cream-200/80"
+                >
+                  <span className="text-lg">{icon}</span>
+                  <span>{label}</span>
+                </a>
+              );
+            }
             return (
               <button
                 key={id}
                 type="button"
-                onClick={() => goTo(id)}
+                onClick={() => goTo(id as Tab)}
                 className={`flex flex-col items-center gap-0.5 rounded-xl py-2 text-[0.62rem] font-medium transition-all duration-200 ${
                   active
                     ? 'bg-gold-500/15 text-gold-400'

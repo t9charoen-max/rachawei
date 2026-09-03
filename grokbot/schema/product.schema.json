@@ -29,6 +29,12 @@
     "panorama360": {
       "type": "string",
       "description": "ชื่อไฟล์พาโนรามาภายใต้ public/products/"
-    }
+    },
+    "price": { "type": "number", "minimum": 0 },
+    "stock": { "type": "integer", "minimum": 0 },
+    "size": { "type": "string" },
+    "emoji": { "type": "string" },
+    "badge": { "type": "string" },
+    "storeCat": { "type": "string", "enum": ["basket", "chair", "home"] }
   }
 }
