@@ -315,6 +315,9 @@
           if (!SHOP_CONFIG.shopSub || legacySubs.includes(SHOP_CONFIG.shopSub)) {
             SHOP_CONFIG.shopSub = 'งานหัตถกรรมจักสานหวายบ้านบุทม';
           }
+          if (typeof mergeStoreContent === 'function') {
+            SHOP_CONFIG.content = mergeStoreContent(SHOP_CONFIG.content);
+          }
         }
         return true;
       } catch (e) {
@@ -2672,12 +2675,19 @@
       else if (tab === 'products') renderAdminProducts();
       else if (tab === 'videos') renderAdminVideos();
       else if (tab === 'orders') renderAdminOrders();
+      else if (tab === 'content') {
+        if (typeof renderAdminFrontContent === 'function') renderAdminFrontContent();
+        else document.getElementById('adminContent').innerHTML = '<p>โหลดแท็บหน้าบ้านไม่สำเร็จ</p>';
+      }
       else if (tab === 'settings') renderAdminSettings();
     }
 
     async function saveShopSettings(partial) {
       // exposed for tests
       Object.assign(SHOP_CONFIG, partial);
+      if (partial && partial.content && typeof mergeStoreContent === 'function') {
+        SHOP_CONFIG.content = mergeStoreContent(partial.content);
+      }
       applyShopConfig();
       if (dbReady) {
         try {
@@ -2700,7 +2710,9 @@
             promptPayNo: SHOP_CONFIG.promptPayNo,
             bankAccountNo: SHOP_CONFIG.bankAccountNo,
             bankNote: SHOP_CONFIG.bankNote,
-            heroImages: Array.isArray(SHOP_CONFIG.heroImages) ? SHOP_CONFIG.heroImages : []
+            heroImages: Array.isArray(SHOP_CONFIG.heroImages) ? SHOP_CONFIG.heroImages : [],
+            storefrontPhotos: Array.isArray(SHOP_CONFIG.storefrontPhotos) ? SHOP_CONFIG.storefrontPhotos : [],
+            content: SHOP_CONFIG.content || null
           };
           await idbSet('shopSettings', toSave);
         } catch (e) { console.warn(e); }
@@ -4204,15 +4216,23 @@
         overlay.classList.add('open');
       };
 
-      document.querySelectorAll('.video-frame[data-yt], .yt-open-btn[data-yt]').forEach(el => {
-        const go = (e) => {
-          e.preventDefault();
-          openVideo(el.getAttribute('data-yt'), el.getAttribute('data-title'));
-        };
-        el.addEventListener('click', go);
-        el.addEventListener('keydown', (e) => {
-          if (e.key === 'Enter' || e.key === ' ') go(e);
-        });
+      function bindMediaVideos() {
+        // Event delegation — works after CMS re-renders media cards
+      }
+      window.bindMediaVideos = bindMediaVideos;
+
+      document.addEventListener('click', (e) => {
+        const el = e.target.closest?.('.video-frame[data-yt], .yt-open-btn[data-yt]');
+        if (!el) return;
+        e.preventDefault();
+        openVideo(el.getAttribute('data-yt'), el.getAttribute('data-title'));
+      });
+      document.addEventListener('keydown', (e) => {
+        if (e.key !== 'Enter' && e.key !== ' ') return;
+        const el = e.target.closest?.('.video-frame[data-yt], .yt-open-btn[data-yt]');
+        if (!el || e.target !== el) return;
+        e.preventDefault();
+        openVideo(el.getAttribute('data-yt'), el.getAttribute('data-title'));
       });
 
       document.getElementById('videoModalClose').addEventListener('click', closeVideo);
@@ -4255,6 +4275,7 @@
         </figure>
       `).join('');
     }
+    window.renderStorefrontPhotos = renderStorefrontPhotos;
 
     // ========== APPLY SHOP CONFIG TO PAGE ==========
     function applyShopConfig() {
@@ -4316,6 +4337,7 @@
       }
       renderStorefrontPhotos(c.storefrontPhotos);
       if (typeof refreshHeroSlides === 'function') refreshHeroSlides();
+      if (typeof applyStoreContent === 'function') applyStoreContent();
     }
 
     // Init — โหลดข้อมูลถาวรก่อนแสดงผล

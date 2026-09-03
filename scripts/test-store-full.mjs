@@ -132,7 +132,7 @@ try {
   await page.waitForSelector('#adminMainView', { visible: true });
   ok('admin login', true);
 
-  const tabs = ['dash', 'products', 'videos', 'orders', 'settings'];
+  const tabs = ['dash', 'products', 'videos', 'content', 'orders', 'settings'];
   for (const tab of tabs) {
     await page.click(`.admin-tab[data-tab="${tab}"]`);
     await new Promise((r) => setTimeout(r, 250));
@@ -142,6 +142,20 @@ try {
     }, tab);
     ok(`admin tab: ${tab}`, content.len > 50, content.text.replace(/\s+/g, ' '));
   }
+
+  // Front-page CMS: edit hero title and verify on storefront
+  await page.click('.admin-tab[data-tab="content"]');
+  await page.waitForSelector('#cmsHeroTitle');
+  ok('cms hero field', !!(await page.$('#cmsHeroTitle')));
+  ok('cms save button', !!(await page.$('#cmsSaveContent')));
+  const cmsMarker = 'งานหวายแท้ — ทดสอบ CMS';
+  await page.evaluate((title) => {
+    document.getElementById('cmsHeroTitle').value = title;
+    document.getElementById('cmsSaveContent').click();
+  }, cmsMarker);
+  await new Promise((r) => setTimeout(r, 400));
+  const heroAfter = await page.evaluate(() => document.querySelector('#heroStage h1')?.textContent?.trim() || '');
+  ok('cms hero applies to front', heroAfter === cmsMarker, heroAfter);
 
   // Products: excel import UI
   await page.click('.admin-tab[data-tab="products"]');
