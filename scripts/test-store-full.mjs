@@ -48,6 +48,12 @@ try {
   }));
 
   ok('products grid', front.products >= 4, `count=${front.products}`);
+
+  const priceText = await page.evaluate(() => {
+    const el = document.querySelector('#productGrid .product-price');
+    return el?.textContent?.trim() || '';
+  });
+  ok('price uses baht word not B/฿ glyph', /^\d[\d,]* บาท$/.test(priceText) && !/[฿B]\d/.test(priceText), priceText);
   ok('shop videos section exists', front.videosBlock);
   ok('shop videos hidden when empty', front.videosHidden && front.videoCards === 0, `cards=${front.videoCards} hidden=${front.videosHidden}`);
   ok('google map card link', front.mapCard.includes('maps.app.goo.gl'), front.mapCard);

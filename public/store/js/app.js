@@ -363,7 +363,10 @@
     }
 
     function formatPrice(n) {
-      return '฿' + n.toLocaleString('th-TH');
+      const amount = Number(n);
+      const value = Number.isFinite(amount) ? amount : 0;
+      // Use "บาท" — the ฿ glyph often falls back to plain "B" and looks like a SKU (B350).
+      return `${Math.round(value).toLocaleString('th-TH')} บาท`;
     }
 
     function getProductStock(p) {
@@ -2188,7 +2191,7 @@
 
     <div class="items">
       <strong>รายการ:</strong> ${escapeHtml(itemsList || '-')}<br>
-      <strong>ยอดประมาณ:</strong> ฿${(order.total || 0).toLocaleString('th-TH')} · ${escapeHtml(methodLabel(order.method))}
+      <strong>ยอดประมาณ:</strong> ${formatPrice(order.total || 0)} · ${escapeHtml(methodLabel(order.method))}
     </div>
     <div class="footer">
       <span>กรุณาจัดการด้วยความระมัดระวัง</span>
