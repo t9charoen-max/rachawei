@@ -92,6 +92,15 @@ try {
   ok('storefront photos section', shopPhotos.count === 1, `count=${shopPhotos.count}`);
   ok('storefront day photo loads', shopPhotos.day.includes('shop-front-day'));
 
+  const reviews = await page.evaluate(() => ({
+    section: !!document.getElementById('reviews'),
+    cards: document.querySelectorAll('#reviews .review-card').length,
+    photos: document.querySelectorAll('#reviews .review-card__photo img').length,
+    firstSrc: document.querySelector('#reviews .review-card__photo img')?.getAttribute('src') || '',
+  }));
+  ok('customer reviews section', reviews.section && reviews.cards >= 4, `cards=${reviews.cards}`);
+  ok('review photos from real usage', reviews.photos === reviews.cards && reviews.firstSrc.includes('/images/promo/'), reviews.firstSrc);
+
   await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
   await page.click('#mainNav button[data-page="media"]');
   await new Promise((r) => setTimeout(r, 250));
