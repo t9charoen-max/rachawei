@@ -342,15 +342,15 @@
     }
 
     function saveProducts() {
-      persistAll();
+      return persistAll();
     }
 
     function saveShopVideos() {
-      persistAll();
+      return persistAll();
     }
 
     function saveOrders() {
-      persistAll();
+      return persistAll();
     }
 
     function formatPrice(n) {
@@ -4007,6 +4007,15 @@
 
 
     // ========== PAGE NAV ==========
+    function syncStickyNavOffset() {
+      const header = document.querySelector('header');
+      if (!header) return;
+      const h = Math.ceil(header.getBoundingClientRect().height);
+      if (h > 0) {
+        document.documentElement.style.setProperty('--shop-sticky-top', `${h}px`);
+      }
+    }
+
     function showPage(name) {
       if (document.getElementById('productDetailModal')?.classList.contains('open')) {
         closeProductDetail(true);
@@ -4021,8 +4030,18 @@
       try { history.replaceState(null, '', '#' + name); } catch (e) {}
     }
     document.querySelectorAll('#mainNav button').forEach(btn => {
-      btn.addEventListener('click', () => showPage(btn.getAttribute('data-page')));
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        showPage(btn.getAttribute('data-page'));
+      });
     });
+    syncStickyNavOffset();
+    window.addEventListener('resize', syncStickyNavOffset);
+    window.addEventListener('orientationchange', () => setTimeout(syncStickyNavOffset, 120));
+    if (typeof ResizeObserver !== 'undefined') {
+      const headerEl = document.querySelector('header');
+      if (headerEl) new ResizeObserver(syncStickyNavOffset).observe(headerEl);
+    }
     document.querySelectorAll('a[href="#products"]').forEach(a => {
       a.addEventListener('click', (e) => {
         e.preventDefault();
