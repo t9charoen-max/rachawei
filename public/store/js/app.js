@@ -256,12 +256,17 @@
         const savedShop = await idbGet('shopSettings');
         const savedVideos = await idbGet('shopVideos');
         const savedCatalogVer = await idbGet('catalogSyncVersion');
+        const savedVideoVer = await idbGet('videoSyncVersion');
 
         const catalogBase = await fetchLiveCatalogProducts();
         const baseProducts = (catalogBase && catalogBase.length)
           ? catalogBase
           : DEFAULT_PRODUCTS.map(p => ({ ...p }));
         const needsCatalogResync = savedCatalogVer !== CATALOG_SYNC_VERSION;
+        const videoSyncVersion = (typeof VIDEO_SYNC_VERSION !== 'undefined')
+          ? VIDEO_SYNC_VERSION
+          : 'rachawei-videos-v1';
+        const needsVideoResync = savedVideoVer !== videoSyncVersion;
 
         if (needsCatalogResync || !Array.isArray(savedProducts) || !savedProducts.length) {
           products = baseProducts.map(p => ({ ...p }));
@@ -274,7 +279,11 @@
           await idbSet('catalogSyncVersion', CATALOG_SYNC_VERSION);
           await idbSet('products', products);
         }
-        if (Array.isArray(savedVideos)) {
+        if (needsVideoResync) {
+          shopVideos = (typeof DEFAULT_SHOP_VIDEOS !== 'undefined' ? DEFAULT_SHOP_VIDEOS : []).map((v) => ({ ...v }));
+          await idbSet('shopVideos', shopVideos);
+          await idbSet('videoSyncVersion', videoSyncVersion);
+        } else if (Array.isArray(savedVideos)) {
           shopVideos = savedVideos;
         }
         if (Array.isArray(savedCart)) {
@@ -3728,7 +3737,7 @@
         <div class="admin-section-title">
           <span>วิดีโอทั้งหมด (${shopVideos.length})</span>
         </div>
-        ${shopVideos.length === 0 ? '<div class="empty-admin">ยังไม่มีวิดีโอ<br><small>เพิ่มวิดีโอแรกด้านบน หรือใช้ค่าเริ่มต้นจาก deploy</small></div>' : `
+        ${shopVideos.length === 0 ? '<div class="empty-admin">ยังไม่มีวิดีโอ<br><small>เพิ่มวิดีโอแรกด้านบน — จะแสดงใต้รายการสินค้าเมื่อมีคลิป</small></div>' : `
           <div class="admin-table-wrap">
             <table class="admin-table">
               <thead>
@@ -3985,6 +3994,7 @@
         sessionStorage.setItem(PROMO_KEY, val);
         if (rememberHours) localStorage.setItem(PROMO_KEY, val);
       } catch (e) {}
+      if (typeof syncStickyNavOffset === 'function') syncStickyNavOffset();
     }
     window.dismissPromo = dismissPromo;
 
@@ -3993,6 +4003,7 @@
       const install = document.getElementById('installBanner');
       if (install && !install.hidden) return;
       promoBar.hidden = false;
+      if (typeof syncStickyNavOffset === 'function') syncStickyNavOffset();
     }
 
     let promoTimer = null;
