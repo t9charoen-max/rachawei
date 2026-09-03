@@ -1566,7 +1566,7 @@
     }
 
 
-    /* Main navigation tabs */
+    /* Main navigation tabs — wrap so every label stays fully visible */
     .main-nav {
       position: sticky;
       top: var(--shop-sticky-top, 4.75rem);
@@ -1575,31 +1575,27 @@
       backdrop-filter: blur(16px) saturate(1.25);
       -webkit-backdrop-filter: blur(16px) saturate(1.25);
       border-bottom: 1px solid var(--header-border);
-      padding: 0.55rem 0.85rem 0.7rem;
+      padding: 0.5rem 0.75rem 0.65rem;
       display: flex;
-      flex-wrap: nowrap;
+      flex-wrap: wrap;
       justify-content: flex-start;
-      gap: 0.4rem;
-      overflow-x: auto;
-      overflow-y: hidden;
-      -webkit-overflow-scrolling: touch;
-      scrollbar-width: none;
-      touch-action: pan-x;
+      gap: 0.35rem;
+      overflow: visible;
       box-shadow:
         0 1px 0 rgba(255, 255, 255, 0.45) inset,
         0 8px 20px rgba(58, 39, 28, 0.05);
     }
     .main-nav::-webkit-scrollbar { display: none; }
     .main-nav button {
-      flex: 0 0 auto;
+      flex: 0 1 auto;
       border: 1px solid rgba(184, 137, 90, 0.2);
       background: rgba(255, 250, 243, 0.55);
       color: var(--text-soft);
       font-family: inherit;
-      font-size: 0.84rem;
+      font-size: clamp(0.72rem, 2.6vw, 0.84rem);
       font-weight: 700;
-      padding: 0.55rem 0.9rem;
-      min-height: 40px;
+      padding: 0.45rem 0.72rem;
+      min-height: 38px;
       border-radius: 999px;
       cursor: pointer;
       white-space: nowrap;
@@ -4346,36 +4342,44 @@
 
     .shop-app .main-nav {
       display: flex;
-      flex-wrap: nowrap;
-      gap: 0.4rem;
+      flex-wrap: wrap;
+      gap: 0.35rem;
       max-width: 1120px;
       margin: 0 auto 0.85rem;
-      padding: 0.35rem 1rem 0.5rem;
-      overflow-x: auto;
-      overflow-y: hidden;
-      -webkit-overflow-scrolling: touch;
-      scrollbar-width: none;
+      padding: 0.35rem 0.75rem 0.55rem;
+      overflow: visible;
       justify-content: flex-start;
-      touch-action: pan-x;
     }
 
     .shop-app .main-nav::-webkit-scrollbar { display: none; }
 
     .shop-app .main-nav button {
-      flex: 0 0 auto;
+      flex: 0 1 auto;
       border-radius: 999px;
       border: 1px solid rgba(75,54,33,0.16);
       background: #fff;
       color: var(--shop-brown);
-      padding: 0.5rem 0.85rem;
-      min-height: 40px;
-      font-size: clamp(0.72rem, 2.8vw, 0.82rem);
+      padding: 0.42rem 0.7rem;
+      min-height: 38px;
+      font-size: clamp(0.7rem, 2.5vw, 0.82rem);
       font-weight: 700;
       box-shadow: 0 2px 6px rgba(75,54,33,0.05);
       white-space: nowrap;
       touch-action: manipulation;
       position: relative;
       z-index: 1;
+    }
+
+    @media (max-width: 420px) {
+      .shop-app .main-nav {
+        gap: 0.3rem;
+        padding-left: 0.65rem;
+        padding-right: 0.65rem;
+      }
+      .shop-app .main-nav button {
+        padding: 0.4rem 0.62rem;
+        font-size: 0.7rem;
+      }
     }
 
     .shop-app .main-nav button.active {
