@@ -4940,9 +4940,11 @@
     }
 
     .shop-app .product-price {
-      font-size: 0.88rem;
+      font-size: 0.9rem;
       font-weight: 800;
       color: var(--shop-ink);
+      letter-spacing: 0.01em;
+      white-space: nowrap;
     }
 
     .shop-card__rating {
