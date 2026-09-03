@@ -4638,17 +4638,18 @@
       color: var(--shop-brown, var(--rattan-deep));
     }
 
-    .reviews-score {
+    .reviews-empty {
       flex-shrink: 0;
       display: inline-flex;
       align-items: center;
-      gap: 0.2rem;
       padding: 0.28rem 0.65rem;
       border-radius: 999px;
-      background: linear-gradient(145deg, #f4e3b8, #e8c56a);
-      color: #3a271c;
-      font-size: 0.78rem;
-      font-weight: 800;
+      border: 1px solid rgba(75, 54, 33, 0.16);
+      background: #fff8ef;
+      color: #7a6a58;
+      font-size: 0.72rem;
+      font-weight: 700;
+      white-space: nowrap;
     }
 
     .reviews-lead {
@@ -4673,6 +4674,7 @@
     }
 
     .review-card {
+      margin: 0;
       flex: 0 0 min(78vw, 248px);
       width: min(78vw, 248px);
       scroll-snap-align: start;
@@ -4712,39 +4714,24 @@
     }
 
     .review-card__body {
-      padding: 0.75rem 0.8rem 0.9rem;
-    }
-
-    .review-card__stars {
-      color: #d4a017;
-      letter-spacing: 0.08em;
-      font-size: 0.78rem;
-      line-height: 1;
-      margin-bottom: 0.4rem;
-    }
-
-    .review-card__quote {
-      margin: 0 0 0.7rem;
+      margin: 0;
+      padding: 0.7rem 0.8rem 0.85rem;
       font-size: 0.84rem;
-      line-height: 1.5;
-      color: var(--shop-ink, var(--rattan-deep));
-      font-weight: 600;
-    }
-
-    .review-card__meta {
-      display: flex;
-      flex-direction: column;
-      gap: 0.1rem;
-    }
-
-    .review-card__meta strong {
-      font-size: 0.82rem;
+      font-weight: 700;
+      line-height: 1.35;
       color: var(--shop-brown, var(--rattan-deep));
     }
 
-    .review-card__meta span {
-      font-size: 0.72rem;
+    .reviews-note {
+      margin: 0.85rem 0 0;
+      text-align: center;
+      font-size: 0.78rem;
       color: var(--text-soft);
+    }
+
+    .reviews-note a {
+      color: #6b3a1f;
+      font-weight: 700;
     }
 
     [data-theme="dark"] .review-card {
@@ -4752,8 +4739,7 @@
       border-color: rgba(216, 192, 160, 0.12);
     }
 
-    [data-theme="dark"] .review-card__quote,
-    [data-theme="dark"] .review-card__meta strong {
+    [data-theme="dark"] .review-card__body {
       color: #f6ede8;
     }
 
@@ -4761,8 +4747,19 @@
       color: #f6ede8;
     }
 
-    [data-theme="dark"] .reviews-lead {
+    [data-theme="dark"] .reviews-lead,
+    [data-theme="dark"] .reviews-note {
       color: #c9b8a8;
+    }
+
+    [data-theme="dark"] .reviews-empty {
+      background: #2a241c;
+      border-color: rgba(216, 192, 160, 0.18);
+      color: #c9b8a8;
+    }
+
+    [data-theme="dark"] .reviews-note a {
+      color: #ecc35a;
     }
 
     .shop-video-card {

@@ -92,14 +92,24 @@ try {
   ok('storefront photos section', shopPhotos.count === 1, `count=${shopPhotos.count}`);
   ok('storefront day photo loads', shopPhotos.day.includes('shop-front-day'));
 
-  const reviews = await page.evaluate(() => ({
-    section: !!document.getElementById('reviews'),
-    cards: document.querySelectorAll('#reviews .review-card').length,
-    photos: document.querySelectorAll('#reviews .review-card__photo img').length,
-    firstSrc: document.querySelector('#reviews .review-card__photo img')?.getAttribute('src') || '',
-  }));
-  ok('customer reviews section', reviews.section && reviews.cards >= 4, `cards=${reviews.cards}`);
-  ok('review photos from real usage', reviews.photos === reviews.cards && reviews.firstSrc.includes('/images/promo/'), reviews.firstSrc);
+  const reviews = await page.evaluate(() => {
+    const root = document.getElementById('reviews');
+    const text = root?.innerText || '';
+    return {
+      section: !!root,
+      cards: document.querySelectorAll('#reviews .review-card').length,
+      photos: document.querySelectorAll('#reviews .review-card__photo img').length,
+      firstSrc: document.querySelector('#reviews .review-card__photo img')?.getAttribute('src') || '',
+      quotes: document.querySelectorAll('#reviews .review-card__quote').length,
+      stars: document.querySelectorAll('#reviews .review-card__stars, #reviews .reviews-score').length,
+      honest: /ยังไม่มีรีวิวลูกค้า/.test(text),
+      fakeNames: /นภา|มะลิ|สมศรี|วรรณา|อรุณี/.test(text),
+    };
+  });
+  ok('usage gallery section', reviews.section && reviews.cards >= 4, `cards=${reviews.cards}`);
+  ok('usage photos from real images', reviews.photos === reviews.cards && reviews.firstSrc.includes('/images/promo/'), reviews.firstSrc);
+  ok('honest empty reviews copy', reviews.honest);
+  ok('no invented quotes, stars, or names', reviews.quotes === 0 && reviews.stars === 0 && !reviews.fakeNames);
 
   await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
   await page.click('#mainNav button[data-page="media"]');
