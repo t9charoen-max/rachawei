@@ -1,18 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { Product } from '../../data/products';
 import { RATTAN_PROMO } from '../../data/promo';
+import { STORE_URL, storeProductUrl } from '../../lib/storeUrl';
 
 interface PromoSectionProps {
   products: Product[];
-  onViewProducts: () => void;
-  onSelectProduct: (product: Product) => void;
 }
 
-export function PromoSection({
-  products,
-  onViewProducts,
-  onSelectProduct,
-}: PromoSectionProps) {
+export function PromoSection({ products }: PromoSectionProps) {
   const promoProducts = useMemo(() => {
     const specials = products.filter((product) => product.special);
     const list = specials.length ? specials : products.slice(0, 4);
@@ -58,17 +53,13 @@ export function PromoSection({
           <p className="rattan-promo__subtitle">{RATTAN_PROMO.subtitle}</p>
 
           <div className="rattan-promo__actions">
-            <button type="button" className="rattan-promo__cta" onClick={onViewProducts}>
+            <a href={STORE_URL} className="rattan-promo__cta">
               {RATTAN_PROMO.cta}
-            </button>
+            </a>
             {active && (
-              <button
-                type="button"
-                className="rattan-promo__ghost"
-                onClick={() => onSelectProduct(active)}
-              >
+              <a href={storeProductUrl(active.id)} className="rattan-promo__ghost">
                 ดูชิ้นนี้
-              </button>
+              </a>
             )}
           </div>
 

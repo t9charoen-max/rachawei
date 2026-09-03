@@ -28,13 +28,9 @@
   <link rel="stylesheet" href="css/styles.css" />
 </head>
 <body class="shop-app">
-  <!-- Install banner -->
-  <div class="install-banner" id="installBanner" hidden>
-    <img class="install-banner__icon" src="/brand/rachawei-logo-square.png?v=1940" alt="" width="40" height="40" />
-    <div class="install-banner__text">
-      <p class="install-banner__title">ติดตั้งแอปราชาหวาย</p>
-      <p class="install-banner__desc" id="installDesc">เปิดเร็ว สั่งซื้อง่าย เหมือนแอปทั่วไป</p>
-    </div>
+  <!-- Install hint (compact, above tab bar — does not block header/cart) -->
+  <div class="install-banner install-banner--compact" id="installBanner" hidden>
+    <p class="install-banner__title" id="installDesc">ติดตั้งแอปราชาหวาย</p>
     <button type="button" class="install-banner__install" id="installBtn" hidden>ติดตั้ง</button>
     <button type="button" class="install-banner__close" id="installClose" aria-label="ปิด">✕</button>
   </div>
@@ -832,8 +828,8 @@
       <div class="admin-body" id="adminLoginView">
         <div class="admin-login">
           <img class="logo-mark" src="/brand/rachawei-logo-square.png?v=1940" alt="" width="64" height="64" style="margin:0 auto 0.75rem;display:block;" />
-          <h3>เข้าสู่ระบบหลังร้าน</h3>
-          <p>รหัสผ่านสำหรับเจ้าของร้าน<br><small>เข้าผ่านลิงก์ #admin หรือตั้ง PIN ใหม่ในแท็บตั้งค่า</small></p>
+          <h3 id="adminLoginTitle">เข้าสู่ระบบหลังร้าน</h3>
+          <p id="adminLoginHint">รหัสผ่านสำหรับเจ้าของร้าน<br><small>เข้าผ่านลิงก์ #admin หรือเปลี่ยน PIN ในแท็บตั้งค่า</small></p>
           <div class="form-group" style="text-align:left;">
             <label for="adminPin">รหัสผ่าน</label>
             <input type="password" id="adminPin" placeholder="••••" maxlength="12" />

@@ -68,8 +68,6 @@
     const DB_VER = 1;
     const STORE = 'app';
     const CART_LS_KEY = 'rachawei_cart';
-    const DEFAULT_ADMIN_PIN_HASH = '2085881665';
-
     function hashAdminPin(pin) {
       let h = 5381;
       const s = String(pin || '');
@@ -78,11 +76,30 @@
     }
 
     function getAdminPinHash() {
-      return SHOP_CONFIG.adminPinHash || DEFAULT_ADMIN_PIN_HASH;
+      return SHOP_CONFIG.adminPinHash || null;
+    }
+
+    function hasAdminPinConfigured() {
+      return Boolean(getAdminPinHash());
     }
 
     function verifyAdminPin(pin) {
-      return hashAdminPin(pin) === getAdminPinHash();
+      const hash = getAdminPinHash();
+      if (!hash) return false;
+      return hashAdminPin(pin) === hash;
+    }
+
+    function migratePaymentFields() {
+      if (SHOP_CONFIG.promptPayNo) return;
+      const legacy = String(SHOP_CONFIG.bankAccountNo || '').trim();
+      const digits = legacy.replace(/\D/g, '');
+      const looksLikePhone = digits.length >= 9 && digits.length <= 10;
+      if (legacy && looksLikePhone) {
+        SHOP_CONFIG.promptPayNo = legacy;
+        SHOP_CONFIG.bankAccountNo = '';
+      } else {
+        SHOP_CONFIG.promptPayNo = SHOP_CONFIG.phoneDisplay || '';
+      }
     }
 
     function openDB() {
@@ -279,6 +296,7 @@
             SHOP_CONFIG.adminPinHash = hashAdminPin(String(savedShop.adminPin));
             delete SHOP_CONFIG.adminPin;
           }
+          migratePaymentFields();
           // Migrate older subtitle variants to the single-line brand line
           const legacySubs = [
             'งานหัตถกรรมหวาย · บ้านบุทม',
@@ -863,6 +881,8 @@
       const desc = document.getElementById('installDesc');
       if (!banner) return;
 
+      const INSTALL_DELAY_MS = 8000;
+
       const standalone = window.matchMedia('(display-mode: standalone)').matches
         || window.navigator.standalone === true;
       if (standalone) return;
@@ -872,22 +892,32 @@
 
       const isIos = /iphone|ipad|ipod/i.test(navigator.userAgent);
       let deferredPrompt = null;
+      let revealTimer = null;
 
       const schedulePromoIfReady = () => {
         if (typeof schedulePromoAfterInstall === 'function') schedulePromoAfterInstall();
       };
 
+      const revealBanner = (message, showInstall) => {
+        if (revealTimer) clearTimeout(revealTimer);
+        revealTimer = setTimeout(() => {
+          try {
+            if (localStorage.getItem('rachawei-store-install-dismissed')) return;
+          } catch (_) {}
+          if (desc && message) desc.textContent = message;
+          banner.hidden = false;
+          if (installBtn) installBtn.hidden = !showInstall;
+        }, INSTALL_DELAY_MS);
+      };
+
       window.addEventListener('beforeinstallprompt', (event) => {
         event.preventDefault();
         deferredPrompt = event;
-        banner.hidden = false;
-        if (installBtn) installBtn.hidden = false;
-        if (desc) desc.textContent = 'เปิดเร็ว สั่งซื้อง่าย เหมือนแอปทั่วไป';
+        revealBanner('ติดตั้งแอป — เปิดร้านได้เร็วขึ้น', true);
       });
 
       if (isIos) {
-        banner.hidden = false;
-        if (desc) desc.textContent = 'กดปุ่มแชร์ ⎋ แล้วเลือก “เพิ่มลงหน้าจอโฮม”';
+        revealBanner('ติดตั้ง: แชร์ ⎋ → เพิ่มลงหน้าจอโฮม', false);
       }
 
       if (installBtn) {
@@ -907,6 +937,7 @@
       if (closeBtn) {
         closeBtn.addEventListener('click', () => {
           banner.hidden = true;
+          if (revealTimer) clearTimeout(revealTimer);
           try { localStorage.setItem('rachawei-store-install-dismissed', '1'); } catch (_) {}
           schedulePromoIfReady();
         });
@@ -1345,17 +1376,22 @@
     }
 
     // ========== PAYMENT INFO (ดึงจาก SHOP_CONFIG — แก้ที่หัวสคริปต์) ==========
-    const PAYMENT = {
-      promptpay: {
-        phone: SHOP_CONFIG.bankAccountNo || SHOP_CONFIG.phoneDisplay,
-        name: SHOP_CONFIG.bankAccountName || SHOP_CONFIG.shopName
-      },
-      bank: {
-        bank: SHOP_CONFIG.bankName || 'ธนาคาร',
-        account: SHOP_CONFIG.bankAccountNo || SHOP_CONFIG.phoneDisplay,
-        name: SHOP_CONFIG.bankAccountName || SHOP_CONFIG.shopName
-      }
-    };
+    function getPaymentInfo() {
+      migratePaymentFields();
+      const promptPayNo = SHOP_CONFIG.promptPayNo || SHOP_CONFIG.phoneDisplay;
+      const bankAccountNo = String(SHOP_CONFIG.bankAccountNo || '').trim();
+      return {
+        promptpay: {
+          id: promptPayNo,
+          name: SHOP_CONFIG.bankAccountName || SHOP_CONFIG.shopName
+        },
+        bank: {
+          bank: SHOP_CONFIG.bankName || 'ธนาคาร',
+          account: bankAccountNo,
+          name: SHOP_CONFIG.bankAccountName || SHOP_CONFIG.shopName
+        }
+      };
+    }
 
     // ========== CHECKOUT / PAYMENT ==========
     const checkoutModal = document.getElementById('checkoutModal');
@@ -1541,25 +1577,29 @@
       lines.innerHTML = html;
 
       const box = document.getElementById('payDetailBox');
+      const payment = getPaymentInfo();
       if (selectedMethod === 'promptpay') {
         box.innerHTML = `
-          <div style="font-size:0.85rem;color:var(--text-soft);">สแกน QR พร้อมเพย์ หรือโอนตามเบอร์ด้านล่าง</div>
+          <div style="font-size:0.85rem;color:var(--text-soft);">สแกน QR พร้อมเพย์ หรือโอนตามหมายเลขด้านล่าง</div>
           <div class="pay-qr" title="QR พร้อมเพย์ (ตัวอย่าง)"></div>
           <div class="pay-amount">${formatPrice(total)}</div>
           <div class="pay-account">
-            <strong>พร้อมเพย์:</strong> ${PAYMENT.promptpay.phone}<br>
-            <strong>ชื่อบัญชี:</strong> ${PAYMENT.promptpay.name}<br>
+            <strong>พร้อมเพย์:</strong> ${payment.promptpay.id}<br>
+            <strong>ชื่อรับเงิน:</strong> ${payment.promptpay.name}<br>
             <span style="font-size:0.78rem;color:var(--text-soft);">* โอนแล้วแนบสลิปด้านล่างได้เลย หรือส่งทาง Facebook/LINE (ไม่บังคับ)</span>
           </div>
         `;
       } else if (selectedMethod === 'bank') {
+        const accountLine = payment.bank.account
+          ? `<strong>เลขบัญชี:</strong> ${payment.bank.account}<br>`
+          : `<span style="font-size:0.82rem;color:var(--text-soft);">ยังไม่ได้ตั้งเลขบัญชี — โทร ${SHOP_CONFIG.phoneDisplay} เพื่อขอเลขบัญชี</span><br>`;
         box.innerHTML = `
           <div style="font-size:0.85rem;color:var(--text-soft);">โอนเงินเข้าบัญชีธนาคาร</div>
           <div class="pay-amount">${formatPrice(total)}</div>
           <div class="pay-account">
-            <strong>ธนาคาร:</strong> ${PAYMENT.bank.bank}<br>
-            <strong>เลขบัญชี:</strong> ${PAYMENT.bank.account}<br>
-            <strong>ชื่อบัญชี:</strong> ${PAYMENT.bank.name}<br>
+            <strong>ธนาคาร:</strong> ${payment.bank.bank}<br>
+            ${accountLine}
+            <strong>ชื่อบัญชี:</strong> ${payment.bank.name}<br>
             <span style="font-size:0.78rem;color:var(--text-soft);">* โอนแล้วแนบสลิปด้านล่างได้เลย หรือส่งทาง Facebook/LINE (ไม่บังคับ)</span>
           </div>
         `;
@@ -1605,9 +1645,10 @@
       text += `รวมทั้งสิ้น: ${formatPrice(total)}\n`;
       text += `จำนวน: ${getCartCount()} ชิ้น\n\n`;
       if (selectedMethod === 'promptpay') {
-        text += `โอนพร้อมเพย์: ${PAYMENT.promptpay.phone}\nชื่อ: ${PAYMENT.promptpay.name}\n`;
+        text += `พร้อมเพย์: ${getPaymentInfo().promptpay.id}\nชื่อรับเงิน: ${getPaymentInfo().promptpay.name}\n`;
       } else if (selectedMethod === 'bank') {
-        text += `โอน ${PAYMENT.bank.bank}\nบัญชี: ${PAYMENT.bank.account}\nชื่อ: ${PAYMENT.bank.name}\n`;
+        const bank = getPaymentInfo().bank;
+        text += `โอน ${bank.bank}\nบัญชี: ${bank.account || '(ติดต่อร้าน)'}\nชื่อ: ${bank.name}\n`;
       } else {
         text += 'ชำระเงินสดตอนรับสินค้า\n';
       }
@@ -2529,6 +2570,22 @@
     const adminLoginView = document.getElementById('adminLoginView');
     const adminMainView = document.getElementById('adminMainView');
 
+    function refreshAdminLoginView() {
+      const title = document.getElementById('adminLoginTitle');
+      const hint = document.getElementById('adminLoginHint');
+      const btn = document.getElementById('adminLoginBtn');
+      const err = document.getElementById('errAdminPin');
+      const setup = hasAdminPinConfigured();
+      if (title) title.textContent = setup ? 'เข้าสู่ระบบหลังร้าน' : 'ตั้งรหัสหลังร้านครั้งแรก';
+      if (hint) {
+        hint.innerHTML = setup
+          ? 'รหัสผ่านสำหรับเจ้าของร้าน<br><small>เข้าผ่านลิงก์ #admin หรือเปลี่ยน PIN ในแท็บตั้งค่า</small>'
+          : 'ยังไม่มีรหัสในเครื่องนี้ — ตั้งรหัส 4 หลักขึ้นไป (เก็บเฉพาะเบราว์เซอร์นี้)';
+      }
+      if (btn) btn.textContent = setup ? 'เข้าสู่ระบบ' : 'บันทึกรหัสและเข้าใช้งาน';
+      if (err) err.textContent = setup ? 'รหัสผ่านไม่ถูกต้อง' : 'กรุณาตั้งรหัสอย่างน้อย 4 หลัก';
+    }
+
     function openAdminPanel() {
       adminOverlay.classList.add('open');
       if (adminLoggedIn) {
@@ -2538,6 +2595,7 @@
         adminMainView.style.display = 'none';
         document.getElementById('adminPin').value = '';
         document.getElementById('errAdminPin').classList.remove('show');
+        refreshAdminLoginView();
       }
     }
 
@@ -2556,7 +2614,20 @@
     });
 
     function doAdminLogin() {
-      const pin = document.getElementById('adminPin').value;
+      const pin = document.getElementById('adminPin').value.trim();
+      if (!hasAdminPinConfigured()) {
+        if (pin.length < 4) {
+          document.getElementById('errAdminPin').classList.add('show');
+          return;
+        }
+        SHOP_CONFIG.adminPinHash = hashAdminPin(pin);
+        saveShopSettings({});
+        adminLoggedIn = true;
+        document.getElementById('errAdminPin').classList.remove('show');
+        showAdminMain();
+        showToast('ตั้งรหัสหลังร้านแล้ว ✓');
+        return;
+      }
       if (verifyAdminPin(pin)) {
         adminLoggedIn = true;
         document.getElementById('errAdminPin').classList.remove('show');
@@ -2614,6 +2685,7 @@
             freeShippingMin: SHOP_CONFIG.freeShippingMin,
             bankName: SHOP_CONFIG.bankName,
             bankAccountName: SHOP_CONFIG.bankAccountName,
+            promptPayNo: SHOP_CONFIG.promptPayNo,
             bankAccountNo: SHOP_CONFIG.bankAccountNo,
             bankNote: SHOP_CONFIG.bankNote,
             heroImages: Array.isArray(SHOP_CONFIG.heroImages) ? SHOP_CONFIG.heroImages : []
@@ -2661,8 +2733,10 @@
             <input class="admin-input" id="setBankName" value="${escapeHtml(c.bankName||'')}" style="width:100%;margin-top:0.25rem;"></label>
           <label style="font-size:0.82rem;font-weight:600;">ชื่อบัญชี
             <input class="admin-input" id="setBankAccName" value="${escapeHtml(c.bankAccountName||'')}" style="width:100%;margin-top:0.25rem;"></label>
-          <label style="font-size:0.82rem;font-weight:600;">เลขบัญชี / พร้อมเพย์
-            <input class="admin-input" id="setBankAccNo" value="${escapeHtml(c.bankAccountNo||'')}" style="width:100%;margin-top:0.25rem;"></label>
+          <label style="font-size:0.82rem;font-weight:600;">พร้อมเพย์ (เบอร์/เลข)
+            <input class="admin-input" id="setPromptPayNo" value="${escapeHtml(c.promptPayNo || c.phoneDisplay || '')}" style="width:100%;margin-top:0.25rem;"></label>
+          <label style="font-size:0.82rem;font-weight:600;">เลขบัญชีธนาคาร
+            <input class="admin-input" id="setBankAccNo" value="${escapeHtml(c.bankAccountNo || '')}" placeholder="แยกจากพร้อมเพย์" style="width:100%;margin-top:0.25rem;"></label>
           <label style="font-size:0.82rem;font-weight:600;">หมายเหตุการโอน
             <input class="admin-input" id="setBankNote" value="${escapeHtml(c.bankNote||'')}" style="width:100%;margin-top:0.25rem;"></label>
           <label style="font-size:0.82rem;font-weight:600;">รหัสหลังร้าน (PIN ใหม่)
@@ -2792,6 +2866,7 @@
           promoDiscount: Number(document.getElementById('setPromoDisc').value) || 0,
           bankName: document.getElementById('setBankName').value.trim(),
           bankAccountName: document.getElementById('setBankAccName').value.trim(),
+          promptPayNo: document.getElementById('setPromptPayNo').value.trim(),
           bankAccountNo: document.getElementById('setBankAccNo').value.trim(),
           bankNote: document.getElementById('setBankNote').value.trim(),
           heroImages: (window._heroImagesDraft || []).slice(0, 10)
@@ -4214,6 +4289,7 @@
     (async function initApp() {
       applyShopConfig();
       const ok = await loadPersisted();
+      migratePaymentFields();
       if (!Array.isArray(products) || products.length === 0) {
         products = DEFAULT_PRODUCTS.map(p => ({ ...p }));
       }

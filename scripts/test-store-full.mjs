@@ -111,7 +111,8 @@ try {
   // --- Admin ---
   await page.evaluate(() => document.getElementById('adminOverlay')?.classList.add('open'));
   await page.waitForSelector('#adminPin', { visible: true });
-  await page.type('#adminPin', '1234');
+  const testPin = process.env.STORE_ADMIN_PIN || '5678';
+  await page.type('#adminPin', testPin);
   await page.click('#adminLoginBtn');
   await page.waitForSelector('#adminMainView', { visible: true });
   ok('admin login', true);

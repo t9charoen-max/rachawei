@@ -55,9 +55,10 @@ try {
     if (overlay) overlay.classList.add('open');
   });
   await page.waitForSelector('#adminPin', { visible: true });
-  await page.type('#adminPin', '1234');
+  const testPin = process.env.STORE_ADMIN_PIN || '5678';
+  await page.type('#adminPin', testPin);
   await page.click('#adminLoginBtn');
-  await page.waitForSelector('#adminMainView', { visible: true });
+  await page.waitForSelector('#adminMainView', { visible: true, timeout: 15000 });
 
   await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
   await page.click('.admin-tab[data-tab="dash"]');

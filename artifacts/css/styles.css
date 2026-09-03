@@ -439,61 +439,75 @@
       display: none;
     }
 
-    /* Install banner */
+    /* Install banner — compact pill above bottom tab bar */
     .install-banner {
       display: flex;
       align-items: center;
-      gap: 0.75rem;
-      padding: 0.7rem 0.9rem;
+      gap: 0.55rem;
+      padding: 0.55rem 0.65rem;
       background: linear-gradient(135deg, #1a120c 0%, #2a1c14 55%, #3a271c 100%);
       color: #fff8ef;
-      border-bottom: 1px solid rgba(212, 168, 83, 0.28);
-      position: sticky;
-      top: 0;
-      z-index: 60;
+      border: 1px solid rgba(212, 168, 83, 0.28);
+      border-radius: 999px;
+      box-shadow: 0 8px 28px rgba(0, 0, 0, 0.22);
     }
+
+    .install-banner--compact {
+      position: fixed;
+      left: 0.65rem;
+      right: 0.65rem;
+      bottom: calc(3.55rem + env(safe-area-inset-bottom));
+      z-index: 44;
+      max-width: 420px;
+      margin: 0 auto;
+    }
+
     .install-banner[hidden] { display: none !important; }
-    .install-banner__icon {
-      width: 40px;
-      height: 40px;
-      border-radius: 10px;
-      object-fit: contain;
-      background: #0f172a;
-      flex-shrink: 0;
-      box-shadow: 0 0 0 1px rgba(212, 168, 83, 0.35);
-    }
-    .install-banner__text { flex: 1; min-width: 0; }
+
     .install-banner__title {
       margin: 0;
-      font-size: 0.92rem;
-      font-weight: 700;
+      flex: 1;
+      min-width: 0;
+      font-size: 0.78rem;
+      font-weight: 600;
       color: #f0d78c;
-    }
-    .install-banner__desc {
-      margin: 0.15rem 0 0;
-      font-size: 0.75rem;
-      opacity: 0.82;
       line-height: 1.35;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
+
     .install-banner__install {
       border: none;
       border-radius: 999px;
-      padding: 0.45rem 0.9rem;
+      padding: 0.35rem 0.75rem;
       background: linear-gradient(135deg, #d4a853, #b8893a);
       color: #1a120c;
       font-weight: 700;
       font-family: inherit;
-      font-size: 0.82rem;
+      font-size: 0.74rem;
       cursor: pointer;
       white-space: nowrap;
+      flex-shrink: 0;
     }
+
     .install-banner__close {
       border: none;
       background: transparent;
       color: rgba(255,248,239,0.7);
-      font-size: 1rem;
+      font-size: 0.95rem;
       cursor: pointer;
-      padding: 0.25rem 0.35rem;
+      padding: 0.15rem 0.25rem;
+      flex-shrink: 0;
+    }
+
+    @media (min-width: 900px) {
+      .install-banner--compact {
+        left: auto;
+        right: 1rem;
+        bottom: 1rem;
+        max-width: 320px;
+      }
     }
 
     /* Hero */

@@ -21,7 +21,6 @@ import { StoreEntryCard } from './StoreEntryCard';
 interface HomePageProps {
   onViewProducts: () => void;
   onContact: () => void;
-  onSelectProduct: (product: Product) => void;
   products: Product[];
   coverImages?: string[];
   coverImageAlt?: string;
@@ -38,7 +37,6 @@ const COLLAPSIBLE_SECTIONS = HOME_SECTIONS.filter(
 export function HomePage({
   onViewProducts,
   onContact,
-  onSelectProduct,
   products,
   coverImages,
   coverImageAlt,
@@ -102,18 +100,10 @@ export function HomePage({
 
       <DeskEntryCard />
 
-      <PromoSection
-        products={products}
-        onViewProducts={onViewProducts}
-        onSelectProduct={onSelectProduct}
-      />
+      <PromoSection products={products} />
 
       <div id="home-products" className="home-page__products">
-        <FeaturedProducts
-          products={products}
-          onSelect={onSelectProduct}
-          onViewAll={onViewProducts}
-        />
+        <FeaturedProducts products={products} />
       </div>
 
       <div className="home-page__panels">

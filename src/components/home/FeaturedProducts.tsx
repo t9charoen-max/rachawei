@@ -1,15 +1,14 @@
 import type { Product } from '../../data/products';
 import { getProductDisplayCategory } from '../../data/products';
+import { STORE_URL, storeProductUrl } from '../../lib/storeUrl';
 import { ProductImageBadges } from '../ProductImageBadges';
 import { ProductImageFrame } from '../ProductImageFrame';
 
 interface FeaturedProductsProps {
   products: Product[];
-  onSelect: (product: Product) => void;
-  onViewAll: () => void;
 }
 
-export function FeaturedProducts({ products, onSelect, onViewAll }: FeaturedProductsProps) {
+export function FeaturedProducts({ products }: FeaturedProductsProps) {
   const featured = products.slice(0, 3);
 
   return (
@@ -19,23 +18,21 @@ export function FeaturedProducts({ products, onSelect, onViewAll }: FeaturedProd
           <p className="text-xs font-semibold tracking-widest text-gold-400 uppercase">สินค้าแนะนำ</p>
           <h2 className="font-display mt-1 text-xl font-bold text-cream-50">ตะกร้าหวาย</h2>
         </div>
-        <button
-          type="button"
-          onClick={onViewAll}
+        <a
+          href={STORE_URL}
           className="text-sm font-medium text-gold-400 transition hover:text-gold-300"
         >
           ดูทั้งหมด →
-        </button>
+        </a>
       </div>
 
       <div className="featured-scroll">
         {featured.map((product, i) => {
           const categoryLabel = getProductDisplayCategory(product);
           return (
-          <button
+          <a
             key={product.id}
-            type="button"
-            onClick={() => onSelect(product)}
+            href={storeProductUrl(product.id)}
             className="featured-card"
             style={{ animationDelay: `${i * 100}ms` }}
           >
@@ -51,7 +48,7 @@ export function FeaturedProducts({ products, onSelect, onViewAll }: FeaturedProd
               ) : null}
               <h3 className="featured-card__name">{product.name}</h3>
             </div>
-          </button>
+          </a>
           );
         })}
       </div>
