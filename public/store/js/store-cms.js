@@ -351,8 +351,10 @@
       <input class="admin-input" id="${id}" value="${escField(value || '')}" style="width:100%;margin-top:0.25rem;"></label>`;
   }
 
-  function details(title, inner) {
-    return `<details class="cms-section" open style="border:1px solid rgba(196,164,132,0.35);border-radius:10px;padding:0.75rem 0.9rem;margin-bottom:0.75rem;background:rgba(255,255,255,0.35);">
+  function details(title, inner, opts) {
+    const open = opts && opts.open === false ? '' : ' open';
+    const id = opts && opts.id ? ` id="${opts.id}"` : '';
+    return `<details class="cms-section"${open}${id} style="border:1px solid rgba(196,164,132,0.35);border-radius:10px;padding:0.75rem 0.9rem;margin-bottom:0.75rem;background:rgba(255,255,255,0.35);">
       <summary style="cursor:pointer;font-weight:700;font-size:0.95rem;margin-bottom:0.5rem;">${title}</summary>
       <div style="display:grid;gap:0.65rem;">${inner}</div>
     </details>`;
@@ -371,7 +373,7 @@
     return dataUrl;
   }
 
-  function paintCmsPhotoList(listId, draftKey) {
+  function paintCmsPhotoList(listId, draftKey, mode) {
     const list = document.getElementById(listId);
     if (!list) return;
     const items = window[draftKey] || [];
@@ -379,54 +381,122 @@
       list.innerHTML = '<p style="font-size:0.82rem;color:var(--text-soft);margin:0;">ยังไม่มีรายการ</p>';
       return;
     }
-    list.innerHTML = items.map((item, i) => {
-      const src = typeof item === 'string' ? item : (item.src || item.img || '');
-      const caption = typeof item === 'object' ? (item.caption || item.alt || item.name || '') : '';
-      return `<div class="hero-admin-item" data-index="${i}">
-        <img src="${esc(src)}" alt="" />
-        <div class="hero-admin-item__actions">
-          <span style="font-size:0.75rem;opacity:0.85;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(caption)}</span>
-          <button type="button" class="btn btn-outline btn-sm" data-up ${i === 0 ? 'disabled' : ''}>↑</button>
-          <button type="button" class="btn btn-outline btn-sm" data-down ${i === items.length - 1 ? 'disabled' : ''}>↓</button>
-          <button type="button" class="btn btn-outline btn-sm" data-del>ลบ</button>
-        </div>
-      </div>`;
-    }).join('');
+    if (mode === 'hero') {
+      list.innerHTML = items.map((src, i) => `
+        <div class="hero-admin-item" data-index="${i}">
+          <img src="${esc(typeof src === 'string' ? src : src.src || '')}" alt="พื้นหลัง ${i + 1}" />
+          <div class="hero-admin-item__actions">
+            <span style="font-size:0.75rem;opacity:0.85;">สไลด์ ${i + 1}</span>
+            <button type="button" class="btn btn-outline btn-sm" data-up ${i === 0 ? 'disabled' : ''}>↑</button>
+            <button type="button" class="btn btn-outline btn-sm" data-down ${i === items.length - 1 ? 'disabled' : ''}>↓</button>
+            <button type="button" class="btn btn-outline btn-sm" data-del>ลบ</button>
+          </div>
+        </div>`).join('');
+    } else {
+      list.innerHTML = items.map((item, i) => {
+        const src = typeof item === 'string' ? item : (item.src || item.img || '');
+        const alt = typeof item === 'object' ? (item.alt || '') : '';
+        const caption = typeof item === 'object' ? (item.caption || '') : '';
+        return `<div class="hero-admin-item" data-index="${i}" style="align-items:flex-start;">
+          <img src="${esc(src)}" alt="" />
+          <div style="flex:1;display:grid;gap:0.35rem;min-width:0;">
+            <input class="admin-input" data-sf-alt="${i}" value="${escField(alt)}" placeholder="คำอธิบายรูป (alt)" style="width:100%;font-size:0.8rem;" />
+            <input class="admin-input" data-sf-caption="${i}" value="${escField(caption)}" placeholder="คำบรรยายใต้รูป" style="width:100%;font-size:0.8rem;" />
+            <div class="hero-admin-item__actions">
+              <button type="button" class="btn btn-outline btn-sm" data-up ${i === 0 ? 'disabled' : ''}>↑</button>
+              <button type="button" class="btn btn-outline btn-sm" data-down ${i === items.length - 1 ? 'disabled' : ''}>↓</button>
+              <label class="btn btn-outline btn-sm" style="cursor:pointer;">เปลี่ยนรูป
+                <input type="file" accept="image/*" hidden data-sf-reupload="${i}" /></label>
+              <button type="button" class="btn btn-outline btn-sm" data-del>ลบ</button>
+            </div>
+          </div>
+        </div>`;
+      }).join('');
+    }
+
+    const syncSfFields = () => {
+      if (mode === 'hero') return;
+      list.querySelectorAll('[data-sf-alt]').forEach((input) => {
+        const i = Number(input.dataset.sfAlt);
+        if (window[draftKey][i]) window[draftKey][i].alt = input.value.trim();
+      });
+      list.querySelectorAll('[data-sf-caption]').forEach((input) => {
+        const i = Number(input.dataset.sfCaption);
+        if (window[draftKey][i]) window[draftKey][i].caption = input.value.trim();
+      });
+    };
+
     list.querySelectorAll('.hero-admin-item').forEach((row) => {
       const idx = Number(row.dataset.index);
       row.querySelector('[data-up]')?.addEventListener('click', () => {
         if (idx <= 0) return;
+        syncSfFields();
         const arr = window[draftKey];
         [arr[idx - 1], arr[idx]] = [arr[idx], arr[idx - 1]];
-        paintCmsPhotoList(listId, draftKey);
+        paintCmsPhotoList(listId, draftKey, mode);
       });
       row.querySelector('[data-down]')?.addEventListener('click', () => {
         const arr = window[draftKey];
         if (idx >= arr.length - 1) return;
+        syncSfFields();
         [arr[idx + 1], arr[idx]] = [arr[idx], arr[idx + 1]];
-        paintCmsPhotoList(listId, draftKey);
+        paintCmsPhotoList(listId, draftKey, mode);
       });
       row.querySelector('[data-del]')?.addEventListener('click', () => {
+        syncSfFields();
         window[draftKey].splice(idx, 1);
-        paintCmsPhotoList(listId, draftKey);
+        paintCmsPhotoList(listId, draftKey, mode);
       });
+      row.querySelector('[data-sf-reupload]')?.addEventListener('change', async (e) => {
+        const file = e.target.files?.[0];
+        e.target.value = '';
+        if (!file) return;
+        try {
+          syncSfFields();
+          const url = await readImageFile(file, 1400);
+          if (window[draftKey][idx]) window[draftKey][idx].src = url;
+          paintCmsPhotoList(listId, draftKey, mode);
+          if (typeof showToast === 'function') showToast('เปลี่ยนรูปแล้ว');
+        } catch (err) {
+          console.warn(err);
+          if (typeof showToast === 'function') showToast('อัปโหลดไม่สำเร็จ');
+        }
+      });
+    });
+  }
+
+  function syncStorefrontDraftFromDom() {
+    const list = document.getElementById('cmsStorefrontList');
+    if (!list || !window._cmsStorefrontDraft) return;
+    list.querySelectorAll('[data-sf-alt]').forEach((input) => {
+      const i = Number(input.dataset.sfAlt);
+      if (window._cmsStorefrontDraft[i]) window._cmsStorefrontDraft[i].alt = input.value.trim();
+    });
+    list.querySelectorAll('[data-sf-caption]').forEach((input) => {
+      const i = Number(input.dataset.sfCaption);
+      if (window._cmsStorefrontDraft[i]) window._cmsStorefrontDraft[i].caption = input.value.trim();
     });
   }
 
   function renderReviewEditors(items) {
     return items.map((item, i) => `
       <div class="cms-item" data-review="${i}" style="border:1px dashed rgba(196,164,132,0.5);border-radius:8px;padding:0.65rem;display:grid;gap:0.4rem;">
-        <strong style="font-size:0.85rem;">รีวิว #${i + 1}</strong>
+        <strong style="font-size:0.85rem;">รูปจากผู้ใช้จริง #${i + 1}</strong>
+        <div style="display:flex;gap:0.6rem;align-items:flex-start;">
+          <img src="${esc(item.img || '')}" alt="" style="width:72px;height:96px;object-fit:cover;border-radius:8px;background:#eee;" />
+          <div style="flex:1;display:grid;gap:0.35rem;">
+            <label class="btn btn-outline btn-sm" style="justify-content:center;cursor:pointer;">📷 เปลี่ยน/อัปโหลดรูป
+              <input type="file" accept="image/*" hidden data-rev-upload="${i}" /></label>
+            ${field('URL รูป', `revImg_${i}`, item.img)}
+          </div>
+        </div>
         ${field('คำพูด', `revQuote_${i}`, item.quote, true, 2)}
         ${field('ชื่อ', `revName_${i}`, item.name)}
-        ${field('เมตา (เมือง · สินค้า)', `revMeta_${i}`, item.meta)}
+        ${field('เมือง · สินค้า', `revMeta_${i}`, item.meta)}
         ${field('ป้ายบนรูป', `revBadge_${i}`, item.badge)}
         ${field('ดาว (1–5)', `revStars_${i}`, String(item.stars || 5))}
         ${field('คำอธิบายรูป (alt)', `revAlt_${i}`, item.alt)}
-        ${field('URL รูป', `revImg_${i}`, item.img)}
-        <label class="btn btn-outline btn-sm" style="justify-content:center;cursor:pointer;">อัปโหลดรูป
-          <input type="file" accept="image/*" hidden data-rev-upload="${i}" /></label>
-        <button type="button" class="btn btn-outline btn-sm" data-rev-del="${i}">ลบรีวิวนี้</button>
+        <button type="button" class="btn btn-outline btn-sm" data-rev-del="${i}">ลบรายการนี้</button>
       </div>`).join('');
   }
 
@@ -456,6 +526,7 @@
       ? SHOP_CONFIG.storefrontPhotos.map((p) => ({ ...p }))
       : [];
     window._cmsStorefrontDraft = photos;
+    window._cmsHeroDraft = (Array.isArray(SHOP_CONFIG.heroImages) ? SHOP_CONFIG.heroImages : []).filter(Boolean).slice();
     window._cmsReviewDraft = (c.reviews.items || []).map((x) => ({ ...x }));
     window._cmsNewsDraft = (c.media.news || []).map((x) => ({ ...x }));
     window._cmsMediaVideoDraft = (c.media.videos || []).map((x) => ({ ...x }));
@@ -464,42 +535,53 @@
 
     el.innerHTML = `
       <div class="admin-section-title">แก้ไขหน้าบ้าน (ข้อความ · รูป · วิดีโอ)</div>
-      <p style="font-size:0.85rem;color:var(--text-soft);margin-bottom:1rem;line-height:1.55;">
-        แก้ทุกจุดบนหน้าร้านได้ที่นี่ — บันทึกแล้วเห็นทันทีบนเครื่องนี้
-        สินค้าและวิดีโอแนะนำสินค้าใช้แท็บ <strong>สินค้า</strong> / <strong>ราชาหวาย VIDEO</strong>
-        ภาพพื้นหลังฮีโร่ใช้แท็บ <strong>ตั้งค่า</strong>
+      <p style="font-size:0.85rem;color:var(--text-soft);margin-bottom:0.75rem;line-height:1.55;">
+        จุดที่เห็นบนหน้าร้านแก้ได้ที่นี่ — บันทึกแล้วเห็นทันทีบนเครื่องนี้
+        สินค้า / วิดีโอแนะนำสินค้า ใช้แท็บ <strong>สินค้า</strong> และ <strong>ราชาหวาย VIDEO</strong>
       </p>
+      <div style="display:flex;flex-wrap:wrap;gap:0.4rem;margin-bottom:1rem;">
+        <button type="button" class="btn btn-outline btn-sm" data-cms-jump="cmsSecHero">① แบนเนอร์ฮีโร่</button>
+        <button type="button" class="btn btn-outline btn-sm" data-cms-jump="cmsSecReviews">② รูปจากผู้ใช้จริง</button>
+        <button type="button" class="btn btn-outline btn-sm" data-cms-jump="cmsSecStorefront">③ ภาพหน้าร้าน</button>
+      </div>
 
-      ${details('1) ฮีโร่หน้าแรก', `
+      ${details('① แบนเนอร์ฮีโร่ (หัวข้อ · ปุ่ม · รูปสไลด์)', `
+        <p style="font-size:0.8rem;color:var(--text-soft);margin:0;line-height:1.45;">ตรงกับแถบบนสุดหน้าแรก — ข้อความทับรูป และรูปพื้นหลังเลื่อนได้</p>
         ${field('หัวข้อหลัก', 'cmsHeroTitle', c.hero.title)}
-        ${field('คำอธิบาย', 'cmsHeroDesc', c.hero.desc, true, 2)}
-        ${field('ปุ่ม CTA', 'cmsHeroCta', c.hero.cta)}
-      `)}
+        ${field('คำอธิบายใต้หัวข้อ', 'cmsHeroDesc', c.hero.desc, true, 2)}
+        ${field('ข้อความปุ่ม', 'cmsHeroCta', c.hero.cta)}
+        <div class="admin-section-title" style="margin:0.4rem 0 0;">รูปสไลด์พื้นหลัง</div>
+        <div id="cmsHeroImageList" class="hero-admin-list"></div>
+        <label class="btn btn-outline btn-sm" style="justify-content:center;cursor:pointer;">➕ อัปโหลดรูปสไลด์
+          <input type="file" id="cmsHeroUpload" accept="image/*" multiple hidden /></label>
+        <button type="button" class="btn btn-outline btn-sm" id="cmsHeroReset" style="justify-content:center;">รีเซ็ตรูปสไลด์เป็นค่าเริ่มต้น</button>
+      `, { id: 'cmsSecHero' })}
 
-      ${details('2) แถบความเชื่อมั่น', `
+      ${details('แถบความเชื่อมั่น', `
         ${field('ข้อความ (หนึ่งบรรทัดต่อหนึ่งข้อ)', 'cmsTrust', (c.trust || []).join('\n'), true, 3)}
-      `)}
+      `, { open: false })}
 
-      ${details('3) หัวข้อหน้าแรก', `
+      ${details('หัวข้อหน้าแรก (หมวด / สินค้า / วิดีโอ)', `
         ${field('หมวดยอดนิยม', 'cmsPopularTitle', c.home.popularTitle)}
         ${field('ลิงก์ดูทั้งหมด (หมวด)', 'cmsPopularMore', c.home.popularMore)}
         ${field('สินค้าแนะนำ', 'cmsProductsTitle', c.home.productsTitle)}
         ${field('ปุ่มดูทั้งหมด (สินค้า)', 'cmsProductsMore', c.home.productsMore)}
         ${field('หัวข้อวิดีโอแนะนำ', 'cmsVideosTitle', c.home.videosTitle)}
         ${field('คำใบ้เลื่อนดู', 'cmsVideosHint', c.home.videosHint)}
-      `)}
+      `, { open: false })}
 
-      ${details('4) รีวิวลูกค้า', `
-        ${field('คิคเกอร์', 'cmsRevKicker', c.reviews.kicker)}
-        ${field('หัวข้อ', 'cmsRevTitle', c.reviews.title)}
-        ${field('คะแนนแสดง', 'cmsRevScore', c.reviews.score)}
-        ${field('aria คะแนน', 'cmsRevScoreLabel', c.reviews.scoreLabel)}
-        ${field('คำนำ', 'cmsRevLead', c.reviews.lead, true, 2)}
+      ${details('② รูปจากผู้ใช้จริง (รีวิว)', `
+        <p style="font-size:0.8rem;color:var(--text-soft);margin:0;line-height:1.45;">หัวข้อ คะแนน ★ และแต่ละการ์ด (รูป / คำพูด / ชื่อ) — ตรงกับแถบรีวิวหน้าแรก</p>
+        ${field('คิคเกอร์เล็ก', 'cmsRevKicker', c.reviews.kicker)}
+        ${field('หัวข้อใหญ่', 'cmsRevTitle', c.reviews.title)}
+        ${field('คะแนนแสดง เช่น ★ 4.9', 'cmsRevScore', c.reviews.score)}
+        ${field('คำอธิบายคะแนน (aria)', 'cmsRevScoreLabel', c.reviews.scoreLabel)}
+        ${field('คำนำใต้หัวข้อ', 'cmsRevLead', c.reviews.lead, true, 2)}
         <div id="cmsReviewList">${renderReviewEditors(window._cmsReviewDraft)}</div>
-        <button type="button" class="btn btn-outline btn-sm" id="cmsAddReview">➕ เพิ่มรีวิว</button>
-      `)}
+        <button type="button" class="btn btn-outline btn-sm" id="cmsAddReview">➕ เพิ่มรูปจากผู้ใช้</button>
+      `, { id: 'cmsSecReviews' })}
 
-      ${details('5) เรื่องราวบ้านบุทม', `
+      ${details('เรื่องราวบ้านบุทม', `
         ${field('คิคเกอร์', 'cmsStoryKicker', c.story.kicker)}
         ${field('หัวข้อหน้า', 'cmsStoryTitle', c.story.title)}
         ${field('คำนำ', 'cmsStoryLead', c.story.lead, true, 2)}
@@ -509,7 +591,7 @@
         ${field('แท็ก (คั่นด้วย | )', 'cmsStoryTags', (c.story.tags || []).join(' | '))}
       `)}
 
-      ${details('6) ข่าวอ้างอิง', `
+      ${details('ข่าวอ้างอิง', `
         ${field('คิคเกอร์หน้า', 'cmsMediaKicker', c.media.kicker)}
         ${field('หัวข้อหน้า', 'cmsMediaTitle', c.media.title)}
         ${field('คำนำหน้า', 'cmsMediaLead', c.media.lead, true, 2)}
@@ -519,14 +601,14 @@
         <button type="button" class="btn btn-outline btn-sm" id="cmsAddNews">➕ เพิ่มข่าว</button>
       `)}
 
-      ${details('7) วิดีโออ้างอิง (YouTube)', `
+      ${details('วิดีโออ้างอิง (YouTube)', `
         ${field('หัวข้อวิดีโอ', 'cmsVidSecTitle', c.media.videoTitle)}
         ${field('คำนำวิดีโอ', 'cmsVidSecLead', c.media.videoLead)}
         <div id="cmsMediaVideoList"></div>
         <button type="button" class="btn btn-outline btn-sm" id="cmsAddMediaVideo">➕ เพิ่มวิดีโอ YouTube</button>
       `)}
 
-      ${details('8) ขั้นตอนการผลิต', `
+      ${details('ขั้นตอนการผลิต', `
         ${field('คิคเกอร์', 'cmsProcKicker', c.process.kicker)}
         ${field('หัวข้อหน้า', 'cmsProcTitle', c.process.title)}
         ${field('คำนำ', 'cmsProcLead', c.process.lead, true, 2)}
@@ -536,7 +618,7 @@
         <button type="button" class="btn btn-outline btn-sm" id="cmsAddProcess">➕ เพิ่มขั้นตอน</button>
       `)}
 
-      ${details('9) การดูแลรักษา', `
+      ${details('การดูแลรักษา', `
         ${field('คิคเกอร์', 'cmsCareKicker', c.care.kicker)}
         ${field('หัวข้อหน้า', 'cmsCareTitle', c.care.title)}
         ${field('คำนำ', 'cmsCareLead', c.care.lead, true, 2)}
@@ -547,14 +629,9 @@
         ${field('หมายเหตุท้าย (HTML ได้)', 'cmsCareNote', c.care.noteHtml, true, 4)}
       `)}
 
-      ${details('10) ติดต่อ + ภาพหน้าร้าน', `
-        ${field('หัวข้อ', 'cmsContactTitle', c.contact.title)}
-        ${field('คำนำ', 'cmsContactLead', c.contact.lead, true, 2)}
-        ${field('หัวข้อการ์ดที่อยู่', 'cmsContactAddrTitle', c.contact.addressTitle)}
-        ${field('หัวข้อการ์ดโทร', 'cmsContactPhoneTitle', c.contact.phoneTitle)}
-        ${field('หัวข้อ Line/FB', 'cmsContactSocialTitle', c.contact.socialTitle)}
-        ${field('ข้อความ Line/FB', 'cmsContactSocialText', c.contact.socialText)}
-        ${field('หัวข้อภาพหน้าร้าน', 'cmsPhotosTitle', c.contact.photosTitle)}
+      ${details('③ ภาพหน้าร้าน ราชาหวาย', `
+        <p style="font-size:0.8rem;color:var(--text-soft);margin:0;line-height:1.45;">หัวข้อเหนือรูป · รูป · คำบรรยายใต้รูป — ตรงกับบล็อกภาพหน้าร้านในหน้าติดต่อ</p>
+        ${field('หัวข้อเหนือรูป', 'cmsPhotosTitle', c.contact.photosTitle)}
         <div id="cmsStorefrontList" class="hero-admin-list"></div>
         <div style="display:grid;gap:0.4rem;max-width:520px;">
           ${field('URL รูปใหม่', 'cmsSfSrc', '')}
@@ -564,9 +641,18 @@
             <input type="file" id="cmsSfUpload" accept="image/*" hidden /></label>
           <button type="button" class="btn btn-outline btn-sm" id="cmsSfAdd">➕ เพิ่มภาพหน้าร้าน</button>
         </div>
-      `)}
+      `, { id: 'cmsSecStorefront' })}
 
-      ${details('11) ส่วนท้ายเว็บ', `
+      ${details('ติดต่อเรา', `
+        ${field('หัวข้อ', 'cmsContactTitle', c.contact.title)}
+        ${field('คำนำ', 'cmsContactLead', c.contact.lead, true, 2)}
+        ${field('หัวข้อการ์ดที่อยู่', 'cmsContactAddrTitle', c.contact.addressTitle)}
+        ${field('หัวข้อการ์ดโทร', 'cmsContactPhoneTitle', c.contact.phoneTitle)}
+        ${field('หัวข้อ Line/FB', 'cmsContactSocialTitle', c.contact.socialTitle)}
+        ${field('ข้อความ Line/FB', 'cmsContactSocialText', c.contact.socialText)}
+      `, { open: false })}
+
+      ${details('ส่วนท้ายเว็บ', `
         ${field('บรรทัด 1 (HTML ได้)', 'cmsFooter1', c.footer.line1Html, true, 2)}
         ${field('บรรทัด 2', 'cmsFooter2', c.footer.line2)}
       `)}
@@ -735,6 +821,8 @@
           icon: document.getElementById(`careIcon_${i}`)?.value.trim() || '',
           title: t.value.trim(),
           items: (document.getElementById(`careItems_${i}`)?.value || '')
+            .replace(/\r\n/g, '\n')
+            .replace(/<br\s*\/?>/gi, '\n')
             .split('\n')
             .map((s) => s.trim())
             .filter(Boolean),
@@ -779,7 +867,47 @@
     paintProcess();
     paintCare();
     wireReviews();
-    paintCmsPhotoList('cmsStorefrontList', '_cmsStorefrontDraft');
+    paintCmsPhotoList('cmsStorefrontList', '_cmsStorefrontDraft', 'storefront');
+    paintCmsPhotoList('cmsHeroImageList', '_cmsHeroDraft', 'hero');
+
+    document.querySelectorAll('[data-cms-jump]').forEach((btn) => {
+      btn.onclick = () => {
+        const target = document.getElementById(btn.dataset.cmsJump);
+        if (!target) return;
+        target.open = true;
+        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      };
+    });
+
+    document.getElementById('cmsHeroUpload').onchange = async (e) => {
+      const files = Array.from(e.target.files || []);
+      e.target.value = '';
+      for (const file of files) {
+        if ((window._cmsHeroDraft || []).length >= 10) {
+          if (typeof showToast === 'function') showToast('ใส่ได้สูงสุด 10 รูป');
+          break;
+        }
+        try {
+          const url = await readImageFile(file, 1400);
+          window._cmsHeroDraft.push(url);
+        } catch (err) {
+          console.warn(err);
+          if (typeof showToast === 'function') showToast('อัปโหลดไม่สำเร็จ');
+        }
+      }
+      paintCmsPhotoList('cmsHeroImageList', '_cmsHeroDraft', 'hero');
+    };
+    document.getElementById('cmsHeroReset').onclick = () => {
+      window._cmsHeroDraft = [
+        '/images/promo/usage-shopping.png',
+        '/images/promo/usage-market.png',
+        '/images/promo/usage-community.png',
+        '/images/promo/usage-decor.png',
+        '/images/promo/usage-temple.png',
+      ];
+      paintCmsPhotoList('cmsHeroImageList', '_cmsHeroDraft', 'hero');
+      if (typeof showToast === 'function') showToast('ตั้งรูปสไลด์กลับค่าเริ่มต้นแล้ว (อย่าลืมกดบันทึก)');
+    };
 
     document.getElementById('cmsAddReview').onclick = () => {
       window._cmsReviewDraft = collectReviewsFromDom(window._cmsReviewDraft.length);
@@ -849,7 +977,7 @@
       document.getElementById('cmsSfSrc').value = '';
       document.getElementById('cmsSfAlt').value = '';
       document.getElementById('cmsSfCaption').value = '';
-      paintCmsPhotoList('cmsStorefrontList', '_cmsStorefrontDraft');
+      paintCmsPhotoList('cmsStorefrontList', '_cmsStorefrontDraft', 'storefront');
     };
     document.getElementById('cmsSfUpload').onchange = async (e) => {
       const file = e.target.files?.[0];
@@ -870,6 +998,7 @@
       syncMediaVideosFromDom();
       syncProcessFromDom();
       syncCareFromDom();
+      syncStorefrontDraftFromDom();
       const trustRaw = document.getElementById('cmsTrust').value || '';
       const content = {
         hero: {
@@ -951,20 +1080,26 @@
         },
       };
 
+      const heroImages = (window._cmsHeroDraft || []).slice(0, 10);
+      const storefrontPhotos = (window._cmsStorefrontDraft || []).slice();
+
       if (typeof saveShopSettings === 'function') {
         saveShopSettings({
           content,
-          storefrontPhotos: (window._cmsStorefrontDraft || []).slice(),
+          storefrontPhotos,
+          heroImages,
         });
       } else {
         SHOP_CONFIG.content = content;
-        SHOP_CONFIG.storefrontPhotos = (window._cmsStorefrontDraft || []).slice();
+        SHOP_CONFIG.storefrontPhotos = storefrontPhotos;
+        SHOP_CONFIG.heroImages = heroImages;
         applyStoreContent();
       }
       if (typeof applyStoreContent === 'function') applyStoreContent();
       if (typeof renderStorefrontPhotos === 'function') {
         renderStorefrontPhotos(SHOP_CONFIG.storefrontPhotos);
       }
+      if (typeof refreshHeroSlides === 'function') refreshHeroSlides();
     };
 
     document.getElementById('cmsResetContent').onclick = () => {
@@ -979,8 +1114,15 @@
           caption: 'หน้าร้านช่วงกลางวัน',
         },
       ];
+      const defaultHero = [
+        '/images/promo/usage-shopping.png',
+        '/images/promo/usage-market.png',
+        '/images/promo/usage-community.png',
+        '/images/promo/usage-decor.png',
+        '/images/promo/usage-temple.png',
+      ];
       if (typeof saveShopSettings === 'function') {
-        saveShopSettings({ content: fresh, storefrontPhotos: defaultPhotos });
+        saveShopSettings({ content: fresh, storefrontPhotos: defaultPhotos, heroImages: defaultHero });
       }
       renderAdminFrontContent();
     };

@@ -148,14 +148,29 @@ try {
   await page.waitForSelector('#cmsHeroTitle');
   ok('cms hero field', !!(await page.$('#cmsHeroTitle')));
   ok('cms save button', !!(await page.$('#cmsSaveContent')));
+  ok('cms hero slides editor', !!(await page.$('#cmsHeroImageList')));
+  ok('cms reviews section', !!(await page.$('#cmsSecReviews')));
+  ok('cms storefront section', !!(await page.$('#cmsSecStorefront')));
   const cmsMarker = 'งานหวายแท้ — ทดสอบ CMS';
   await page.evaluate((title) => {
     document.getElementById('cmsHeroTitle').value = title;
+    document.getElementById('cmsRevTitle').value = 'รูปจากผู้ใช้จริง — แก้แล้ว';
+    const cap = document.querySelector('[data-sf-caption="0"]');
+    if (cap) cap.value = 'หน้าร้านช่วงกลางวัน — แก้แล้ว';
+    document.getElementById('cmsPhotosTitle').value = 'ภาพหน้าร้าน ราชาหวาย';
     document.getElementById('cmsSaveContent').click();
   }, cmsMarker);
   await new Promise((r) => setTimeout(r, 400));
-  const heroAfter = await page.evaluate(() => document.querySelector('#heroStage h1')?.textContent?.trim() || '');
-  ok('cms hero applies to front', heroAfter === cmsMarker, heroAfter);
+  const afterCms = await page.evaluate(() => ({
+    hero: document.querySelector('#heroStage h1')?.textContent?.trim() || '',
+    reviewsTitle: document.getElementById('reviewsTitle')?.textContent?.trim() || '',
+    photosTitle: document.querySelector('.shop-front-photos__title')?.textContent?.trim() || '',
+    caption: document.querySelector('#shopFrontPhotosGrid figcaption')?.textContent?.trim() || '',
+  }));
+  ok('cms hero applies to front', afterCms.hero === cmsMarker, afterCms.hero);
+  ok('cms reviews title applies', afterCms.reviewsTitle.includes('แก้แล้ว'), afterCms.reviewsTitle);
+  ok('cms storefront title applies', afterCms.photosTitle.includes('ภาพหน้าร้าน'), afterCms.photosTitle);
+  ok('cms storefront caption applies', afterCms.caption.includes('แก้แล้ว'), afterCms.caption);
 
   // Products: excel import UI
   await page.click('.admin-tab[data-tab="products"]');
