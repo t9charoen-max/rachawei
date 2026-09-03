@@ -98,14 +98,27 @@ try {
   ok('storefront photos section', shopPhotos.count === 1, `count=${shopPhotos.count}`);
   ok('storefront day photo loads', shopPhotos.day.includes('shop-front-day'));
 
-  const reviews = await page.evaluate(() => ({
-    section: !!document.getElementById('reviews'),
-    cards: document.querySelectorAll('#reviews .review-card').length,
-    photos: document.querySelectorAll('#reviews .review-card__photo img').length,
-    firstSrc: document.querySelector('#reviews .review-card__photo img')?.getAttribute('src') || '',
-  }));
-  ok('customer reviews section', reviews.section && reviews.cards >= 4, `cards=${reviews.cards}`);
-  ok('review photos from real usage', reviews.photos === reviews.cards && reviews.firstSrc.includes('/images/promo/'), reviews.firstSrc);
+  await page.click('#mainNav button[data-page="story"]');
+  await new Promise((r) => setTimeout(r, 250));
+  const reviews = await page.evaluate(() => {
+    const root = document.getElementById('reviews');
+    const text = root?.innerText || '';
+    return {
+      section: !!root,
+      onStory: !!document.querySelector('#page-story #reviews'),
+      shots: document.querySelectorAll('#reviews .reviews-strip__shot').length,
+      photos: document.querySelectorAll('#reviews .reviews-strip__shot img').length,
+      firstSrc: document.querySelector('#reviews .reviews-strip__shot img')?.getAttribute('src') || '',
+      quotes: document.querySelectorAll('#reviews .review-card__quote, #reviews blockquote').length,
+      fakeScore: /4\.9|★★★★★/.test(text),
+      fakeNames: /นภา|มะลิ|สมศรี|วรรณา|อรุณี/.test(text),
+    };
+  });
+  ok('usage strip after story', reviews.section && reviews.onStory && reviews.shots >= 4, `shots=${reviews.shots}`);
+  ok('usage photos from real images', reviews.photos === reviews.shots && reviews.firstSrc.includes('/images/promo/'), reviews.firstSrc);
+  ok('reviews strip not cluttered with fake quotes', reviews.quotes === 0 && !reviews.fakeScore && !reviews.fakeNames);
+  await page.click('#mainNav button[data-page="home"]');
+  await new Promise((r) => setTimeout(r, 150));
 
   await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
   await page.click('#mainNav button[data-page="media"]');
