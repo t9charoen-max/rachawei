@@ -49,7 +49,7 @@ try {
 
   ok('products grid', front.products >= 4, `count=${front.products}`);
   ok('shop videos section exists', front.videosBlock);
-  ok('shop videos visible', !front.videosHidden && front.videoCards >= 1, `cards=${front.videoCards}`);
+  ok('shop videos hidden when empty', front.videosHidden && front.videoCards === 0, `cards=${front.videoCards} hidden=${front.videosHidden}`);
   ok('google map card link', front.mapCard.includes('maps.app.goo.gl'), front.mapCard);
   ok('google map button link', front.mapBtn.includes('maps.app.goo.gl'), front.mapBtn);
   ok('video player API', front.openShopVideo && front.playShopVideo && front.buyFromShopVideo);
@@ -69,15 +69,15 @@ try {
   const afterCart = await page.evaluate(() => getCartCount());
   ok('add to cart', afterCart > beforeCart, `${beforeCart} → ${afterCart}`);
 
-  // Video buy button
+  // Video buy — skip when no videos configured
   const buyOk = await page.evaluate(() => {
     const v = (typeof shopVideos !== 'undefined' && shopVideos.find((x) => x.productId)) || null;
-    if (!v) return false;
+    if (!v) return 'skip';
     const before = getCartCount();
     buyFromShopVideo(v.id);
     return getCartCount() > before;
   });
-  ok('video buy adds to cart', buyOk);
+  ok('video buy adds to cart (or skipped)', buyOk === true || buyOk === 'skip', String(buyOk));
 
   // Scroll to contact
   await page.evaluate(() => document.getElementById('contact')?.scrollIntoView());

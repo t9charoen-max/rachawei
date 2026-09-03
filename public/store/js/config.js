@@ -60,21 +60,6 @@
 
 /* DEFAULT_PRODUCTS → js/catalog-products.js (generated from public/catalog/products.json) */
 
-const DEFAULT_SHOP_VIDEOS = [
-      {
-        id: 1,
-        title: 'ตะกร้าหวายสี่เหลี่ยม 2 ชั้น',
-        videoUrl: 'https://www.youtube.com/watch?v=_6JMaYC-Zbw',
-        productId: 12,
-        views: 1280,
-        thumbnail: ''
-      },
-      {
-        id: 2,
-        title: 'ตะกร้าหวายทรงกลมฐาน 11 นิ้ว',
-        videoUrl: 'https://www.youtube.com/watch?v=AdpJCJ7TVpQ',
-        productId: 2,
-        views: 860,
-        thumbnail: ''
-      }
-    ];
+/** วิดีโอบนหน้าร้าน — ว่างไว้จนกว่าจะเพิ่มจากหลังร้าน (แท็บวิดีโอ) */
+const DEFAULT_SHOP_VIDEOS = [];
+const VIDEO_SYNC_VERSION = 'rachawei-videos-v2-empty';
