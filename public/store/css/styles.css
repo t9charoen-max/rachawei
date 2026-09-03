@@ -1569,8 +1569,8 @@
     /* Main navigation tabs */
     .main-nav {
       position: sticky;
-      top: 64px;
-      z-index: 90;
+      top: var(--shop-sticky-top, 4.75rem);
+      z-index: 95;
       background: var(--glass);
       backdrop-filter: blur(16px) saturate(1.25);
       -webkit-backdrop-filter: blur(16px) saturate(1.25);
@@ -1584,6 +1584,7 @@
       overflow-y: hidden;
       -webkit-overflow-scrolling: touch;
       scrollbar-width: none;
+      touch-action: pan-x;
       box-shadow:
         0 1px 0 rgba(255, 255, 255, 0.45) inset,
         0 8px 20px rgba(58, 39, 28, 0.05);
@@ -1597,7 +1598,8 @@
       font-family: inherit;
       font-size: 0.84rem;
       font-weight: 700;
-      padding: 0.5rem 0.85rem;
+      padding: 0.55rem 0.9rem;
+      min-height: 40px;
       border-radius: 999px;
       cursor: pointer;
       white-space: nowrap;
@@ -1607,6 +1609,10 @@
       transition: all 0.22s ease;
       box-shadow: 0 4px 12px rgba(58, 39, 28, 0.05);
       line-height: 1.2;
+      touch-action: manipulation;
+      position: relative;
+      z-index: 1;
+      -webkit-tap-highlight-color: transparent;
     }
     .main-nav button:hover {
       color: var(--rattan-deep);
@@ -2541,12 +2547,14 @@
       z-index: 300;
       opacity: 0;
       visibility: hidden;
+      pointer-events: none;
       transition: opacity 0.3s, visibility 0.3s;
     }
 
     .cart-overlay.open {
       opacity: 1;
       visibility: visible;
+      pointer-events: auto;
     }
 
     .cart-drawer {
@@ -4342,12 +4350,13 @@
       gap: 0.4rem;
       max-width: 1120px;
       margin: 0 auto 0.85rem;
-      padding: 0.15rem 1rem 0.35rem;
+      padding: 0.35rem 1rem 0.5rem;
       overflow-x: auto;
       overflow-y: hidden;
       -webkit-overflow-scrolling: touch;
       scrollbar-width: none;
       justify-content: flex-start;
+      touch-action: pan-x;
     }
 
     .shop-app .main-nav::-webkit-scrollbar { display: none; }
@@ -4358,11 +4367,15 @@
       border: 1px solid rgba(75,54,33,0.16);
       background: #fff;
       color: var(--shop-brown);
-      padding: 0.42rem 0.78rem;
+      padding: 0.5rem 0.85rem;
+      min-height: 40px;
       font-size: clamp(0.72rem, 2.8vw, 0.82rem);
       font-weight: 700;
       box-shadow: 0 2px 6px rgba(75,54,33,0.05);
       white-space: nowrap;
+      touch-action: manipulation;
+      position: relative;
+      z-index: 1;
     }
 
     .shop-app .main-nav button.active {
