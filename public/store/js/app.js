@@ -366,6 +366,34 @@
       return '฿' + n.toLocaleString('th-TH');
     }
 
+    function productCertInner() {
+      return `
+        <span class="product-cert__seal" title="OTOP หนึ่งตำบล หนึ่งผลิตภัณฑ์">
+          <svg viewBox="0 0 64 64" width="32" height="32" aria-hidden="true" focusable="false">
+            <circle cx="32" cy="32" r="31" fill="#5b2a12"/>
+            <circle cx="32" cy="32" r="26" fill="none" stroke="#e8c56a" stroke-width="2.2"/>
+            <circle cx="32" cy="32" r="22.5" fill="none" stroke="#fff8ef" stroke-width="0.6" opacity="0.35"/>
+            <text x="32" y="37" text-anchor="middle" fill="#fff8ef" font-size="13" font-weight="800" font-family="Sarabun, Arial, sans-serif" letter-spacing="0.8">OTOP</text>
+          </svg>
+        </span>
+        <span class="product-cert__seal" title="มาตรฐานผลิตภัณฑ์ชุมชน มผช">
+          <svg viewBox="0 0 64 64" width="32" height="32" aria-hidden="true" focusable="false">
+            <circle cx="32" cy="32" r="31" fill="#e4c56a"/>
+            <circle cx="32" cy="32" r="26" fill="none" stroke="#5b2a12" stroke-width="2"/>
+            <text x="32" y="38" text-anchor="middle" fill="#3a1f10" font-size="15" font-weight="800" font-family="Sarabun, Tahoma, sans-serif">มผช</text>
+          </svg>
+        </span>`;
+    }
+
+    function productCertHtml() {
+      return `<div class="product-cert" aria-label="สินค้า OTOP มาตรฐานผลิตภัณฑ์ชุมชน">${productCertInner()}</div>`;
+    }
+
+    const pdCert = document.getElementById('pdCert');
+    if (pdCert) {
+      pdCert.innerHTML = `${productCertInner()}<span class="product-cert__caption">OTOP · มาตรฐานชุมชน</span>`;
+    }
+
     function getProductStock(p) {
       const n = Number(p?.stock);
       return Number.isFinite(n) ? n : null;
@@ -652,6 +680,7 @@
               <div class="product-price">${formatPrice(p.price)}</div>
               <div class="product-stock product-stock--${stock.className}">${stock.text}</div>
             </div>
+            ${productCertHtml()}
             <button type="button" class="btn btn-primary btn-add-full" ${available ? '' : 'disabled'} onclick="addToCart(${p.id})" aria-label="ใส่ ${p.name} ลงตะกร้า">
               🛒 ใส่ตะกร้า
             </button>

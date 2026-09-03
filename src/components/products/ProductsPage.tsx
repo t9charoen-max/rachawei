@@ -4,6 +4,7 @@ import { SHOP_INFO, getProductDisplayCategory } from '../../data/products';
 import { telLink } from '../../utils/contact';
 import { BrandMark } from '../BrandMark';
 import { OrderFormButton } from '../OrderFormButton';
+import { CertMarks } from '../CertMarks';
 import { ProductImageBadges } from '../ProductImageBadges';
 import { ProductImageFrame } from '../ProductImageFrame';
 import { SafeImage } from '../SafeImage';
@@ -141,6 +142,7 @@ export function ProductsPage({
               </div>
 
               <div className="products-showcase__actions">
+                <CertMarks caption="OTOP · มาตรฐานชุมชน" className="product-cert--detail" />
                 <OrderFormButton
                   product={active}
                   products={products}
