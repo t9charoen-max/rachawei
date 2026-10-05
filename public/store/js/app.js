@@ -1858,13 +1858,15 @@
       let id = null;
 
       if (isSupabaseReady()) {
+        const remoteMethod =
+          payload.method === 'bank' ? 'transfer' : payload.method;
         const remote = await RachaweiStoreApi.createOrderRemote({
           customerName: payload.name,
           customerPhone: payload.phone,
           phoneDisplay: payload.phoneDisplay,
           customerAddress: payload.address,
           note: payload.note,
-          method: payload.method,
+          method: remoteMethod,
           subtotal: payload.subtotal,
           promoDiscount: payload.promoDiscount,
           shippingFee: payload.shippingFee,
