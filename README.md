@@ -13,35 +13,7 @@
 
 **[https://rachawei.vercel.app](https://rachawei.vercel.app)** — ราชาหวาย (หวายสาน)
 
-## ราชาวัสดุ (แยกโปรเจกต์ — ไม่ฝังซ้ำในเว็บนี้)
-
-ร้านวัสดุก่อสร้างอยู่คนละ Vercel app ไม่ build ซ้ำเข้า `rachawei.vercel.app` อีกแล้ว
-
-- Live: **https://rachawei-f1it.vercel.app/**
-- โค้ด: `next-app/` → sync ไป branch `next-deploy`
-- ลิงก์เก่า `/rachawatsadu` บนเว็บราชาหวาย จะ redirect ไปแอปนี้
-
-```bash
-npm run dev:materials
-```
-
-## ราชาวัสดุ Desk
-
-แอปวางแผนการเงินโครงการราชาวัสดุ (สไตล์ desk):
-
-```bash
-npm run dev:desk
-```
-
-Live: **https://rachawei.vercel.app/desk**
-
-ทางเข้าถาวรอยู่ที่หน้าแรกของเว็บหลัก และติดตั้งลงหน้าจอโฮมได้ (PWA)
-
-Build ฝังที่ `/desk`:
-
-```bash
-npm run build:desk
-```
+ร้านสั่งซื้อออนไลน์: **[https://rachawei.vercel.app/store/](https://rachawei.vercel.app/store/)**
 
 ## เริ่มพัฒนา
 

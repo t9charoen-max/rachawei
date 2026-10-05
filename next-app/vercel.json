@@ -1,6 +1,0 @@
-{
-  "buildCommand": "npm run build:static && rm -rf dist && mkdir -p dist && cp -r out/. dist/",
-  "installCommand": "npm ci",
-  "outputDirectory": "dist",
-  "framework": null
-}

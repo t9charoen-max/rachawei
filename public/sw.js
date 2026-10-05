@@ -34,8 +34,6 @@ self.addEventListener('fetch', (event) => {
 
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
-  // อย่ายุ่งกับส่วน rachawatsadu / desk (แอปแยกต่างหาก)
-  if (url.pathname.startsWith('/rachawatsadu') || url.pathname.startsWith('/desk')) return;
 
   // หน้าเว็บ: network-first เพื่อให้ได้เวอร์ชันล่าสุด, ตกหล่นใช้แคช
   if (request.mode === 'navigate') {
