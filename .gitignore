@@ -11,6 +11,17 @@ node_modules
 dist
 dist-ssr
 *.local
+.env
+.env.*
+!.env.example
+
+# Generated at build time from node_modules (large UMD)
+artifacts/js/supabase.umd.js
+public/store/js/supabase.umd.js
+
+# Build-injected env may contain anon key — keep generated copies out of git
+# (committed stub in artifacts/js/supabase-env.js stays as safe default)
+public/store/js/supabase-env.js
 
 # Editor directories and files
 .vscode/*

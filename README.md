@@ -19,25 +19,33 @@
 
 ```bash
 npm install
+cp .env.example .env   # ใส่ VITE_SUPABASE_URL + VITE_SUPABASE_ANON_KEY
 npm run dev
 ```
 
 เปิด [http://localhost:5173](http://localhost:5173) ในเบราว์เซอร์
 
-## Grokbot / MCP — ให้ Bot สั่งงานในแอปได้
+ร้านสั่งซื้อ: [http://localhost:5173/store/](http://localhost:5173/store/)
 
-หน้าเว็บอย่างเดียวไม่พอสำหรับ Grok Bot ต้องมี **MCP server บน Vercel**
+### Supabase (Production)
 
-- คู่มือเชื่อมต่อ: [grokbot/MCP.md](grokbot/MCP.md)
-- URL: `https://rachawei.vercel.app/mcp`
-- ตั้ง `MCP_API_TOKEN` + `GITHUB_TOKEN` ใน Vercel แล้ว redeploy
+1. สร้างโปรเจกต์ Supabase แยกสำหรับร้าน (แนะนำชื่อ Rachawei-store)
+2. รัน SQL ตามลำดับใน `supabase/store/`:
+   - `001_rachawei_store_schema.sql`
+   - `002_rachawei_store_seed_products.sql`
+   - `003_store_create_order_rpc.sql`
+3. สร้างผู้ใช้เจ้าของร้านใน Authentication (ปิด public sign-up)
+4. เพิ่ม user ลง `store_admins`:
 
-ทางเลือกในรีโป (ไม่ผ่าน Grok Connector): [grokbot/README.md](grokbot/README.md)
-
-```bash
-npm run grokbot:apply
-npm run grokbot:validate
+```sql
+insert into public.store_admins (user_id, email)
+values ('<auth-user-uuid>', 'owner@example.com')
+on conflict (user_id) do nothing;
 ```
+
+5. ตั้งค่าใน Vercel:
+   - `VITE_SUPABASE_URL`
+   - `VITE_SUPABASE_ANON_KEY` (anon/public เท่านั้น — ห้าม service_role)
 
 ## Build
 
@@ -46,8 +54,15 @@ npm run build
 npm run preview
 ```
 
+## Grokbot / MCP
+
+- คู่มือ: [grokbot/MCP.md](grokbot/MCP.md)
+- URL: `https://rachawei.vercel.app/mcp`
+- ตั้ง `MCP_API_TOKEN` + `GITHUB_TOKEN` ใน Vercel แล้ว redeploy
+
 ## เทคโนโลยี
 
 - React 19 + TypeScript
 - Vite 8
+- Supabase (`@supabase/supabase-js`) สำหรับสินค้า / ออเดอร์ / admin auth
 - MCP server (`/api/mcp`) สำหรับ Grok Bot

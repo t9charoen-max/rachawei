@@ -921,6 +921,7 @@
         <h2>🛠️ เมนูหลังร้าน</h2>
         <div class="admin-top-actions">
           <span style="font-size:0.8rem;opacity:0.85;" id="adminUserLabel">ราชาหวายสุรินทร์</span>
+          <button type="button" class="btn btn-outline btn-xs" id="adminTopLogoutBtn" style="display:none;">ออกจากระบบ</button>
           <button class="admin-close" id="adminCloseBtn" title="ปิด">×</button>
         </div>
       </div>
@@ -931,12 +932,17 @@
           <img class="logo-mark" src="/brand/rachawei-logo-square.png?v=1940" alt="" width="64" height="64" style="margin:0 auto 0.75rem;display:block;" />
           <h3 id="adminLoginTitle">เข้าสู่ระบบหลังร้าน</h3>
           <p id="adminLoginHint">รหัสผ่านสำหรับเจ้าของร้าน<br><small>เข้าผ่านลิงก์ #admin หรือเปลี่ยน PIN ในแท็บตั้งค่า</small></p>
+          <div class="form-group" id="adminEmailGroup" style="text-align:left;display:none;">
+            <label for="adminEmail">อีเมลเจ้าของร้าน</label>
+            <input type="email" id="adminEmail" placeholder="owner@example.com" autocomplete="username" />
+          </div>
           <div class="form-group" style="text-align:left;">
-            <label for="adminPin">รหัสผ่าน</label>
-            <input type="password" id="adminPin" placeholder="••••" maxlength="12" />
+            <label for="adminPin" id="adminPinLabel">รหัสผ่าน</label>
+            <input type="password" id="adminPin" placeholder="••••" maxlength="72" autocomplete="current-password" />
             <div class="form-error" id="errAdminPin">รหัสผ่านไม่ถูกต้อง</div>
           </div>
           <button class="btn btn-primary" id="adminLoginBtn" style="width:100%;justify-content:center;">เข้าสู่ระบบ</button>
+          <button class="btn btn-outline" id="adminLogoutBtn" type="button" style="width:100%;justify-content:center;margin-top:0.5rem;display:none;">ออกจากระบบ</button>
         </div>
       </div>
 
@@ -987,6 +993,9 @@
   <script src="js/store-content.js"></script>
   <script src="js/store-cms.js"></script>
   <script src="js/catalog-products.js"></script>
+  <script src="js/supabase-env.js"></script>
+  <script src="js/supabase.umd.js"></script>
+  <script src="js/supabase-client.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>

@@ -190,7 +190,24 @@
       };
     }
 
+    function isSupabaseReady() {
+      return typeof RachaweiStoreApi !== 'undefined' && RachaweiStoreApi.isConfigured();
+    }
+
     async function fetchLiveCatalogProducts() {
+      // 1) Supabase เป็นแหล่งจริงเมื่อตั้งค่าแล้ว
+      if (isSupabaseReady()) {
+        try {
+          const remote = await RachaweiStoreApi.fetchActiveProducts();
+          if (Array.isArray(remote) && remote.length) {
+            return remote.sort((a, b) => a.id - b.id);
+          }
+        } catch (e) {
+          console.warn('โหลดสินค้าจาก Supabase ไม่สำเร็จ — ใช้ไฟล์แคตตาล็อก', e);
+        }
+      }
+
+      // 2) Fallback: static catalog (ใช้ตอนยังไม่ตั้ง env / offline)
       const ver = typeof CATALOG_SYNC_VERSION !== 'undefined' ? CATALOG_SYNC_VERSION : 'rachawei-catalog-v2';
       try {
         const res = await fetch(`/catalog/products.json?v=${ver}`, { cache: 'no-cache' });
@@ -204,6 +221,39 @@
       } catch (e) {
         return null;
       }
+    }
+
+    function applyPublicShopSettings(row) {
+      if (!row || typeof row !== 'object') return;
+      const mapped = {
+        shopName: row.shop_name,
+        shopSub: row.shop_sub,
+        phoneDisplay: row.phone_display,
+        phoneTel: row.phone_tel,
+        lineUrl: row.line_url,
+        facebookUrl: row.facebook_url,
+        mapUrl: row.map_url,
+        addressHtml: row.address_html,
+        promoMin: row.promo_min,
+        promoDiscount: row.promo_discount,
+        shippingFee: row.shipping_fee,
+        freeShippingMin: row.free_shipping_min,
+        bankName: row.bank_name,
+        bankAccountName: row.bank_account_name,
+        promptPayNo: row.promptpay_no,
+        bankAccountNo: row.bank_account_no,
+        bankNote: row.bank_note,
+        heroImages: row.hero_images,
+        storefrontPhotos: row.storefront_photos,
+        content: row.content,
+      };
+      Object.keys(mapped).forEach((key) => {
+        if (mapped[key] != null && mapped[key] !== '') SHOP_CONFIG[key] = mapped[key];
+      });
+      if (typeof mergeStoreContent === 'function' && SHOP_CONFIG.content) {
+        SHOP_CONFIG.content = mergeStoreContent(SHOP_CONFIG.content);
+      }
+      migratePaymentFields();
     }
 
     function mergeCatalogWithSaved(catalogList, savedList) {
@@ -334,6 +384,16 @@
             SHOP_CONFIG.content = mergeStoreContent(SHOP_CONFIG.content);
           }
         }
+
+        // Override with public shop settings from Supabase when configured
+        if (isSupabaseReady()) {
+          try {
+            const remoteShop = await RachaweiStoreApi.fetchPublicShopSettings();
+            if (remoteShop) applyPublicShopSettings(remoteShop);
+          } catch (e) {
+            console.warn('โหลดตั้งค่าร้านจาก Supabase ไม่สำเร็จ', e);
+          }
+        }
         return true;
       } catch (e) {
         db = null;
@@ -368,8 +428,17 @@
       }
     }
 
-    function saveProducts() {
-      return persistAll();
+    async function syncProductsToSupabase() {
+      if (!isSupabaseReady() || !adminLoggedIn) return;
+      for (const p of products) {
+        const result = await RachaweiStoreApi.upsertProduct(p);
+        if (!result.ok) console.warn('sync product failed', p.id, result.error);
+      }
+    }
+
+    async function saveProducts() {
+      await persistAll();
+      await syncProductsToSupabase();
     }
 
     function saveShopVideos() {
@@ -1750,7 +1819,9 @@
       });
     }
 
-    function createOrder() {
+    let orderSubmitting = false;
+
+    function buildOrderPayload() {
       const name = document.getElementById('custName').value.trim();
       const phoneRaw = document.getElementById('custPhone').value.trim();
       const phoneDisplay = formatPhoneDisplay(phoneRaw);
@@ -1765,11 +1836,7 @@
         return p ? { id: p.id, name: p.name, emoji: p.emoji, qty: item.qty, price: p.price } : null;
       }).filter(Boolean);
 
-      const id = genOrderId();
-      const now = Date.now();
-      const flow = selectedMethod === 'cod' ? COD_FLOW : STATUS_FLOW;
-      const order = {
-        id,
+      return {
         name,
         phone: phoneDisplay.replace(/\D/g, ''),
         phoneDisplay,
@@ -1781,11 +1848,62 @@
         promoDiscount: promo,
         shippingFee: shipping,
         total,
+        paymentSlip: pendingSlip || null,
+      };
+    }
+
+    async function createOrder() {
+      const payload = buildOrderPayload();
+      const now = Date.now();
+      let id = null;
+
+      if (isSupabaseReady()) {
+        const remote = await RachaweiStoreApi.createOrderRemote({
+          customerName: payload.name,
+          customerPhone: payload.phone,
+          phoneDisplay: payload.phoneDisplay,
+          customerAddress: payload.address,
+          note: payload.note,
+          method: payload.method,
+          subtotal: payload.subtotal,
+          promoDiscount: payload.promoDiscount,
+          shippingFee: payload.shippingFee,
+          total: payload.total,
+          paymentSlip: payload.paymentSlip,
+          items: payload.items.map((it) => ({
+            id: String(it.id),
+            name: it.name,
+            emoji: it.emoji,
+            qty: it.qty,
+            price: it.price,
+          })),
+        });
+        if (!remote.ok) {
+          throw new Error(remote.error || 'สร้างออเดอร์ไม่สำเร็จ');
+        }
+        id = remote.orderId;
+      } else {
+        id = genOrderId();
+      }
+
+      const order = {
+        id,
+        name: payload.name,
+        phone: payload.phone,
+        phoneDisplay: payload.phoneDisplay,
+        address: payload.address,
+        note: payload.note,
+        method: payload.method,
+        items: payload.items,
+        subtotal: payload.subtotal,
+        promoDiscount: payload.promoDiscount,
+        shippingFee: payload.shippingFee,
+        total: payload.total,
         statusIndex: 0,
         history: [{ index: 0, at: now }],
         createdAt: now,
-        paymentSlip: pendingSlip || null,
-        slipUploadedAt: pendingSlip ? now : null
+        paymentSlip: payload.paymentSlip,
+        slipUploadedAt: payload.paymentSlip ? now : null
       };
       orders.unshift(order);
       lastOrderId = id;
@@ -1799,25 +1917,54 @@
       return order;
     }
 
-    document.getElementById('confirmOrderBtn').addEventListener('click', () => {
-      const order = createOrder();
-      resetPendingSlip();
-      document.getElementById('successOrderBox').innerHTML = `
-        <div>เลขที่ออเดอร์</div>
-        <strong id="successOrderId">${order.id}</strong>
-        <div style="margin-top:0.5rem;font-size:0.85rem;">
-          ลูกค้า: ${order.name}<br>
-          โทร: ${order.phoneDisplay}<br>
-          ยอดรวม: ${formatPrice(order.total)}<br>
-          วิธีชำระ: ${methodLabel(order.method)}
-        </div>
-      `;
-      renderSuccessSlipSection(order);
-      setPayStep(4);
-      if (order.paymentSlip) {
-        showToast('บันทึกคำสั่งซื้อและสลิปแล้ว ✓');
-      } else {
-        showToast('บันทึกคำสั่งซื้อแล้ว ✓');
+    document.getElementById('confirmOrderBtn').addEventListener('click', async () => {
+      if (orderSubmitting) return;
+      if (cart.length === 0) {
+        showToast('ตะกร้าว่าง — เลือกสินค้าก่อนสั่งซื้อ');
+        return;
+      }
+      const name = document.getElementById('custName').value.trim();
+      if (name.length < 2) {
+        showToast('กรุณากรอกชื่อผู้สั่งซื้อ');
+        return;
+      }
+
+      const btn = document.getElementById('confirmOrderBtn');
+      orderSubmitting = true;
+      if (btn) {
+        btn.disabled = true;
+        btn.dataset.prevLabel = btn.textContent;
+        btn.textContent = 'กำลังบันทึก…';
+      }
+      try {
+        const order = await createOrder();
+        resetPendingSlip();
+        document.getElementById('successOrderBox').innerHTML = `
+          <div>เลขที่ออเดอร์</div>
+          <strong id="successOrderId">${order.id}</strong>
+          <div style="margin-top:0.5rem;font-size:0.85rem;">
+            ลูกค้า: ${order.name}<br>
+            โทร: ${order.phoneDisplay}<br>
+            ยอดรวม: ${formatPrice(order.total)}<br>
+            วิธีชำระ: ${methodLabel(order.method)}
+          </div>
+        `;
+        renderSuccessSlipSection(order);
+        setPayStep(4);
+        if (order.paymentSlip) {
+          showToast('บันทึกคำสั่งซื้อและสลิปแล้ว ✓');
+        } else {
+          showToast('บันทึกคำสั่งซื้อแล้ว ✓');
+        }
+      } catch (e) {
+        console.error(e);
+        showToast('บันทึกคำสั่งซื้อไม่สำเร็จ — ลองใหม่อีกครั้ง');
+      } finally {
+        orderSubmitting = false;
+        if (btn) {
+          btn.disabled = false;
+          btn.textContent = btn.dataset.prevLabel || 'ยืนยันคำสั่งซื้อ';
+        }
       }
     });
 
@@ -2605,15 +2752,70 @@
       const hint = document.getElementById('adminLoginHint');
       const btn = document.getElementById('adminLoginBtn');
       const err = document.getElementById('errAdminPin');
+      const emailGroup = document.getElementById('adminEmailGroup');
+      const pinLabel = document.getElementById('adminPinLabel');
+      const pinInput = document.getElementById('adminPin');
+      const supabaseMode = isSupabaseReady();
+
+      if (emailGroup) emailGroup.style.display = supabaseMode ? 'block' : 'none';
+      if (pinLabel) pinLabel.textContent = supabaseMode ? 'รหัสผ่าน (Supabase Auth)' : 'รหัสผ่าน';
+      if (pinInput) {
+        pinInput.maxLength = supabaseMode ? 72 : 12;
+        pinInput.placeholder = supabaseMode ? 'รหัสผ่านบัญชีเจ้าของร้าน' : '••••';
+      }
+
+      if (supabaseMode) {
+        if (title) title.textContent = 'เข้าสู่ระบบหลังร้าน (Supabase)';
+        if (hint) {
+          hint.innerHTML = 'ใช้บัญชีเจ้าของร้านที่ลงทะเบียนใน Supabase Auth เท่านั้น<br><small>ผู้ใช้ทั่วไปไม่มีสิทธิ์ admin — ต้องอยู่ในตาราง store_admins</small>';
+        }
+        if (btn) btn.textContent = 'เข้าสู่ระบบ';
+        if (err) err.textContent = 'อีเมลหรือรหัสผ่านไม่ถูกต้อง หรือไม่มีสิทธิ์ admin';
+        return;
+      }
+
       const setup = hasAdminPinConfigured();
       if (title) title.textContent = setup ? 'เข้าสู่ระบบหลังร้าน' : 'ตั้งรหัสหลังร้านครั้งแรก';
       if (hint) {
         hint.innerHTML = setup
-          ? 'รหัสผ่านสำหรับเจ้าของร้าน<br><small>เข้าผ่านลิงก์ #admin หรือเปลี่ยน PIN ในแท็บตั้งค่า</small>'
+          ? 'รหัสผ่านสำหรับเจ้าของร้าน<br><small>โหมดท้องถิ่น (ยังไม่ตั้ง VITE_SUPABASE_*) — เข้าผ่านลิงก์ #admin</small>'
           : 'ยังไม่มีรหัสในเครื่องนี้ — ตั้งรหัส 4 หลักขึ้นไป (เก็บเฉพาะเบราว์เซอร์นี้)';
       }
       if (btn) btn.textContent = setup ? 'เข้าสู่ระบบ' : 'บันทึกรหัสและเข้าใช้งาน';
       if (err) err.textContent = setup ? 'รหัสผ่านไม่ถูกต้อง' : 'กรุณาตั้งรหัสอย่างน้อย 4 หลัก';
+    }
+
+    async function restoreAdminSession() {
+      if (!isSupabaseReady()) return;
+      try {
+        const session = await RachaweiStoreApi.getSession();
+        if (!session) return;
+        const ok = await RachaweiStoreApi.isAdminUser();
+        if (!ok) {
+          await RachaweiStoreApi.signOut();
+          adminLoggedIn = false;
+          return;
+        }
+        adminLoggedIn = true;
+        const label = document.getElementById('adminUserLabel');
+        if (label && session.user?.email) label.textContent = session.user.email;
+        await refreshAdminOrdersFromSupabase();
+      } catch (e) {
+        console.warn('restore admin session failed', e);
+      }
+    }
+
+    async function refreshAdminOrdersFromSupabase() {
+      if (!isSupabaseReady() || !adminLoggedIn) return;
+      try {
+        const remoteOrders = await RachaweiStoreApi.fetchOrdersForAdmin();
+        if (Array.isArray(remoteOrders)) {
+          orders = remoteOrders;
+          saveOrders();
+        }
+      } catch (e) {
+        console.warn('โหลดออเดอร์จาก Supabase ไม่สำเร็จ', e);
+      }
     }
 
     function openAdminPanel() {
@@ -2624,6 +2826,8 @@
         adminLoginView.style.display = 'block';
         adminMainView.style.display = 'none';
         document.getElementById('adminPin').value = '';
+        const emailEl = document.getElementById('adminEmail');
+        if (emailEl) emailEl.value = emailEl.value || '';
         document.getElementById('errAdminPin').classList.remove('show');
         refreshAdminLoginView();
       }
@@ -2638,39 +2842,103 @@
       if (e.target === adminOverlay) adminOverlay.classList.remove('open');
     });
 
-    document.getElementById('adminLoginBtn').addEventListener('click', doAdminLogin);
+    document.getElementById('adminLoginBtn').addEventListener('click', () => { void doAdminLogin(); });
     document.getElementById('adminPin').addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') doAdminLogin();
+      if (e.key === 'Enter') void doAdminLogin();
     });
+    document.getElementById('adminEmail')?.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') void doAdminLogin();
+    });
+    document.getElementById('adminLogoutBtn')?.addEventListener('click', () => { void doAdminLogout(); });
+    document.getElementById('adminTopLogoutBtn')?.addEventListener('click', () => { void doAdminLogout(); });
 
-    function doAdminLogin() {
+    async function doAdminLogout() {
+      if (isSupabaseReady()) await RachaweiStoreApi.signOut();
+      adminLoggedIn = false;
+      const topLogout = document.getElementById('adminTopLogoutBtn');
+      if (topLogout) topLogout.style.display = 'none';
+      const label = document.getElementById('adminUserLabel');
+      if (label) label.textContent = 'ราชาหวายสุรินทร์';
+      adminLoginView.style.display = 'block';
+      adminMainView.style.display = 'none';
+      showToast('ออกจากระบบแล้ว');
+      refreshAdminLoginView();
+    }
+
+    async function doAdminLogin() {
       const pin = document.getElementById('adminPin').value.trim();
+      const errEl = document.getElementById('errAdminPin');
+      const btn = document.getElementById('adminLoginBtn');
+
+      if (isSupabaseReady()) {
+        const email = (document.getElementById('adminEmail')?.value || '').trim();
+        if (!email || pin.length < 4) {
+          errEl.classList.add('show');
+          return;
+        }
+        if (btn) {
+          btn.disabled = true;
+          btn.textContent = 'กำลังเข้าสู่ระบบ…';
+        }
+        try {
+          const result = await RachaweiStoreApi.signIn(email, pin);
+          if (!result.ok) {
+            errEl.classList.add('show');
+            return;
+          }
+          const ok = await RachaweiStoreApi.isAdminUser();
+          if (!ok) {
+            await RachaweiStoreApi.signOut();
+            errEl.textContent = 'บัญชีนี้ไม่มีสิทธิ์ admin';
+            errEl.classList.add('show');
+            return;
+          }
+          adminLoggedIn = true;
+          errEl.classList.remove('show');
+          const label = document.getElementById('adminUserLabel');
+          if (label) label.textContent = email;
+          await refreshAdminOrdersFromSupabase();
+          showAdminMain();
+          showToast('เข้าสู่ระบบหลังร้านแล้ว ✓');
+        } catch (e) {
+          errEl.classList.add('show');
+        } finally {
+          if (btn) {
+            btn.disabled = false;
+            btn.textContent = 'เข้าสู่ระบบ';
+          }
+        }
+        return;
+      }
+
       if (!hasAdminPinConfigured()) {
         if (pin.length < 4) {
-          document.getElementById('errAdminPin').classList.add('show');
+          errEl.classList.add('show');
           return;
         }
         SHOP_CONFIG.adminPinHash = hashAdminPin(pin);
         saveShopSettings({});
         adminLoggedIn = true;
-        document.getElementById('errAdminPin').classList.remove('show');
+        errEl.classList.remove('show');
         showAdminMain();
         showToast('ตั้งรหัสหลังร้านแล้ว ✓');
         return;
       }
       if (verifyAdminPin(pin)) {
         adminLoggedIn = true;
-        document.getElementById('errAdminPin').classList.remove('show');
+        errEl.classList.remove('show');
         showAdminMain();
         showToast('เข้าสู่ระบบหลังร้านแล้ว ✓');
       } else {
-        document.getElementById('errAdminPin').classList.add('show');
+        errEl.classList.add('show');
       }
     }
 
     function showAdminMain() {
       adminLoginView.style.display = 'none';
       adminMainView.style.display = 'flex';
+      const topLogout = document.getElementById('adminTopLogoutBtn');
+      if (topLogout) topLogout.style.display = 'inline-flex';
       renderAdminTab(adminTab);
     }
 
@@ -2689,7 +2957,12 @@
       if (tab === 'dash') renderAdminDash();
       else if (tab === 'products') renderAdminProducts();
       else if (tab === 'videos') renderAdminVideos();
-      else if (tab === 'orders') renderAdminOrders();
+      else if (tab === 'orders') {
+        void (async () => {
+          await refreshAdminOrdersFromSupabase();
+          renderAdminOrders();
+        })();
+      }
       else if (tab === 'content') {
         if (typeof renderAdminFrontContent === 'function') renderAdminFrontContent();
         else document.getElementById('adminContent').innerHTML = '<p>โหลดแท็บหน้าบ้านไม่สำเร็จ</p>';
@@ -2704,33 +2977,41 @@
         SHOP_CONFIG.content = mergeStoreContent(partial.content);
       }
       applyShopConfig();
+      const toSave = {
+        shopName: SHOP_CONFIG.shopName,
+        shopSub: SHOP_CONFIG.shopSub,
+        phoneDisplay: SHOP_CONFIG.phoneDisplay,
+        phoneTel: SHOP_CONFIG.phoneTel,
+        lineUrl: SHOP_CONFIG.lineUrl,
+        facebookUrl: SHOP_CONFIG.facebookUrl,
+        addressHtml: SHOP_CONFIG.addressHtml,
+        mapUrl: SHOP_CONFIG.mapUrl,
+        adminPinHash: getAdminPinHash(),
+        promoMin: SHOP_CONFIG.promoMin,
+        promoDiscount: SHOP_CONFIG.promoDiscount,
+        shippingFee: SHOP_CONFIG.shippingFee,
+        freeShippingMin: SHOP_CONFIG.freeShippingMin,
+        bankName: SHOP_CONFIG.bankName,
+        bankAccountName: SHOP_CONFIG.bankAccountName,
+        promptPayNo: SHOP_CONFIG.promptPayNo,
+        bankAccountNo: SHOP_CONFIG.bankAccountNo,
+        bankNote: SHOP_CONFIG.bankNote,
+        heroImages: Array.isArray(SHOP_CONFIG.heroImages) ? SHOP_CONFIG.heroImages : [],
+        storefrontPhotos: Array.isArray(SHOP_CONFIG.storefrontPhotos) ? SHOP_CONFIG.storefrontPhotos : [],
+        content: SHOP_CONFIG.content || null
+      };
       if (dbReady) {
         try {
-          const toSave = {
-            shopName: SHOP_CONFIG.shopName,
-            shopSub: SHOP_CONFIG.shopSub,
-            phoneDisplay: SHOP_CONFIG.phoneDisplay,
-            phoneTel: SHOP_CONFIG.phoneTel,
-            lineUrl: SHOP_CONFIG.lineUrl,
-            facebookUrl: SHOP_CONFIG.facebookUrl,
-            addressHtml: SHOP_CONFIG.addressHtml,
-            mapUrl: SHOP_CONFIG.mapUrl,
-            adminPinHash: getAdminPinHash(),
-            promoMin: SHOP_CONFIG.promoMin,
-            promoDiscount: SHOP_CONFIG.promoDiscount,
-            shippingFee: SHOP_CONFIG.shippingFee,
-            freeShippingMin: SHOP_CONFIG.freeShippingMin,
-            bankName: SHOP_CONFIG.bankName,
-            bankAccountName: SHOP_CONFIG.bankAccountName,
-            promptPayNo: SHOP_CONFIG.promptPayNo,
-            bankAccountNo: SHOP_CONFIG.bankAccountNo,
-            bankNote: SHOP_CONFIG.bankNote,
-            heroImages: Array.isArray(SHOP_CONFIG.heroImages) ? SHOP_CONFIG.heroImages : [],
-            storefrontPhotos: Array.isArray(SHOP_CONFIG.storefrontPhotos) ? SHOP_CONFIG.storefrontPhotos : [],
-            content: SHOP_CONFIG.content || null
-          };
           await idbSet('shopSettings', toSave);
         } catch (e) { console.warn(e); }
+      }
+      if (isSupabaseReady() && adminLoggedIn) {
+        const remote = await RachaweiStoreApi.saveShopSettingsRemote(toSave);
+        if (!remote.ok) {
+          console.warn('บันทึกตั้งค่าร้านขึ้น Supabase ไม่สำเร็จ', remote.error);
+          showToast('บันทึกในเครื่องแล้ว แต่ซิงก์คลาวด์ไม่สำเร็จ');
+          return;
+        }
       }
       showToast('บันทึกตั้งค่าร้านแล้ว');
     }
@@ -2744,8 +3025,10 @@
       el.innerHTML = `
         <div class="admin-section-title">ตั้งค่าร้าน (แก้ไขได้ตลอด)</div>
         <p style="font-size:0.85rem;color:var(--text-soft);margin-bottom:1rem;line-height:1.55;">
-          ค่าเหล่านี้บันทึกในเบราว์เซอร์เครื่องนี้ และแสดงบนหน้าร้านทันที
-          หากต้องการให้ผู้เข้าชมทุกคนเห็นค่าเดียวกันถาวร ให้แก้ในไฟล์ <code>SHOP_CONFIG</code> แล้ว deploy ใหม่
+          ค่าเหล่านี้แสดงบนหน้าร้านทันที
+          ${isSupabaseReady()
+            ? 'เมื่อเข้าสู่ระบบ Supabase แล้ว การบันทึกจะซิงก์ขึ้นคลาวด์ให้ลูกค้าทุกคนเห็น'
+            : 'โหมดท้องถิ่น: บันทึกในเบราว์เซอร์เครื่องนี้ — ตั้ง VITE_SUPABASE_* แล้ว deploy เพื่อซิงก์คลาวด์'}
         </p>
         <div style="display:grid;gap:0.75rem;max-width:560px;">
           <label style="font-size:0.82rem;font-weight:600;">ชื่อร้าน
@@ -3671,7 +3954,7 @@
       adminContent.scrollTop = 0;
     };
 
-    window.adminDeleteProduct = function(id) {
+    window.adminDeleteProduct = async function(id) {
       if (!confirm('ลบสินค้านี้?')) return;
       const idx = products.findIndex(p => p.id === id);
       if (idx >= 0) products.splice(idx, 1);
@@ -3679,7 +3962,11 @@
       shopVideos.forEach((v) => {
         if (v.productId === id) v.productId = null;
       });
-      saveProducts();
+      if (isSupabaseReady() && adminLoggedIn) {
+        const remote = await RachaweiStoreApi.deleteProductRemote(id);
+        if (!remote.ok) console.warn('ลบสินค้าบน Supabase ไม่สำเร็จ', remote.error);
+      }
+      await saveProducts();
       saveShopVideos();
       saveCart();
       updateBadge();
@@ -3950,7 +4237,7 @@
       `;
     }
 
-    window.adminSetOrderStatus = function(id, idxStr) {
+    window.adminSetOrderStatus = async function(id, idxStr) {
       const o = orders.find(x => x.id === id);
       if (!o) return;
       const idx = parseInt(idxStr, 10);
@@ -3959,6 +4246,14 @@
         o.history.push({ index: idx, at: Date.now() });
       }
       saveOrders();
+      if (isSupabaseReady() && adminLoggedIn) {
+        const remote = await RachaweiStoreApi.updateOrderStatus(id, o.statusIndex, o.history);
+        if (!remote.ok) {
+          showToast('อัปเดตสถานะบนคลาวด์ไม่สำเร็จ');
+          renderAdminOrders();
+          return;
+        }
+      }
       showToast('อัปเดตสถานะแล้ว ✓');
       renderAdminOrders();
     };
@@ -4372,11 +4667,16 @@
           sanitizeCartForProducts();
         }
       }
+      await restoreAdminSession();
       renderProducts();
       updateBadge();
       setTheme(getTheme());
       if (ok) {
-        console.log('โหลดข้อมูลถาวรจาก IndexedDB สำเร็จ');
+        console.log(
+          isSupabaseReady()
+            ? 'โหลดข้อมูลร้านพร้อม Supabase'
+            : 'โหลดข้อมูลถาวรจาก IndexedDB สำเร็จ',
+        );
       } else if (!products.length) {
         grid.innerHTML = `<div class="product-card" style="grid-column:1/-1;min-height:120px;align-items:center;justify-content:center;padding:1.25rem;text-align:center;color:#8a4b12;">โหลดรายการสินค้าไม่สำเร็จ — กรุณารีเฟรชหน้า</div>`;
       }

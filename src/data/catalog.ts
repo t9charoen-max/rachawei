@@ -14,6 +14,12 @@ export interface CatalogItem {
   /** ชื่อไฟล์ใน /products/ หรือ data URL */
   images: string[];
   panorama360?: string;
+  price?: number;
+  stock?: number;
+  storeCat?: string;
+  emoji?: string;
+  badge?: string;
+  size?: string;
 }
 
 const DRAFT_KEY = 'rachawei-catalog-drafts-v1';
@@ -185,7 +191,7 @@ export function mergeCatalog(base: CatalogItem[], drafts: CatalogItem[]): Catalo
   });
 }
 
-export async function fetchBaseCatalog(): Promise<CatalogItem[]> {
+async function fetchJsonCatalog(): Promise<CatalogItem[]> {
   const urls = [
     `/catalog/products.json?v=${PRODUCT_IMAGE_VERSION}`,
     '/catalog/products.json',
@@ -205,6 +211,18 @@ export async function fetchBaseCatalog(): Promise<CatalogItem[]> {
     }
   }
   throw lastError ?? new Error('โหลดรายการสินค้าไม่สำเร็จ');
+}
+
+/** โหลดแคตตาล็อก — ใช้ Supabase เป็นหลัก แล้วค่อย fallback ไป products.json */
+export async function fetchBaseCatalog(): Promise<CatalogItem[]> {
+  try {
+    const { fetchStoreProductsFromSupabase } = await import('../lib/storeProducts');
+    const remote = await fetchStoreProductsFromSupabase();
+    if (remote && remote.length > 0) return remote;
+  } catch (err) {
+    console.warn('[catalog] Supabase unavailable, falling back to JSON', err);
+  }
+  return fetchJsonCatalog();
 }
 
 export async function loadProducts(): Promise<Product[]> {
