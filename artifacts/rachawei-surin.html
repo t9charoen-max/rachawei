@@ -1,11 +1,12 @@
 <!DOCTYPE html>
-<html lang="th">
+<html lang="th" data-theme="light">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>ราชาหวายสุรินทร์ | ตะกร้าหวายสานมือคุณภาพจากบ้านบุทม</title>
   <meta name="description" content="ตะกร้าหวายสานมือจากหมู่บ้านจักสานบ้านบุทม ต.เมืองที สุรินทร์ ใช้หวายหางหนู ไม่เคลือบแล็กเกอร์ สืบทอดภูมิปัญญากว่า 60 ปี สินค้า OTOP" />
   <meta name="theme-color" content="#5c4033" />
+  <meta name="color-scheme" content="light" />
   <meta name="robots" content="index,follow" />
   <meta name="author" content="ราชาหวายสุรินทร์" />
   <link rel="canonical" href="/" />
@@ -22,9 +23,26 @@
   <link rel="manifest" href="/store-manifest.webmanifest" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <meta name="apple-mobile-web-app-title" content="ราชาหวาย" />
   <meta property="og:image" content="https://rachawei.vercel.app/brand/rachawei-logo-square.png?v=1940" />
+  <script>
+    /* Apply Light Theme before CSS paint — do not follow OS dark mode */
+    (function () {
+      try {
+        if (!localStorage.getItem('rachawei_light_design_v1')) {
+          localStorage.setItem('rachawei_light_design_v1', '1');
+          localStorage.removeItem('rachawei_theme');
+        }
+        var t = localStorage.getItem('rachawei_theme');
+        document.documentElement.setAttribute('data-theme', (t === 'dark' || t === 'light') ? t : 'light');
+        var meta = document.querySelector('meta[name="color-scheme"]');
+        if (meta) meta.content = (t === 'dark') ? 'dark' : 'light';
+      } catch (e) {
+        document.documentElement.setAttribute('data-theme', 'light');
+      }
+    })();
+  </script>
   <link rel="stylesheet" href="css/styles.css" />
 </head>
 <body class="shop-app">

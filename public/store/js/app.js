@@ -4,19 +4,22 @@
  */
 /* SHOP_CONFIG → js/config.js */
 
-    // ========== THEME (Dark Mode) ==========
+    // ========== THEME (default = Light Design) ==========
+    // Store design is Light. Do not follow OS prefers-color-scheme.
+    // One-time migration clears older auto-dark (from OS) so Production matches Preview.
+    const THEME_LS_KEY = 'rachawei_theme';
+    const THEME_LIGHT_DESIGN_FLAG = 'rachawei_light_design_v1';
+
     (function initThemeEarly() {
       let theme = 'light';
       try {
-        theme = localStorage.getItem('rachawei_theme') || theme;
+        if (!localStorage.getItem(THEME_LIGHT_DESIGN_FLAG)) {
+          localStorage.setItem(THEME_LIGHT_DESIGN_FLAG, '1');
+          localStorage.removeItem(THEME_LS_KEY);
+        }
+        const saved = localStorage.getItem(THEME_LS_KEY);
+        if (saved === 'dark' || saved === 'light') theme = saved;
       } catch (e) { /* sandbox */ }
-      if (!theme || (theme !== 'dark' && theme !== 'light')) {
-        try {
-          if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-            theme = 'dark';
-          }
-        } catch (e) {}
-      }
       document.documentElement.setAttribute('data-theme', theme);
     })();
 
@@ -25,23 +28,26 @@
     }
 
     function setTheme(theme) {
-      document.documentElement.setAttribute('data-theme', theme);
+      const next = theme === 'dark' ? 'dark' : 'light';
+      document.documentElement.setAttribute('data-theme', next);
       try {
-        localStorage.setItem('rachawei_theme', theme);
+        localStorage.setItem(THEME_LS_KEY, next);
       } catch (e) { /* ignore sandbox */ }
       // Also persist via IndexedDB when ready
       try {
         if (typeof idbSet === 'function' && typeof dbReady !== 'undefined' && dbReady) {
-          idbSet('theme', theme);
+          idbSet('theme', next);
         }
       } catch (e) {}
       const btn = document.getElementById('themeBtn');
       if (btn) {
-        btn.textContent = theme === 'dark' ? '☀️' : '🌙';
-        btn.title = theme === 'dark' ? 'เปลี่ยนเป็นโหมดสว่าง' : 'เปลี่ยนเป็นโหมดมืด';
+        btn.textContent = next === 'dark' ? '☀️' : '🌙';
+        btn.title = next === 'dark' ? 'เปลี่ยนเป็นโหมดสว่าง' : 'เปลี่ยนเป็นโหมดมืด';
       }
       const meta = document.querySelector('meta[name="theme-color"]');
-      if (meta) meta.content = theme === 'dark' ? '#1a1612' : '#5c4033';
+      if (meta) meta.content = next === 'dark' ? '#1a1612' : '#5c4033';
+      const scheme = document.querySelector('meta[name="color-scheme"]');
+      if (scheme) scheme.content = next === 'dark' ? 'dark' : 'light';
     }
 
     function toggleTheme() {
@@ -252,7 +258,6 @@
         const savedCart = await idbGet('cart');
         const savedOrders = await idbGet('orders');
         const savedSeq = await idbGet('orderSeq');
-        const savedTheme = await idbGet('theme');
         const savedShop = await idbGet('shopSettings');
         const savedVideos = await idbGet('shopVideos');
         const savedCatalogVer = await idbGet('catalogSyncVersion');
@@ -296,8 +301,18 @@
         saveCartToLocalStorage();
         if (Array.isArray(savedOrders)) orders = savedOrders;
         if (typeof savedSeq === 'number' && savedSeq > 0) orderSeq = savedSeq;
-        if (savedTheme === 'dark' || savedTheme === 'light') {
-          setTheme(savedTheme);
+        // Theme source of truth = localStorage (Light by default).
+        // Do not re-apply stale IndexedDB dark from older OS auto-detect.
+        try {
+          const lsTheme = localStorage.getItem(THEME_LS_KEY);
+          if (lsTheme === 'dark' || lsTheme === 'light') {
+            setTheme(lsTheme);
+          } else {
+            setTheme('light');
+            await idbSet('theme', 'light');
+          }
+        } catch (e) {
+          setTheme('light');
         }
         if (savedShop && typeof savedShop === 'object') {
           Object.assign(SHOP_CONFIG, savedShop);

@@ -1,4 +1,5 @@
 :root {
+      color-scheme: light;
       --rattan: #d2b48c;
       --rattan-dark: #b8895a;
       --rattan-deep: #3a271c;
@@ -32,6 +33,7 @@
     }
 
     [data-theme="dark"] {
+      color-scheme: dark;
       --rattan: #d8c0a0;
       --rattan-dark: #c9a87c;
       --rattan-deep: #f2e6d8;
