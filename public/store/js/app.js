@@ -2982,6 +2982,54 @@
       }
     }
 
+    function bindAdminAuthState() {
+      if (!isSupabaseReady() || typeof RachaweiStoreApi.getClient !== 'function') return;
+      const sb = RachaweiStoreApi.getClient();
+      if (!sb?.auth?.onAuthStateChange || bindAdminAuthState._bound) return;
+      bindAdminAuthState._bound = true;
+      sb.auth.onAuthStateChange((event, session) => {
+        void (async () => {
+          if (event === 'SIGNED_OUT' || !session) {
+            if (adminLoggedIn) {
+              adminLoggedIn = false;
+              const topLogout = document.getElementById('adminTopLogoutBtn');
+              if (topLogout) topLogout.style.display = 'none';
+              const label = document.getElementById('adminUserLabel');
+              if (label) label.textContent = 'ราชาหวายสุรินทร์';
+              if (adminOverlay?.classList.contains('open')) {
+                adminLoginView.style.display = 'block';
+                adminMainView.style.display = 'none';
+                refreshAdminLoginView();
+              }
+            }
+            return;
+          }
+          if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION') {
+            if (!adminLoggedIn && session) {
+              try {
+                const access = await RachaweiStoreApi.ensureAdminAccess();
+                if (!access.ok) return;
+                adminLoggedIn = true;
+                const email = session.user?.email || access.email || '';
+                const label = document.getElementById('adminUserLabel');
+                if (label && email) {
+                  label.textContent = email;
+                  rememberAdminEmail(email);
+                }
+                if (adminOverlay?.classList.contains('open')) {
+                  adminTab = 'dash';
+                  await refreshAdminOrdersFromSupabase();
+                  showAdminMain();
+                }
+              } catch (e) {
+                console.warn('admin auth state sync failed', e);
+              }
+            }
+          }
+        })();
+      });
+    }
+
     async function refreshAdminOrdersFromSupabase() {
       if (!adminLoggedIn) {
         return { ok: false, skipped: true };
@@ -5083,6 +5131,7 @@
         }
       }
       await restoreAdminSession();
+      bindAdminAuthState();
       renderProducts();
       updateBadge();
       setTheme(getTheme());
