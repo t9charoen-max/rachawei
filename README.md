@@ -30,27 +30,21 @@ npm run dev
 ### Supabase (Production)
 
 1. สร้างโปรเจกต์ Supabase แยกสำหรับร้าน (แนะนำชื่อ Rachawei-store)
-2. รัน SQL ตามลำดับใน `supabase/store/`:
-   - `001_rachawei_store_schema.sql`
-   - `002_rachawei_store_seed_products.sql`
-   - `003_store_create_order_rpc.sql`
-3. สร้างผู้ใช้เจ้าของร้านใน Authentication (ปิด public sign-up)
-4. เพิ่ม user ลง `store_admins`:
-
-```sql
-insert into public.store_admins (user_id, email)
-values ('<auth-user-uuid>', 'owner@example.com')
-on conflict (user_id) do nothing;
-```
-
+2. รัน SQL ตามลำดับใน `supabase/store/` (ดู `supabase/store/README.md`)
+   - ของใหม่/Production: อย่างน้อย `004` + **`006_admin_auth_grants_bootstrap.sql`**
+3. สร้างผู้ใช้เจ้าของร้านใน Authentication (อีเมลจริง — ห้ามใช้ owner@example.com)
+   - แนะนำ Auto Confirm / ปิด Confirm email สำหรับร้าน
+   - ปิด public sign-up หลังมีเจ้าของร้านแล้ว
+4. ลิงก์สิทธิ์แอดมินอย่างใดอย่างหนึ่ง:
+   - login ครั้งแรกที่ `/store/#admin` (ถ้า `store_admins` ว่าง → `store_claim_first_admin`)
+   - หรือ SQL: `select public.store_link_admin_by_email('you@yourdomain.com');`
 5. ตั้งค่าใน Vercel (Production) ให้ถูกต้อง — คนละค่า:
    - `VITE_SUPABASE_URL` = `https://YOUR_PROJECT.supabase.co`
    - `VITE_SUPABASE_ANON_KEY` = anon/publishable key (`eyJ…` หรือ `sb_publishable_…`)
    - ห้ามใส่ค่าเดียวกันทั้งสองช่อง
-   - ห้าม service_role
+   - ห้ามใส่ service_role ในตัวแปร `VITE_*` / frontend
+   - (ทางเลือก server-only) `SUPABASE_SERVICE_ROLE_KEY` + `STORE_ADMIN_BOOTSTRAP_SECRET` สำหรับ `/api/store-admin-bootstrap`
    - หลังแก้ต้อง **Redeploy**
-6. (แนะนำ) รัน `004_ensure_production_rpc.sql` + `005_store_admin_list_orders.sql`
-   เพื่อให้ Admin Dashboard โหลด `store_orders` / `store_order_items` ได้ทันทีหลัง login
 
 ตรวจสุขภาพการตั้งค่า: เปิด `/api/store-config` ต้องได้ `configured: true`
 (ถ้า `sameValue: true` แปลว่า URL กับ Key ใส่ค่าเดียวกัน — Admin จะขึ้นเตือนชัดเจน ไม่แสดง 0 เงียบ ๆ)

@@ -345,50 +345,44 @@
       console.warn('[rachawei] RPC list orders failed, fallback to SELECT', e);
     }
 
-    // 2) Fallback: direct SELECT + store_order_items (requires admin RLS)
+    // 2) Fallback: direct SELECT + store_order_items (requires GRANT + admin RLS)
     const { data: orderRows, error } = await sb
       .from('store_orders')
       .select('*')
       .order('created_at', { ascending: false })
       .limit(200);
-    if (error) {
-      console.error('[rachawei] admin orders:', error.message);
-      return {
-        ok: false,
-        orders: [],
-        error: `อ่าน store_orders ไม่สำเร็จ: ${error.message} (ตรวจ RLS / store_admins)`,
-        source: 'select',
-      };
-    }
-
-    const ids = (orderRows || []).map((o) => o.id);
-    let itemsByOrder = {};
-    if (ids.length) {
-      const { data: itemRows, error: itemErr } = await sb
-        .from('store_order_items')
-        .select('*')
-        .in('order_id', ids);
-      if (itemErr) {
-        console.error('[rachawei] admin order items:', itemErr.message);
-        return {
-          ok: false,
-          orders: [],
-          error: `อ่าน store_order_items ไม่สำเร็จ: ${itemErr.message}`,
-          source: 'select_items',
-        };
+    if (!error) {
+      const ids = (orderRows || []).map((o) => o.id);
+      let itemsByOrder = {};
+      if (ids.length) {
+        const { data: itemRows, error: itemErr } = await sb
+          .from('store_order_items')
+          .select('*')
+          .in('order_id', ids);
+        if (itemErr) {
+          console.error('[rachawei] admin order items:', itemErr.message);
+          // fall through to service proxy
+        } else {
+          itemsByOrder = (itemRows || []).reduce((acc, row) => {
+            (acc[row.order_id] ||= []).push(row);
+            return acc;
+          }, {});
+          return {
+            ok: true,
+            orders: (orderRows || []).map((o) => normalizeAdminOrder(o, itemsByOrder[o.id] || [])),
+            error: null,
+            source: 'select',
+          };
+        }
+      } else {
+        return { ok: true, orders: [], error: null, source: 'select' };
       }
-      itemsByOrder = (itemRows || []).reduce((acc, row) => {
-        (acc[row.order_id] ||= []).push(row);
-        return acc;
-      }, {});
+    } else {
+      console.warn('[rachawei] admin orders select failed, try service proxy', error.message);
     }
 
-    return {
-      ok: true,
-      orders: (orderRows || []).map((o) => normalizeAdminOrder(o, itemsByOrder[o.id] || [])),
-      error: null,
-      source: 'select',
-    };
+    // 3) Server proxy with service role (never exposes the key to the browser)
+    return fetchOrdersViaServiceProxy();
   }
 
   async function updateOrderStatus(orderId, statusIndex, history) {
@@ -476,11 +470,75 @@
     return { ok: true };
   }
 
+  function mapAuthError(error) {
+    const msg = String(error?.message || error || '');
+    const code = String(error?.code || error?.error_code || '');
+    const lower = msg.toLowerCase();
+    if (code === 'email_not_confirmed' || /email not confirmed/i.test(msg)) {
+      return {
+        code: 'email_not_confirmed',
+        message:
+          'อีเมลยังไม่ได้ยืนยัน — เปิดลิงก์ยืนยันในอีเมล หรือให้ปิด Confirm email ใน Supabase Auth สำหรับร้านนี้',
+      };
+    }
+    if (
+      code === 'invalid_credentials' ||
+      /invalid login credentials|invalid_grant/i.test(msg) ||
+      lower.includes('invalid login')
+    ) {
+      return {
+        code: 'invalid_credentials',
+        message: 'อีเมลหรือรหัสผ่านไม่ถูกต้อง',
+      };
+    }
+    if (/too many requests|rate limit/i.test(msg)) {
+      return {
+        code: 'rate_limited',
+        message: 'พยายามเข้าสู่ระบบบ่อยเกินไป — รอสักครู่แล้วลองใหม่',
+      };
+    }
+    if (!msg || msg === 'supabase_not_configured') {
+      return {
+        code: 'supabase_not_configured',
+        message: 'ยังเชื่อมต่อ Supabase ไม่ได้ — ตรวจ VITE_SUPABASE_URL และ VITE_SUPABASE_ANON_KEY',
+      };
+    }
+    return { code: code || 'auth_error', message: msg };
+  }
+
   async function signIn(email, password) {
     const sb = getClient();
-    if (!sb) return { ok: false, error: 'supabase_not_configured' };
-    const { data, error } = await sb.auth.signInWithPassword({ email, password });
-    if (error) return { ok: false, error: error.message };
+    if (!sb) {
+      return {
+        ok: false,
+        error: 'supabase_not_configured',
+        message: 'ยังเชื่อมต่อ Supabase ไม่ได้ — ตรวจ VITE_SUPABASE_URL และ VITE_SUPABASE_ANON_KEY',
+      };
+    }
+    const cleanEmail = String(email || '').trim().toLowerCase();
+    const cleanPassword = String(password || '');
+    if (!cleanEmail || !cleanEmail.includes('@')) {
+      return {
+        ok: false,
+        error: 'email_invalid',
+        message: 'กรุณากรอกอีเมลเจ้าของร้านให้ถูกต้อง',
+      };
+    }
+    if (cleanPassword.length < 6) {
+      return {
+        ok: false,
+        error: 'password_too_short',
+        message: 'รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร',
+      };
+    }
+    const { data, error } = await sb.auth.signInWithPassword({
+      email: cleanEmail,
+      password: cleanPassword,
+    });
+    if (error) {
+      const mapped = mapAuthError(error);
+      return { ok: false, error: mapped.code, message: mapped.message };
+    }
     return { ok: true, session: data.session, user: data.user };
   }
 
@@ -488,7 +546,7 @@
     const sb = getClient();
     if (!sb) return { ok: true };
     const { error } = await sb.auth.signOut();
-    if (error) return { ok: false, error: error.message };
+    if (error) return { ok: false, error: error.message, message: error.message };
     return { ok: true };
   }
 
@@ -513,6 +571,117 @@
     return Boolean(data);
   }
 
+  /**
+   * Claim first admin when store_admins is empty (SQL 006).
+   * Returns { ok, claimed, alreadyAdmin, error, message }
+   */
+  async function claimFirstAdmin() {
+    const sb = getClient();
+    if (!sb) {
+      return {
+        ok: false,
+        error: 'supabase_not_configured',
+        message: 'ยังเชื่อมต่อ Supabase ไม่ได้',
+      };
+    }
+    const { data, error } = await sb.rpc('store_claim_first_admin');
+    if (error) {
+      const msg = String(error.message || '');
+      if (/admin_already_configured/i.test(msg)) {
+        return {
+          ok: false,
+          error: 'admin_already_configured',
+          message:
+            'มีแอดมินในระบบแล้ว — บัญชีนี้ยังไม่อยู่ใน store_admins ให้เจ้าของร้านเพิ่มสิทธิ์ใน Supabase',
+        };
+      }
+      if (/not_authenticated/i.test(msg)) {
+        return {
+          ok: false,
+          error: 'not_authenticated',
+          message: 'ยังไม่ได้เข้าสู่ระบบ',
+        };
+      }
+      if (/store_claim_first_admin|PGRST202|404|function/i.test(msg)) {
+        return {
+          ok: false,
+          error: 'rpc_missing',
+          message:
+            'ยังไม่ได้รัน SQL 006 (store_claim_first_admin) ใน Supabase — หรือใช้ /api/store-admin-bootstrap ฝั่งเซิร์ฟเวอร์',
+        };
+      }
+      return { ok: false, error: 'claim_failed', message: msg };
+    }
+    return {
+      ok: true,
+      claimed: Boolean(data?.claimed),
+      alreadyAdmin: Boolean(data?.already_admin),
+      email: data?.email || null,
+    };
+  }
+
+  async function ensureAdminAccess() {
+    if (await isAdminUser()) return { ok: true, via: 'store_admins' };
+    const claim = await claimFirstAdmin();
+    if (claim.ok) {
+      const ok = await isAdminUser();
+      return ok
+        ? { ok: true, via: claim.claimed ? 'claimed_first_admin' : 'already_admin' }
+        : {
+            ok: false,
+            error: 'not_admin',
+            message: 'เข้าสู่ระบบแล้วแต่ยังไม่มีสิทธิ์แอดมิน',
+          };
+    }
+    return {
+      ok: false,
+      error: claim.error || 'not_admin',
+      message:
+        claim.message ||
+        'บัญชีนี้ไม่มีสิทธิ์แอดมิน — ต้องอยู่ในตาราง store_admins',
+    };
+  }
+
+  async function fetchOrdersViaServiceProxy() {
+    const session = await getSession();
+    if (!session?.access_token) {
+      return {
+        ok: false,
+        orders: [],
+        error: 'ยังไม่ได้เข้าสู่ระบบ admin — กรุณา login ด้วยบัญชีเจ้าของร้าน',
+        source: 'no_session',
+      };
+    }
+    try {
+      const res = await fetch('/api/store-admin-orders?limit=200', {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+        cache: 'no-store',
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data?.ok) {
+        return {
+          ok: false,
+          orders: [],
+          error: data?.message || data?.error || `proxy_http_${res.status}`,
+          source: 'service_proxy',
+        };
+      }
+      return {
+        ok: true,
+        orders: (data.orders || []).map((row) => normalizeAdminOrder(row, row.items || [])),
+        error: null,
+        source: data.source || 'service_proxy',
+      };
+    } catch (e) {
+      return {
+        ok: false,
+        orders: [],
+        error: `proxy_failed: ${e?.message || e}`,
+        source: 'service_proxy',
+      };
+    }
+  }
+
   global.RachaweiStoreApi = {
     init,
     isConfigured,
@@ -522,6 +691,7 @@
     fetchPublicShopSettings,
     createOrderRemote,
     fetchOrdersForAdmin,
+    fetchOrdersViaServiceProxy,
     updateOrderStatus,
     upsertProduct,
     deleteProductRemote,
@@ -530,5 +700,7 @@
     signOut,
     getSession,
     isAdminUser,
+    claimFirstAdmin,
+    ensureAdminAccess,
   };
 })(typeof window !== 'undefined' ? window : globalThis);

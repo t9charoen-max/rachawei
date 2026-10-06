@@ -2798,6 +2798,7 @@
     let adminAuthUiMode = 'local'; // 'local' | 'supabase'
     let storeAppReady = false;
     let pendingAdminOpen = false;
+    const ADMIN_EMAIL_LS_KEY = 'rachawei_admin_email';
 
     function getAdminPinStateValue() {
       return String(adminPinState ?? '').trim();
@@ -2807,15 +2808,52 @@
       return String(pin ?? '').trim().length >= 4;
     }
 
+    function isAdminPasswordLongEnough(password) {
+      // Supabase Auth default minimum is 6
+      return String(password ?? '').length >= 6;
+    }
+
+    function getAdminEmailValue() {
+      return String(document.getElementById('adminEmail')?.value || '').trim().toLowerCase();
+    }
+
+    function isAdminEmailValid(email) {
+      const e = String(email || '').trim();
+      return e.length >= 5 && e.includes('@') && !/@example\.com$/i.test(e);
+    }
+
+    function rememberAdminEmail(email) {
+      try {
+        if (email) localStorage.setItem(ADMIN_EMAIL_LS_KEY, email);
+      } catch (_) { /* ignore */ }
+    }
+
+    function loadRememberedAdminEmail() {
+      try {
+        return String(localStorage.getItem(ADMIN_EMAIL_LS_KEY) || '').trim();
+      } catch (_) {
+        return '';
+      }
+    }
+
     function syncAdminPinControls() {
       const pin = getAdminPinStateValue();
       const btn = document.getElementById('adminLoginBtn');
       const err = document.getElementById('errAdminPin');
+
+      if (adminAuthUiMode === 'supabase') {
+        const email = getAdminEmailValue();
+        const ready = isAdminEmailValid(email) && isAdminPasswordLongEnough(pin);
+        if (btn) btn.disabled = !ready;
+        if (err && ready) err.classList.remove('show');
+        return;
+      }
+
       const longEnough = isAdminPinLongEnough(pin);
       if (btn) btn.disabled = !longEnough;
       if (!err) return;
 
-      if (adminAuthUiMode === 'local' && !hasAdminPinConfigured()) {
+      if (!hasAdminPinConfigured()) {
         err.textContent = 'กรุณาตั้งรหัสอย่างน้อย 4 หลัก';
         if (longEnough) err.classList.remove('show');
         else if (pin.length > 0) err.classList.add('show');
@@ -2862,12 +2900,19 @@
       }
 
       if (supabaseMode) {
-        if (title) title.textContent = 'เข้าสู่ระบบหลังร้าน (Supabase)';
+        if (title) title.textContent = 'เข้าสู่ระบบหลังร้าน';
         if (hint) {
-          hint.innerHTML = 'ใช้บัญชีเจ้าของร้านที่ลงทะเบียนใน Supabase Auth เท่านั้น<br><small>ผู้ใช้ทั่วไปไม่มีสิทธิ์ admin — ต้องอยู่ในตาราง store_admins</small>';
+          hint.innerHTML =
+            'เข้าด้วยบัญชีเจ้าของร้านจาก <strong>Supabase Auth</strong><br>' +
+            '<small>ต้องมีสิทธิ์ในตาราง <code>store_admins</code> — ไม่ใช่บัญชีตัวอย่าง และไม่มีรหัสผ่านเริ่มต้นในเว็บ</small>';
         }
         if (btn) btn.textContent = 'เข้าสู่ระบบ';
-        if (err) err.textContent = 'อีเมลหรือรหัสผ่านไม่ถูกต้อง หรือไม่มีสิทธิ์ admin';
+        if (err) err.textContent = 'อีเมลหรือรหัสผ่านไม่ถูกต้อง';
+        const emailEl = document.getElementById('adminEmail');
+        if (emailEl && !emailEl.value) {
+          const remembered = loadRememberedAdminEmail();
+          if (remembered && !/@example\.com$/i.test(remembered)) emailEl.value = remembered;
+        }
         syncAdminPinControls();
         return;
       }
@@ -2889,15 +2934,18 @@
       try {
         const session = await RachaweiStoreApi.getSession();
         if (!session) return;
-        const ok = await RachaweiStoreApi.isAdminUser();
-        if (!ok) {
+        const access = await RachaweiStoreApi.ensureAdminAccess();
+        if (!access.ok) {
           await RachaweiStoreApi.signOut();
           adminLoggedIn = false;
           return;
         }
         adminLoggedIn = true;
         const label = document.getElementById('adminUserLabel');
-        if (label && session.user?.email) label.textContent = session.user.email;
+        if (label && session.user?.email) {
+          label.textContent = session.user.email;
+          rememberAdminEmail(session.user.email);
+        }
         await refreshAdminOrdersFromSupabase();
       } catch (e) {
         console.warn('restore admin session failed', e);
@@ -3010,7 +3058,11 @@
         adminAuthUiMode = isSupabaseReady() ? 'supabase' : 'local';
         setAdminPinState('', { syncInput: true });
         const emailEl = document.getElementById('adminEmail');
-        if (emailEl) emailEl.value = emailEl.value || '';
+        if (emailEl) {
+          const remembered = loadRememberedAdminEmail();
+          emailEl.value = emailEl.value || remembered || '';
+          if (/@example\.com$/i.test(emailEl.value)) emailEl.value = '';
+        }
         const errEl = document.getElementById('errAdminPin');
         if (errEl) errEl.classList.remove('show');
         refreshAdminLoginView();
@@ -3044,8 +3096,16 @@
         }
       });
     }
+    document.getElementById('adminEmail')?.addEventListener('input', () => syncAdminPinControls());
+    document.getElementById('adminEmail')?.addEventListener('change', () => syncAdminPinControls());
     document.getElementById('adminEmail')?.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' && isAdminPinLongEnough(getAdminPinStateValue())) void doAdminLogin();
+      if (e.key === 'Enter') {
+        const ready =
+          adminAuthUiMode === 'supabase'
+            ? isAdminEmailValid(getAdminEmailValue()) && isAdminPasswordLongEnough(getAdminPinStateValue())
+            : isAdminPinLongEnough(getAdminPinStateValue());
+        if (ready) void doAdminLogin();
+      }
     });
     document.getElementById('adminLogoutBtn')?.addEventListener('click', () => { void doAdminLogout(); });
     document.getElementById('adminTopLogoutBtn')?.addEventListener('click', () => { void doAdminLogout(); });
@@ -3072,25 +3132,25 @@
       const errEl = document.getElementById('errAdminPin');
       const btn = document.getElementById('adminLoginBtn');
 
-      if (!isAdminPinLongEnough(pin)) {
-        if (errEl) {
-          if (adminAuthUiMode === 'local' && !hasAdminPinConfigured()) {
-            errEl.textContent = 'กรุณาตั้งรหัสอย่างน้อย 4 หลัก';
-          }
-          errEl.classList.add('show');
-        }
-        if (btn) btn.disabled = true;
-        return;
-      }
-
       // Use frozen UI mode from panel open — do not re-read live isSupabaseReady().
       if (adminAuthUiMode === 'supabase') {
-        const email = (document.getElementById('adminEmail')?.value || '').trim();
-        if (!email) {
+        const email = getAdminEmailValue();
+        if (!isAdminEmailValid(email)) {
           if (errEl) {
-            errEl.textContent = 'อีเมลหรือรหัสผ่านไม่ถูกต้อง หรือไม่มีสิทธิ์ admin';
+            errEl.textContent =
+              /@example\.com$/i.test(email)
+                ? 'ห้ามใช้อีเมลตัวอย่าง — กรอกอีเมลจริงของเจ้าของร้านใน Supabase Auth'
+                : 'กรุณากรอกอีเมลเจ้าของร้านให้ถูกต้อง';
             errEl.classList.add('show');
           }
+          return;
+        }
+        if (!isAdminPasswordLongEnough(pin)) {
+          if (errEl) {
+            errEl.textContent = 'รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร';
+            errEl.classList.add('show');
+          }
+          if (btn) btn.disabled = true;
           return;
         }
         if (btn) {
@@ -3101,30 +3161,37 @@
           const result = await RachaweiStoreApi.signIn(email, pin);
           if (!result.ok) {
             if (errEl) {
-              errEl.textContent = 'อีเมลหรือรหัสผ่านไม่ถูกต้อง หรือไม่มีสิทธิ์ admin';
+              errEl.textContent = result.message || 'อีเมลหรือรหัสผ่านไม่ถูกต้อง';
               errEl.classList.add('show');
             }
             return;
           }
-          const ok = await RachaweiStoreApi.isAdminUser();
-          if (!ok) {
+          const access = await RachaweiStoreApi.ensureAdminAccess();
+          if (!access.ok) {
             await RachaweiStoreApi.signOut();
             if (errEl) {
-              errEl.textContent = 'บัญชีนี้ไม่มีสิทธิ์ admin';
+              errEl.textContent =
+                access.message ||
+                'บัญชีนี้ไม่มีสิทธิ์แอดมิน — ต้องอยู่ในตาราง store_admins';
               errEl.classList.add('show');
             }
             return;
           }
+          rememberAdminEmail(email);
           adminLoggedIn = true;
           if (errEl) errEl.classList.remove('show');
           const label = document.getElementById('adminUserLabel');
           if (label) label.textContent = email;
           await refreshAdminOrdersFromSupabase();
           showAdminMain();
-          showToast('เข้าสู่ระบบหลังร้านแล้ว ✓');
+          showToast(
+            access.via === 'claimed_first_admin'
+              ? 'ตั้งสิทธิ์แอดมินครั้งแรกสำเร็จ ✓'
+              : 'เข้าสู่ระบบหลังร้านแล้ว ✓',
+          );
         } catch (e) {
           if (errEl) {
-            errEl.textContent = 'อีเมลหรือรหัสผ่านไม่ถูกต้อง หรือไม่มีสิทธิ์ admin';
+            errEl.textContent = 'เข้าสู่ระบบไม่สำเร็จ — ลองใหม่อีกครั้ง';
             errEl.classList.add('show');
           }
         } finally {
@@ -3133,6 +3200,19 @@
             syncAdminPinControls();
           }
         }
+        return;
+      }
+
+      if (!isAdminPinLongEnough(pin)) {
+        if (errEl) {
+          if (!hasAdminPinConfigured()) {
+            errEl.textContent = 'กรุณาตั้งรหัสอย่างน้อย 4 หลัก';
+          } else {
+            errEl.textContent = 'รหัสผ่านไม่ถูกต้อง';
+          }
+          errEl.classList.add('show');
+        }
+        if (btn) btn.disabled = true;
         return;
       }
 

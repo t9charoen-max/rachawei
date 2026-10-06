@@ -2,32 +2,47 @@
 
 รันใน SQL Editor ของโปรเจกต์ **Rachawei-store เท่านั้น**
 
-## ถ้า schema ยังไม่เคยสร้าง
-รันตามลำดับ: `001` → `002` → `003`
+## ลำดับที่แนะนำ (Production ตอนนี้)
 
-## ถ้ามีตาราง / store_admins อยู่แล้ว (แนะนำตอนนี้)
-รันเฉพาะไฟล์สั้นนี้ — **ไม่ลบและไม่ทับสินค้า**:
+1. ถ้า schema ยังไม่เคยสร้าง: `001` → `002` → `003`
+2. ถ้ามีตารางแล้ว: รัน `004_ensure_production_rpc.sql` (ไม่ลบสินค้า)
+3. **จำเป็นสำหรับ Admin:** รัน `006_admin_auth_grants_bootstrap.sql`
+   - ให้สิทธิ์ตาราง (GRANT) ที่ขาด
+   - สร้าง `store_claim_first_admin()`
+   - สร้าง/อัปเดต `store_admin_list_orders()`
+   - มี `store_link_admin_by_email(email)` สำหรับลิงก์จาก SQL Editor
 
-`004_ensure_production_rpc.sql`
+> ไฟล์ `005_store_admin_list_orders.sql` ถูกแทนที่ด้วยส่วนใน `006` แล้ว — รัน 006 พอ
 
-สร้าง/อัปเดตเฉพาะ `store_is_admin()` + `store_create_order()` และกระชับ RLS ของ admin
+## สร้างเจ้าของร้าน (ปลอดภัย)
 
-จากนั้นรัน (เพื่อให้ Admin Dashboard โหลดออเดอร์+รายการสินค้าได้เสถียร):
+### วิธี A — แนะนำเมื่อยังไม่มีแอดมิน
+1. Supabase Dashboard → Authentication → Users → Add user  
+   - ใส่อีเมลจริงของเจ้าของร้าน + รหัสผ่าน  
+   - ติ๊ก Auto Confirm user (หรือปิด Confirm email ใน Auth settings)
+2. ปิด **Public sign-up** ใน Auth settings
+3. เปิด `/store/#admin` → login ด้วยอีเมล/รหัสนั้น  
+   - ถ้า `store_admins` ว่าง ระบบจะเรียก `store_claim_first_admin()` ให้อัตโนมัติ
 
-`005_store_admin_list_orders.sql`
-
-สร้าง `store_admin_list_orders()` — admin ที่ login แล้วดึง `store_orders` + `store_order_items` ได้
-
-## เพิ่มเจ้าของร้าน (ถ้ายังไม่มีใน store_admins)
-
+### วิธี B — ลิงก์ user ที่มีอยู่แล้ว (SQL Editor)
 ```sql
-insert into public.store_admins (user_id, email)
-values ('<auth-user-uuid>', 'owner@example.com')
-on conflict (user_id) do nothing;
+select public.store_link_admin_by_email('อีเมลจริงของคุณ@domain.com');
 ```
 
-ปิด Public sign-up ใน Supabase Auth
+### วิธี C — Server bootstrap (ถ้าตั้ง env บน Vercel)
+ตั้งเฉพาะฝั่งเซิร์ฟเวอร์ (ห้ามใส่ใน frontend):
+- `SUPABASE_SERVICE_ROLE_KEY`
+- `STORE_ADMIN_BOOTSTRAP_SECRET`
 
-Frontend ใช้เฉพาะ:
+แล้วเรียก:
+```bash
+curl -X POST https://rachawei.vercel.app/api/store-admin-bootstrap \
+  -H 'Content-Type: application/json' \
+  -d '{"secret":"YOUR_SECRET","email":"owner@yourdomain.com","password":"at-least-8-chars"}'
+```
+
+## Frontend ใช้เฉพาะ
 - `VITE_SUPABASE_URL`
 - `VITE_SUPABASE_ANON_KEY`
+
+ห้ามใส่ `service_role` ใน frontend

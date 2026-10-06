@@ -17,6 +17,14 @@
     "api/store-config.ts": {
       "maxDuration": 10,
       "memory": 256
+    },
+    "api/store-admin-bootstrap.ts": {
+      "maxDuration": 30,
+      "memory": 256
+    },
+    "api/store-admin-orders.ts": {
+      "maxDuration": 20,
+      "memory": 512
     }
   },
   "headers": [
@@ -36,6 +44,20 @@
     },
     {
       "source": "/api/store-config",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-store" },
+        { "key": "Access-Control-Allow-Origin", "value": "*" }
+      ]
+    },
+    {
+      "source": "/api/store-admin-bootstrap",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-store" },
+        { "key": "Access-Control-Allow-Origin", "value": "*" }
+      ]
+    },
+    {
+      "source": "/api/store-admin-orders",
       "headers": [
         { "key": "Cache-Control", "value": "no-store" },
         { "key": "Access-Control-Allow-Origin", "value": "*" }
