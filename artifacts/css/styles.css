@@ -4172,6 +4172,7 @@
       object-fit: cover;
     }
 
+    /* Login card stays light in both themes — use fixed dark ink (not theme cream vars) */
     .admin-login {
       max-width: 360px;
       margin: 3rem auto;
@@ -4180,15 +4181,88 @@
       background: #faf6f0;
       border-radius: 20px;
       border: 1px solid rgba(196,164,132,0.35);
+      color: #2a1b14;
     }
     .admin-login h3 {
-      color: var(--rattan-deep);
+      color: #2a1b14;
       margin-bottom: 0.4rem;
     }
-    .admin-login p {
+    .admin-login p,
+    .admin-login p small {
       font-size: 0.88rem;
-      color: var(--text-soft);
+      color: #4a3428;
       margin-bottom: 1.2rem;
+      line-height: 1.5;
+    }
+    .admin-login p small {
+      font-size: 0.8rem;
+      margin-bottom: 0;
+      display: inline-block;
+      margin-top: 0.2rem;
+    }
+    .admin-login .form-group label {
+      color: #3a271c;
+    }
+    .admin-login .form-group input {
+      background: #fffdf9;
+      color: #1f1610;
+      border-color: rgba(90, 60, 40, 0.35);
+      caret-color: #3a271c;
+    }
+    .admin-login .form-group input::placeholder {
+      color: #6b5648;
+      opacity: 1;
+    }
+    .admin-login .form-error {
+      color: #a93226;
+    }
+    .admin-login .btn-primary {
+      background: linear-gradient(145deg, #6a4736 0%, #3a271c 72%, #2a1b14 100%);
+      color: #ffffff;
+    }
+    .admin-login .btn-primary:hover {
+      color: #ffffff;
+    }
+    .admin-login .btn-outline {
+      background: #fffaf3;
+      color: #3a271c;
+      border-color: rgba(184, 137, 90, 0.55);
+    }
+    [data-theme="dark"] .admin-login {
+      background: #faf6f0;
+      border-color: rgba(196,164,132,0.35);
+      color: #2a1b14;
+    }
+    [data-theme="dark"] .admin-login h3,
+    [data-theme="dark"] .admin-login .form-group label {
+      color: #2a1b14;
+    }
+    [data-theme="dark"] .admin-login p,
+    [data-theme="dark"] .admin-login p small {
+      color: #4a3428;
+    }
+    [data-theme="dark"] .admin-login .form-group input,
+    [data-theme="dark"] .admin-login .form-group textarea,
+    [data-theme="dark"] .admin-login .form-group select {
+      background: #fffdf9;
+      color: #1f1610;
+      border-color: rgba(90, 60, 40, 0.35);
+    }
+    [data-theme="dark"] .admin-login .form-group input::placeholder {
+      color: #6b5648;
+      opacity: 1;
+    }
+    [data-theme="dark"] .admin-login .btn-primary {
+      background: linear-gradient(145deg, #6a4736 0%, #3a271c 72%, #2a1b14 100%);
+      color: #ffffff;
+      box-shadow:
+        0 8px 22px rgba(58, 39, 28, 0.32),
+        0 1px 0 rgba(255, 255, 255, 0.18) inset;
+    }
+    [data-theme="dark"] .admin-login .btn-outline {
+      background: #fffaf3;
+      color: #3a271c;
+      border-color: rgba(184, 137, 90, 0.55);
     }
 
     .empty-admin {
