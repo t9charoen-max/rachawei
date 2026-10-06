@@ -346,6 +346,7 @@
     }
 
     // 2) Fallback: direct SELECT + store_order_items (requires GRANT + admin RLS)
+    let selectError = null;
     const { data: orderRows, error } = await sb
       .from('store_orders')
       .select('*')
@@ -361,6 +362,7 @@
           .in('order_id', ids);
         if (itemErr) {
           console.error('[rachawei] admin order items:', itemErr.message);
+          selectError = itemErr;
           // fall through to service proxy
         } else {
           itemsByOrder = (itemRows || []).reduce((acc, row) => {
@@ -378,11 +380,32 @@
         return { ok: true, orders: [], error: null, source: 'select' };
       }
     } else {
+      selectError = error;
       console.warn('[rachawei] admin orders select failed, try service proxy', error.message);
     }
 
     // 3) Server proxy with service role (never exposes the key to the browser)
-    return fetchOrdersViaServiceProxy();
+    const proxy = await fetchOrdersViaServiceProxy();
+    if (proxy.ok) return proxy;
+
+    const selectMsg = String(selectError?.message || selectError?.code || '');
+    const grantDenied = /42501|permission denied|GRANT SELECT/i.test(selectMsg);
+    const proxyMsg = String(proxy.error || '');
+    const serviceMissing = /service_role_missing|SERVICE_ROLE/i.test(proxyMsg);
+    return {
+      ok: false,
+      orders: [],
+      error: grantDenied
+        ? 'อ่านออเดอร์ไม่ได้: ตารางยังไม่มี GRANT/RPC — ต้องรัน supabase/store/006_admin_auth_grants_bootstrap.sql ใน Supabase SQL Editor (โปรเจกต์ Rachawei-store)'
+        : serviceMissing
+          ? `${proxyMsg} — หรือรัน SQL 006 เพื่อสร้าง store_admin_list_orders`
+          : proxy.error || selectMsg || 'อ่านออเดอร์จาก Supabase ไม่สำเร็จ',
+      source: proxy.source || 'select',
+      detail: {
+        select: selectMsg || null,
+        proxy: proxyMsg || null,
+      },
+    };
   }
 
   async function updateOrderStatus(orderId, statusIndex, history) {
