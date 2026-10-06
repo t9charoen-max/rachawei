@@ -9,7 +9,20 @@
   let client = null;
 
   function isConfigured() {
-    return Boolean(cfg.configured && cfg.url && cfg.anonKey);
+    const url = String(cfg.url || '');
+    const key = String(cfg.anonKey || '');
+    if (!cfg.configured || !url || !key || url === key) return false;
+    if (/service_role/i.test(key)) return false;
+    try {
+      const parsed = new URL(url);
+      if (parsed.protocol !== 'https:') return false;
+      return (
+        parsed.hostname.endsWith('.supabase.co') ||
+        parsed.hostname.endsWith('.supabase.in')
+      );
+    } catch {
+      return false;
+    }
   }
 
   function getClient() {

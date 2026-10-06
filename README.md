@@ -43,9 +43,12 @@ values ('<auth-user-uuid>', 'owner@example.com')
 on conflict (user_id) do nothing;
 ```
 
-5. ตั้งค่าใน Vercel:
-   - `VITE_SUPABASE_URL`
-   - `VITE_SUPABASE_ANON_KEY` (anon/public เท่านั้น — ห้าม service_role)
+5. ตั้งค่าใน Vercel (Production) ให้ถูกต้อง — คนละค่า:
+   - `VITE_SUPABASE_URL` = `https://YOUR_PROJECT.supabase.co`
+   - `VITE_SUPABASE_ANON_KEY` = anon/publishable key (`eyJ…` หรือ `sb_publishable_…`)
+   - ห้ามใส่ค่าเดียวกันทั้งสองช่อง
+   - ห้าม service_role
+   - หลังแก้ต้อง **Redeploy**
 
 ## Build
 
