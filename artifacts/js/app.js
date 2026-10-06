@@ -2909,12 +2909,24 @@
       if (emailGroup) emailGroup.style.display = supabaseMode ? 'block' : 'none';
       if (pinLabel) pinLabel.textContent = supabaseMode ? 'รหัสผ่าน (Supabase Auth)' : 'รหัสผ่าน';
       if (pinInput) {
-        pinInput.maxLength = supabaseMode ? 72 : 12;
-        pinInput.placeholder = supabaseMode ? 'รหัสผ่านบัญชีเจ้าของร้าน' : '••••';
-        pinInput.setAttribute('inputmode', supabaseMode ? 'text' : 'numeric');
-        if (supabaseMode) pinInput.removeAttribute('pattern');
-        else pinInput.setAttribute('pattern', '[0-9]*');
-        pinInput.setAttribute('autocomplete', supabaseMode ? 'current-password' : 'one-time-code');
+        // Supabase passwords can exceed the old local PIN limit (12).
+        // Always set both property + attribute so mobile browsers don't keep maxlength="12".
+        if (supabaseMode) {
+          pinInput.removeAttribute('maxlength');
+          pinInput.setAttribute('maxlength', '72');
+          pinInput.maxLength = 72;
+          pinInput.placeholder = 'รหัสผ่านบัญชีเจ้าของร้าน';
+          pinInput.setAttribute('inputmode', 'text');
+          pinInput.removeAttribute('pattern');
+          pinInput.setAttribute('autocomplete', 'current-password');
+        } else {
+          pinInput.setAttribute('maxlength', '12');
+          pinInput.maxLength = 12;
+          pinInput.placeholder = '••••';
+          pinInput.setAttribute('inputmode', 'numeric');
+          pinInput.setAttribute('pattern', '[0-9]*');
+          pinInput.setAttribute('autocomplete', 'one-time-code');
+        }
       }
 
       if (supabaseMode) {
