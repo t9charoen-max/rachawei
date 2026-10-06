@@ -60,6 +60,12 @@ check(
   'supabase-client has store_create_order',
   client.ok && client.text.includes('store_create_order'),
 );
+check(
+  'supabase-client has ensureAdminAccess / claimFirstAdmin',
+  client.ok &&
+    client.text.includes('ensureAdminAccess') &&
+    client.text.includes('claimFirstAdmin'),
+);
 
 const app = await getText('/store/js/app.js');
 check(
@@ -70,6 +76,23 @@ check(
   'app.js refreshes Admin from Supabase',
   app.ok && app.text.includes('refreshAdminOrdersFromSupabase'),
 );
+check(
+  'app.js rejects owner@example.com style emails',
+  app.ok && app.text.includes('@example.com'),
+);
+
+const html = await getText('/store/');
+check(
+  'admin email placeholder is not owner@example.com',
+  html.ok && !html.text.includes('owner@example.com'),
+);
+
+const bootstrap = await getJson('/api/store-admin-bootstrap');
+check(
+  'GET /api/store-admin-bootstrap reachable',
+  bootstrap.ok,
+  `HTTP ${bootstrap.status} serviceRole=${bootstrap.json?.serviceRoleConfigured}`,
+);
 
 const failed = rows.filter((r) => !r.pass);
 console.log('');
@@ -78,8 +101,9 @@ if (failed.length) {
   console.log('Next steps (manual):');
   console.log('1) Vercel project rachawei → set VITE_SUPABASE_URL + VITE_SUPABASE_ANON_KEY (different values)');
   console.log('2) Redeploy rachawei');
-  console.log('3) Supabase SQL Editor → run supabase/store/005_store_admin_list_orders.sql');
-  console.log('4) Re-run: node scripts/check-store-production.mjs');
+  console.log('3) Supabase SQL Editor → run supabase/store/006_admin_auth_grants_bootstrap.sql');
+  console.log('4) Create Auth user (real email) + login at /store/#admin (or store_link_admin_by_email)');
+  console.log('5) Re-run: node scripts/check-store-production.mjs');
   process.exit(1);
 }
 
