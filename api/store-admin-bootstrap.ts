@@ -4,7 +4,7 @@ import {
   getSupabaseUrl,
   hasServiceRole,
   supabaseAdminFetch,
-} from '../lib/storeSupabaseAdmin';
+} from './_lib/storeSupabaseAdmin.js';
 
 /**
  * One-time / operator bootstrap for store admin (server-only service role).
@@ -30,21 +30,22 @@ function cors(res: VercelResponse) {
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  try {
   cors(res);
   if (req.method === 'OPTIONS') return res.status(204).end();
 
   if (req.method === 'GET') {
+    let host = '';
+    try {
+      host = new URL(getSupabaseUrl()).hostname;
+    } catch {
+      host = '';
+    }
     return res.status(200).json({
       ok: true,
       serviceRoleConfigured: hasServiceRole(),
       bootstrapSecretConfigured: Boolean(read('STORE_ADMIN_BOOTSTRAP_SECRET')),
-      projectUrlHost: (() => {
-        try {
-          return new URL(getSupabaseUrl()).hostname;
-        } catch {
-          return '';
-        }
-      })(),
+      projectUrlHost: host,
       hint: hasServiceRole()
         ? 'พร้อม bootstrap — ส่ง POST พร้อม secret + email + password'
         : 'ยังไม่มี SUPABASE_SERVICE_ROLE_KEY บน Vercel — หรือรัน supabase/store/006_admin_auth_grants_bootstrap.sql ใน SQL Editor แล้วใช้ store_claim_first_admin / store_link_admin_by_email',
@@ -186,4 +187,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     userId,
     message: 'สร้าง/อัปเดตเจ้าของร้านสำเร็จ — เข้า /store/#admin ด้วยอีเมลและรหัสผ่านนี้ได้ทันที',
   });
+  } catch (e) {
+    const message = e instanceof Error ? e.message : String(e);
+    return res.status(500).json({
+      ok: false,
+      error: 'bootstrap_exception',
+      message: `bootstrap failed: ${message}`,
+    });
+  }
 }
