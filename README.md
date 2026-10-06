@@ -55,6 +55,20 @@ on conflict (user_id) do nothing;
 ตรวจสุขภาพการตั้งค่า: เปิด `/api/store-config` ต้องได้ `configured: true`
 (ถ้า `sameValue: true` แปลว่า URL กับ Key ใส่ค่าเดียวกัน — Admin จะขึ้นเตือนชัดเจน ไม่แสดง 0 เงียบ ๆ)
 
+ตรวจอัตโนมัติหลัง deploy:
+
+```bash
+npm run check:store:prod
+# หรือ
+node scripts/check-store-production.mjs https://rachawei.vercel.app
+```
+
+### ทดสอบออเดอร์ 1 รายการ (หลัง ENV + SQL พร้อม)
+1. เปิด `/store/` → ใส่สินค้าในตะกร้า → สั่งซื้อ COD
+2. ได้เลขออเดอร์จาก `store_create_order` (เช่น `RW…`)
+3. เปิด `/store/#admin` → login ด้วยบัญชีใน `store_admins`
+4. แท็บ Dashboard / ออเดอร์ ต้องเห็นออเดอร์นั้นทันที (โหลดจาก `store_orders`)
+
 ## Build
 
 ```bash

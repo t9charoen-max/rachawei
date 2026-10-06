@@ -1874,6 +1874,13 @@
       const now = Date.now();
       let id = null;
 
+      // Always refresh runtime config before checkout (Production uses /api/store-config)
+      if (typeof RachaweiStoreApi !== 'undefined') {
+        try {
+          await RachaweiStoreApi.init();
+        } catch (_) { /* continue — status checked below */ }
+      }
+
       if (isSupabaseReady()) {
         const remoteMethod =
           payload.method === 'bank' ? 'transfer' : payload.method;
@@ -1905,6 +1912,19 @@
         }
         id = remote.orderId;
       } else {
+        const status =
+          typeof RachaweiStoreApi !== 'undefined' && RachaweiStoreApi.getConfigStatus
+            ? RachaweiStoreApi.getConfigStatus()
+            : null;
+        // Production / server misconfigured → never fake a successful local-only order
+        if (status?.requiresCloudOrders) {
+          const detail = status.sameValue
+            ? 'VITE_SUPABASE_URL ต้องเป็น https://xxx.supabase.co (คนละค่ากับ ANON_KEY)'
+            : (status.hint || 'ตั้ง VITE_SUPABASE_URL + VITE_SUPABASE_ANON_KEY แล้ว Redeploy');
+          throw new Error(
+            `ระบบบันทึกออเดอร์ยังไม่พร้อม — ออเดอร์ยังไม่ได้ถูกบันทึก (${detail})`,
+          );
+        }
         id = genOrderId();
       }
 

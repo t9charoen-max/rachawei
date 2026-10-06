@@ -76,15 +76,26 @@ export default function handler(req: VercelRequest, res: VercelResponse) {
   const configured = Boolean(pickedUrl.value && pickedKey.value);
 
   if (!configured) {
+    const sameValue = Boolean(viteUrl) && viteUrl === viteKey;
+    const urlLooksValid = isValidSupabaseUrl(viteUrl) || Boolean(pickedUrl.value);
+    // When URL===KEY (both publishable), do not report keyLooksValid:true alone —
+    // that misleads operators into thinking only the URL is wrong.
+    const keyLooksValid = sameValue
+      ? false
+      : isValidAnonKey(viteKey, isValidSupabaseUrl(viteUrl) ? viteUrl : '') ||
+        Boolean(pickedKey.value && pickedUrl.value);
+
     return res.status(200).json({
       configured: false,
       urlPresent: Boolean(viteUrl || read('SUPABASE_URL') || read('NEXT_PUBLIC_SUPABASE_URL')),
       keyPresent: Boolean(viteKey || read('SUPABASE_ANON_KEY') || read('NEXT_PUBLIC_SUPABASE_ANON_KEY')),
-      urlLooksValid: isValidSupabaseUrl(viteUrl) || Boolean(pickedUrl.value),
-      keyLooksValid: isValidAnonKey(viteKey, viteUrl) || Boolean(pickedKey.value),
-      sameValue: Boolean(viteUrl) && viteUrl === viteKey,
-      hint:
-        'ตั้ง VITE_SUPABASE_URL=https://YOUR_PROJECT.supabase.co และ VITE_SUPABASE_ANON_KEY คนละค่า แล้ว Redeploy',
+      urlLooksValid,
+      keyLooksValid,
+      sameValue,
+      project: 'rachawei',
+      hint: sameValue
+        ? 'VITE_SUPABASE_URL และ VITE_SUPABASE_ANON_KEY ถูกตั้งเป็นค่าเดียวกัน — ตั้ง URL=https://YOUR_PROJECT.supabase.co และ KEY=anon/publishable คนละค่า แล้ว Redeploy โปรเจกต์ rachawei'
+        : 'ตั้ง VITE_SUPABASE_URL=https://YOUR_PROJECT.supabase.co และ VITE_SUPABASE_ANON_KEY คนละค่า แล้ว Redeploy โปรเจกต์ rachawei',
     });
   }
 
@@ -93,5 +104,6 @@ export default function handler(req: VercelRequest, res: VercelResponse) {
     url: pickedUrl.value,
     anonKey: pickedKey.value,
     sources: { url: pickedUrl.source, anonKey: pickedKey.source },
+    project: 'rachawei',
   });
 }

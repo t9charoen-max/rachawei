@@ -17,6 +17,7 @@
     "grokbot:apply": "node scripts/grokbot-apply.mjs",
     "test:store": "node scripts/test-store-admin.mjs",
     "test:store:full": "node scripts/test-store-full.mjs",
+    "check:store:prod": "node scripts/check-store-production.mjs",
     "lint": "oxlint",
     "preview": "vite preview"
   },

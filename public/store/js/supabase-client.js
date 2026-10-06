@@ -12,6 +12,40 @@
   );
   let client = null;
   let initPromise = null;
+  /** Last /api/store-config payload (for diagnostics; never holds secrets in UI) */
+  let lastServerConfig = null;
+
+  function isProductionStoreHost() {
+    try {
+      const host = String(global.location?.hostname || '').toLowerCase();
+      if (!host || host === 'localhost' || host === '127.0.0.1') return false;
+      return (
+        host === 'rachawei.vercel.app' ||
+        host.endsWith('.rachawei.vercel.app') ||
+        host === 'rachawei.com' ||
+        host === 'www.rachawei.com' ||
+        host.endsWith('.rachawei.com')
+      );
+    } catch {
+      return false;
+    }
+  }
+
+  function getConfigStatus() {
+    return {
+      configured: isConfigured(),
+      productionHost: isProductionStoreHost(),
+      serverReported:
+        lastServerConfig && typeof lastServerConfig.configured === 'boolean'
+          ? lastServerConfig.configured
+          : null,
+      sameValue: Boolean(lastServerConfig?.sameValue),
+      hint: lastServerConfig?.hint || null,
+      /** true = must use Supabase; local IndexedDB orders are not allowed */
+      requiresCloudOrders:
+        isProductionStoreHost() || lastServerConfig?.configured === false,
+    };
+  }
 
   function isConfigured() {
     const url = String(cfg.url || '');
@@ -55,6 +89,7 @@
         const res = await fetch('/api/store-config', { cache: 'no-store' });
         if (res.ok) {
           const data = await res.json();
+          lastServerConfig = data && typeof data === 'object' ? data : null;
           if (data && data.configured && data.url && data.anonKey) {
             applyConfig({
               url: data.url,
@@ -174,8 +209,17 @@
   }
 
   async function createOrderRemote(payload) {
+    await init();
     const sb = getClient();
-    if (!sb) return { ok: false, error: 'supabase_not_configured' };
+    if (!sb) {
+      const status = getConfigStatus();
+      return {
+        ok: false,
+        error: status.sameValue
+          ? 'supabase_env_same_value: VITE_SUPABASE_URL ต้องเป็น https://xxx.supabase.co ไม่ใช่ค่าเดียวกับ ANON_KEY'
+          : 'supabase_not_configured',
+      };
+    }
 
     const { data, error } = await sb.rpc('store_create_order', {
       p_customer_name: payload.customerName,
@@ -195,6 +239,9 @@
     if (error) {
       console.error('[rachawei] create order:', error.message);
       return { ok: false, error: error.message };
+    }
+    if (!data) {
+      return { ok: false, error: 'store_create_order returned empty order id' };
     }
     return { ok: true, orderId: data };
   }
@@ -469,6 +516,7 @@
   global.RachaweiStoreApi = {
     init,
     isConfigured,
+    getConfigStatus,
     getClient,
     fetchActiveProducts,
     fetchPublicShopSettings,
