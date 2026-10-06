@@ -3217,7 +3217,9 @@
           const result = await RachaweiStoreApi.signIn(email, pin);
           if (!result.ok) {
             if (errEl) {
-              errEl.textContent = result.message || 'อีเมลหรือรหัสผ่านไม่ถูกต้อง';
+              errEl.textContent =
+                result.message ||
+                `เข้าสู่ระบบไม่สำเร็จ${result.error ? ` (${result.error})` : ''}`;
               errEl.classList.add('show');
             }
             return;
@@ -3228,13 +3230,14 @@
             if (errEl) {
               errEl.textContent =
                 access.message ||
-                'บัญชีนี้ไม่มีสิทธิ์แอดมิน — ต้องอยู่ในตาราง store_admins';
+                `บัญชี ${email} ไม่มีสิทธิ์แอดมิน — ต้องอยู่ในตาราง store_admins`;
               errEl.classList.add('show');
             }
             return;
           }
           rememberAdminEmail(email);
           adminLoggedIn = true;
+          adminTab = 'dash';
           if (errEl) errEl.classList.remove('show');
           const label = document.getElementById('adminUserLabel');
           if (label) label.textContent = email;
@@ -3247,7 +3250,7 @@
           );
         } catch (e) {
           if (errEl) {
-            errEl.textContent = 'เข้าสู่ระบบไม่สำเร็จ — ลองใหม่อีกครั้ง';
+            errEl.textContent = `เข้าสู่ระบบไม่สำเร็จ: ${e?.message || e}`;
             errEl.classList.add('show');
           }
         } finally {

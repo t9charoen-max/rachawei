@@ -1,5 +1,5 @@
 /* Service worker ราชาหวายสุรินทร์ — ให้เปิดแบบแอปและโหลดซ้ำเร็ว */
-const CACHE_VERSION = 'rachawei-v1942-admin-login';
+const CACHE_VERSION = 'rachawei-v1943-admin-auth';
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 
 self.addEventListener('install', (event) => {
