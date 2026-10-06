@@ -9,11 +9,13 @@
 - รายละเอียดสินค้าและปุ่มโทรสั่งซื้อ
 - หน้าเกี่ยวกับเราและติดต่อ
 
-## เว็บไซต์จริง
+## เว็บไซต์จริง (Production)
 
-**[https://rachawei.vercel.app](https://rachawei.vercel.app)** — ราชาหวาย (หวายสาน)
+**Vercel project:** `rachawei`  
+**Production URL:** **[https://rachawei-gamma.vercel.app](https://rachawei-gamma.vercel.app)** — ราชาหวาย (หวายสาน)
 
-ร้านสั่งซื้อออนไลน์: **[https://rachawei.vercel.app/store/](https://rachawei.vercel.app/store/)**
+ร้านสั่งซื้อออนไลน์: **[https://rachawei-gamma.vercel.app/store/](https://rachawei-gamma.vercel.app/store/)**  
+หลังร้าน: **[https://rachawei-gamma.vercel.app/store/#admin](https://rachawei-gamma.vercel.app/store/#admin)**
 
 ## เริ่มพัฒนา
 
@@ -54,7 +56,7 @@ npm run dev
 ```bash
 npm run check:store:prod
 # หรือ
-node scripts/check-store-production.mjs https://rachawei.vercel.app
+node scripts/check-store-production.mjs https://rachawei-gamma.vercel.app
 ```
 
 ### ทดสอบออเดอร์ 1 รายการ (หลัง ENV + SQL พร้อม)
@@ -73,7 +75,7 @@ npm run preview
 ## Grokbot / MCP
 
 - คู่มือ: [grokbot/MCP.md](grokbot/MCP.md)
-- URL: `https://rachawei.vercel.app/mcp`
+- URL: `https://rachawei-gamma.vercel.app/mcp`
 - ตั้ง `MCP_API_TOKEN` + `GITHUB_TOKEN` ใน Vercel แล้ว redeploy
 
 ## เทคโนโลยี

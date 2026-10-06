@@ -81,7 +81,7 @@ export async function writeJsonFile(path: string, data: unknown, message: string
 /** Public read fallback when token missing (production site / raw github). */
 export async function fetchPublicJson<T>(path: string): Promise<T> {
   const urls = [
-    `https://rachawei.vercel.app/${path}`,
+    `https://rachawei-gamma.vercel.app/${path}`,
     `https://raw.githubusercontent.com/${repo()}/${branch()}/${path}`,
   ];
   let lastErr = '';

@@ -120,7 +120,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       ok: true,
       transport: 'streamable-http',
       server: SERVER_INFO,
-      mcpUrl: 'https://rachawei.vercel.app/mcp',
+      mcpUrl: 'https://rachawei-gamma.vercel.app/mcp',
       tools: TOOL_DEFS.map((t) => t.name),
       auth: expectedToken() ? 'bearer-required' : 'open-dev-mode',
     });

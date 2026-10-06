@@ -162,8 +162,8 @@ export async function callTool(name: string, args: Record<string, unknown> = {})
         server: 'rachawei-grokbot-mcp',
         githubConfigured: githubConfigured(),
         endpoints: {
-          mcp: 'https://rachawei.vercel.app/mcp',
-          api: 'https://rachawei.vercel.app/api/mcp',
+          mcp: 'https://rachawei-gamma.vercel.app/mcp',
+          api: 'https://rachawei-gamma.vercel.app/api/mcp',
         },
         hint: githubConfigured()
           ? 'พร้อมเขียนสินค้า/รูปผ่าน GitHub'

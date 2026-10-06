@@ -8,7 +8,7 @@
 👉 คู่มือเชื่อม Grok Bot: **[MCP.md](./MCP.md)**
 
 ```text
-MCP URL = https://rachawei.vercel.app/mcp
+MCP URL = https://rachawei-gamma.vercel.app/mcp
 Header  = Authorization: Bearer <MCP_API_TOKEN>
 ```
 
@@ -24,8 +24,8 @@ Header  = Authorization: Bearer <MCP_API_TOKEN>
 | แก้ข้อมูลร้าน / ฮีโร่ | task `update-site` | `public/catalog/site.json` + `public/images/shop/` |
 | ตรวจความถูกต้อง | `npm run grokbot:validate` | รายงานไฟล์หาย / schema พัง |
 
-เว็บลูกค้า: https://rachawei.vercel.app  
-หลังบ้าน: https://rachawei.vercel.app/?admin=1  
+เว็บลูกค้า: https://rachawei-gamma.vercel.app  
+หลังบ้าน: https://rachawei-gamma.vercel.app/?admin=1  
 
 ## โฟลว์ inbox
 
@@ -45,7 +45,7 @@ Header  = Authorization: Bearer <MCP_API_TOKEN>
 | ข้อมูลร้าน | `public/catalog/site.json` |
 | รูปสินค้า | `public/products/` |
 | รูปฮีโร่ | `public/images/shop/` |
-| MCP API | `api/mcp.ts` → `https://rachawei.vercel.app/mcp` |
+| MCP API | `api/mcp.ts` → `https://rachawei-gamma.vercel.app/mcp` |
 
 ## คำสั่ง
 

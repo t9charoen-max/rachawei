@@ -4,9 +4,25 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
  * Public store config for /store/ (anon key only).
  * Reads Vercel env at runtime so Production can connect without relying
  * solely on build-time inject into static JS.
+ * Falls back to the public anon/publishable pair for Rachawei-store when
+ * Vercel env is missing — required for rachawei-gamma.vercel.app.
+ * (Keep in sync with artifacts/js/supabase-public-fallback.json)
  */
+const PUBLIC_FALLBACK = {
+  url: 'https://jvgfudxdwdwfumdznymu.supabase.co',
+  anonKey: 'sb_publishable_oG6s4HUGebJ-XRyqU5gjeg_kfKqhYnY',
+} as const;
+
 function read(name: string): string {
   return String(process.env[name] || '').trim().replace(/^["']|["']$/g, '');
+}
+
+function readPublicFallback(): { url: string; anonKey: string } | null {
+  const url = PUBLIC_FALLBACK.url;
+  const anonKey = PUBLIC_FALLBACK.anonKey;
+  if (!url || !anonKey || url === anonKey) return null;
+  if (/service_role/i.test(anonKey)) return null;
+  return { url, anonKey };
 }
 
 function isValidSupabaseUrl(value: string): boolean {
@@ -73,7 +89,26 @@ export default function handler(req: VercelRequest, res: VercelResponse) {
   const viteKey = read('VITE_SUPABASE_ANON_KEY');
   const pickedUrl = pickUrl();
   const pickedKey = pickAnonKey(pickedUrl.value);
-  const configured = Boolean(pickedUrl.value && pickedKey.value);
+  let url = pickedUrl.value;
+  let anonKey = pickedKey.value;
+  let urlSource = pickedUrl.source;
+  let keySource = pickedKey.source;
+
+  if (!(url && anonKey)) {
+    const fallback = readPublicFallback();
+    if (
+      fallback &&
+      isValidSupabaseUrl(fallback.url) &&
+      isValidAnonKey(fallback.anonKey, fallback.url)
+    ) {
+      url = fallback.url;
+      anonKey = fallback.anonKey;
+      urlSource = urlSource || 'public_fallback';
+      keySource = keySource || 'public_fallback';
+    }
+  }
+
+  const configured = Boolean(url && anonKey);
 
   if (!configured) {
     const sameValue = Boolean(viteUrl) && viteUrl === viteKey;
@@ -93,17 +128,19 @@ export default function handler(req: VercelRequest, res: VercelResponse) {
       keyLooksValid,
       sameValue,
       project: 'rachawei',
+      productionUrl: 'https://rachawei-gamma.vercel.app',
       hint: sameValue
-        ? 'VITE_SUPABASE_URL และ VITE_SUPABASE_ANON_KEY ถูกตั้งเป็นค่าเดียวกัน — ตั้ง URL=https://YOUR_PROJECT.supabase.co และ KEY=anon/publishable คนละค่า แล้ว Redeploy โปรเจกต์ rachawei'
-        : 'ตั้ง VITE_SUPABASE_URL=https://YOUR_PROJECT.supabase.co และ VITE_SUPABASE_ANON_KEY คนละค่า แล้ว Redeploy โปรเจกต์ rachawei',
+        ? 'VITE_SUPABASE_URL และ VITE_SUPABASE_ANON_KEY ถูกตั้งเป็นค่าเดียวกัน — ตั้ง URL=https://YOUR_PROJECT.supabase.co และ KEY=anon/publishable คนละค่า แล้ว Redeploy โปรเจกต์ rachawei (Production: rachawei-gamma.vercel.app)'
+        : 'ตั้ง VITE_SUPABASE_URL=https://YOUR_PROJECT.supabase.co และ VITE_SUPABASE_ANON_KEY คนละค่า แล้ว Redeploy โปรเจกต์ rachawei (Production: rachawei-gamma.vercel.app)',
     });
   }
 
   return res.status(200).json({
     configured: true,
-    url: pickedUrl.value,
-    anonKey: pickedKey.value,
-    sources: { url: pickedUrl.source, anonKey: pickedKey.source },
+    url,
+    anonKey,
+    sources: { url: urlSource, anonKey: keySource },
     project: 'rachawei',
+    productionUrl: 'https://rachawei-gamma.vercel.app',
   });
 }

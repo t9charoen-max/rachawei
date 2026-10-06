@@ -11,8 +11,11 @@
    - สร้าง `store_claim_first_admin()`
    - สร้าง/อัปเดต `store_admin_list_orders()`
    - มี `store_link_admin_by_email(email)` สำหรับลิงก์จาก SQL Editor
+4. **ลบออเดอร์ (Admin):** รัน `007_store_admin_delete_order.sql` (ถ้ายังไม่มี)
+   - สร้าง `store_admin_delete_order(p_order_id)` ตรวจสิทธิ์ด้วย `store_is_admin()`
 
-> ไฟล์ `005_store_admin_list_orders.sql` ถูกแทนที่ด้วยส่วนใน `006` แล้ว — รัน 006 พอ
+> ไฟล์ `005_store_admin_list_orders.sql` ถูกแทนที่ด้วยส่วนใน `006` แล้ว — รัน 006 พอ  
+> Production หลัก: `https://rachawei-gamma.vercel.app`
 
 ## สร้างเจ้าของร้าน (ปลอดภัย)
 
@@ -36,7 +39,7 @@ select public.store_link_admin_by_email('อีเมลจริงของค
 
 แล้วเรียก:
 ```bash
-curl -X POST https://rachawei.vercel.app/api/store-admin-bootstrap \
+curl -X POST https://rachawei-gamma.vercel.app/api/store-admin-bootstrap \
   -H 'Content-Type: application/json' \
   -d '{"secret":"YOUR_SECRET","email":"owner@yourdomain.com","password":"at-least-8-chars"}'
 ```

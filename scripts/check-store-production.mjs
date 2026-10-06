@@ -3,7 +3,7 @@
  * Production readiness check for rachawei store orders (no mock data).
  * Usage: node scripts/check-store-production.mjs [baseUrl]
  */
-const base = String(process.argv[2] || 'https://rachawei.vercel.app').replace(/\/$/, '');
+const base = String(process.argv[2] || 'https://rachawei-gamma.vercel.app').replace(/\/$/, '');
 
 async function getJson(path) {
   const res = await fetch(`${base}${path}`, { cache: 'no-store' });
@@ -66,6 +66,14 @@ check(
     client.text.includes('ensureAdminAccess') &&
     client.text.includes('claimFirstAdmin'),
 );
+check(
+  'supabase-client has deleteOrderForAdmin',
+  client.ok && client.text.includes('deleteOrderForAdmin'),
+);
+check(
+  'supabase-client recognizes rachawei-gamma production host',
+  client.ok && client.text.includes('rachawei-gamma.vercel.app'),
+);
 
 const app = await getText('/store/js/app.js');
 check(
@@ -77,8 +85,18 @@ check(
   app.ok && app.text.includes('refreshAdminOrdersFromSupabase'),
 );
 check(
+  'app.js has adminDeleteOrder',
+  app.ok && app.text.includes('adminDeleteOrder') && app.text.includes('ลบออเดอร์สำเร็จ'),
+);
+check(
   'app.js rejects owner@example.com style emails',
   app.ok && (app.text.includes('@example.com') || app.text.includes('@example\\.com')),
+);
+
+const css = await getText('/store/css/styles.css');
+check(
+  'admin-login contrast styles present',
+  css.ok && css.text.includes('Login card stays light') && css.text.includes('#2a1b14'),
 );
 
 const html = await getText('/store/');

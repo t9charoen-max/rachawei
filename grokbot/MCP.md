@@ -6,15 +6,15 @@
 ## URL ที่ต้องใส่ใน Grok Bot
 
 ```text
-https://rachawei.vercel.app/mcp
+https://rachawei-gamma.vercel.app/mcp
 ```
 
-(ทางเลือกเดียวกัน: `https://rachawei.vercel.app/api/mcp`)
+(ทางเลือกเดียวกัน: `https://rachawei-gamma.vercel.app/api/mcp`)
 
 ### ตั้งค่า Custom Connector
 
 1. เปิด Grok Bot → **Custom Connector** / **Add MCP server**
-2. **URL:** `https://rachawei.vercel.app/mcp`
+2. **URL:** `https://rachawei-gamma.vercel.app/mcp`
 3. **Transport:** Streamable HTTP (หรือ HTTP/SSE ตามที่ UI มี)
 4. **Headers:**
    ```http
@@ -53,9 +53,9 @@ https://rachawei.vercel.app/mcp
 ## ทดสอบเร็วด้วย curl
 
 ```bash
-curl -s https://rachawei.vercel.app/mcp | jq .
+curl -s https://rachawei-gamma.vercel.app/mcp | jq .
 
-curl -s https://rachawei.vercel.app/mcp \
+curl -s https://rachawei-gamma.vercel.app/mcp \
   -H "Authorization: Bearer $MCP_API_TOKEN" \
   -H "Content-Type: application/json" \
   -H "Accept: application/json, text/event-stream" \
