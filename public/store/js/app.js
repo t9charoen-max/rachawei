@@ -3071,7 +3071,7 @@
       });
     }
 
-    function openAdminPanel() {
+    async function openAdminPanel() {
       if (!storeAppReady) {
         pendingAdminOpen = true;
         adminOverlay.classList.add('open');
@@ -3084,7 +3084,14 @@
       } else {
         adminLoginView.style.display = 'block';
         adminMainView.style.display = 'none';
-        // Freeze auth UI mode at open so async Supabase init cannot flip the path under the user.
+        // Wait for Supabase init so Production does not freeze into local PIN mode.
+        if (typeof RachaweiStoreApi !== 'undefined' && typeof RachaweiStoreApi.init === 'function') {
+          try {
+            await RachaweiStoreApi.init();
+          } catch (_) {
+            /* keep local fallback */
+          }
+        }
         adminAuthUiMode = isSupabaseReady() ? 'supabase' : 'local';
         setAdminPinState('', { syncInput: true });
         const emailEl = document.getElementById('adminEmail');
@@ -3099,7 +3106,9 @@
       }
     }
 
-    document.getElementById('adminOpenBtn')?.addEventListener('click', openAdminPanel);
+    document.getElementById('adminOpenBtn')?.addEventListener('click', () => {
+      void openAdminPanel();
+    });
 
     document.getElementById('adminCloseBtn').addEventListener('click', () => {
       adminOverlay.classList.remove('open');
@@ -3162,7 +3171,24 @@
       const errEl = document.getElementById('errAdminPin');
       const btn = document.getElementById('adminLoginBtn');
 
-      // Use frozen UI mode from panel open — do not re-read live isSupabaseReady().
+      // Prefer live Supabase when ready (and when email was entered) so a race at
+      // panel-open cannot trap Production into the local PIN path.
+      if (typeof RachaweiStoreApi !== 'undefined' && typeof RachaweiStoreApi.init === 'function') {
+        try {
+          await RachaweiStoreApi.init();
+        } catch (_) {
+          /* ignore */
+        }
+      }
+      if (isSupabaseReady()) {
+        adminAuthUiMode = 'supabase';
+        if (pinInput && pinInput.maxLength < 72) {
+          pinInput.removeAttribute('maxlength');
+          pinInput.setAttribute('maxlength', '72');
+          pinInput.maxLength = 72;
+        }
+      }
+
       if (adminAuthUiMode === 'supabase') {
         const email = getAdminEmailValue();
         if (!isAdminEmailValid(email)) {
