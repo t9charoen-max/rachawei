@@ -4680,8 +4680,15 @@
       if (typeof applyStoreContent === 'function') applyStoreContent();
     }
 
-    // Init — โหลดข้อมูลถาวรก่อนแสดงผล
+    // Init — โหลด config Supabase แล้วค่อยโหลดข้อมูลถาวร
     (async function initApp() {
+      if (typeof RachaweiStoreApi !== 'undefined' && typeof RachaweiStoreApi.init === 'function') {
+        try {
+          await RachaweiStoreApi.init();
+        } catch (e) {
+          console.warn('Supabase init ไม่สำเร็จ — ใช้แคตตาล็อกท้องถิ่น', e);
+        }
+      }
       applyShopConfig();
       const ok = await loadPersisted();
       migratePaymentFields();

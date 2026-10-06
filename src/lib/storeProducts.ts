@@ -1,4 +1,4 @@
-import { getSupabase, type StoreProductRow } from './supabase';
+import type { StoreProductRow } from './supabase';
 import type { CatalogItem } from '../data/catalog';
 
 function asImageList(images: unknown): string[] {
@@ -27,6 +27,8 @@ export function storeProductRowToCatalogItem(row: StoreProductRow): CatalogItem 
 
 /** ดึงสินค้า active จาก Supabase — คืน null ถ้ายังไม่ตั้งค่าหรือโหลดไม่สำเร็จ */
 export async function fetchStoreProductsFromSupabase(): Promise<CatalogItem[] | null> {
+  const { ensureSupabaseConfig, getSupabase } = await import('./supabase');
+  await ensureSupabaseConfig();
   const supabase = getSupabase();
   if (!supabase) return null;
 

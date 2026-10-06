@@ -27,21 +27,61 @@ function isValidAnonKey(value: string, supabaseUrl: string): boolean {
   );
 }
 
-const url = readEnv('VITE_SUPABASE_URL');
-const anonKey = readEnv('VITE_SUPABASE_ANON_KEY');
+let url = readEnv('VITE_SUPABASE_URL');
+let anonKey = readEnv('VITE_SUPABASE_ANON_KEY');
+let runtimeReady: Promise<boolean> | null = null;
+
+function computeConfigured(): boolean {
+  return isValidSupabaseUrl(url) && isValidAnonKey(anonKey, url);
+}
 
 /** true เมื่อตั้งค่า env สำหรับ production Supabase ครบและถูกต้อง */
-export const isSupabaseConfigured =
-  isValidSupabaseUrl(url) && isValidAnonKey(anonKey, url);
+export let isSupabaseConfigured = computeConfigured();
 
 let client: SupabaseClient | null = null;
+
+/**
+ * โหลด config จาก /api/store-config ตอน runtime (กรณี build-time env ยังไม่ถูกต้อง)
+ */
+export async function ensureSupabaseConfig(): Promise<boolean> {
+  if (computeConfigured()) {
+    isSupabaseConfigured = true;
+    return true;
+  }
+  if (!runtimeReady) {
+    runtimeReady = (async () => {
+      try {
+        const res = await fetch('/api/store-config', { cache: 'no-store' });
+        if (!res.ok) return false;
+        const data = (await res.json()) as {
+          configured?: boolean;
+          url?: string;
+          anonKey?: string;
+        };
+        if (data?.configured && data.url && data.anonKey) {
+          url = String(data.url).trim();
+          anonKey = String(data.anonKey).trim();
+          client = null;
+          isSupabaseConfigured = computeConfigured();
+          return isSupabaseConfigured;
+        }
+      } catch (err) {
+        console.warn('[supabase] runtime config fetch failed', err);
+      }
+      isSupabaseConfigured = false;
+      return false;
+    })();
+  }
+  return runtimeReady;
+}
 
 /**
  * Supabase browser client — ใช้เฉพาะ anon/publishable key
  * ห้ามใส่ service_role ใน frontend
  */
 export function getSupabase(): SupabaseClient | null {
-  if (!isSupabaseConfigured) return null;
+  if (!computeConfigured()) return null;
+  isSupabaseConfigured = true;
   if (!client) {
     client = createClient(url, anonKey, {
       auth: {

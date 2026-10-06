@@ -1,17 +1,22 @@
 /**
  * Store-side Supabase helper (vanilla JS /store/)
  * Depends on: supabase-env.js + supabase.umd.js (global supabase)
+ * Runtime config: GET /api/store-config (preferred over build-time inject)
  */
 (function (global) {
   'use strict';
 
-  const cfg = global.__RACHAWEI_SUPABASE__ || { url: '', anonKey: '', configured: false };
+  const cfg = Object.assign(
+    { url: '', anonKey: '', configured: false },
+    global.__RACHAWEI_SUPABASE__ || {},
+  );
   let client = null;
+  let initPromise = null;
 
   function isConfigured() {
     const url = String(cfg.url || '');
     const key = String(cfg.anonKey || '');
-    if (!cfg.configured || !url || !key || url === key) return false;
+    if (!url || !key || url === key) return false;
     if (/service_role/i.test(key)) return false;
     try {
       const parsed = new URL(url);
@@ -23,6 +28,60 @@
     } catch {
       return false;
     }
+  }
+
+  function applyConfig(next) {
+    if (!next || typeof next !== 'object') return false;
+    const url = String(next.url || '').trim();
+    const key = String(next.anonKey || '').trim();
+    cfg.url = url;
+    cfg.anonKey = key;
+    cfg.configured = Boolean(next.configured);
+    client = null;
+    if (!isConfigured()) {
+      cfg.url = '';
+      cfg.anonKey = '';
+      cfg.configured = false;
+      return false;
+    }
+    cfg.configured = true;
+    return true;
+  }
+
+  async function init() {
+    if (initPromise) return initPromise;
+    initPromise = (async () => {
+      try {
+        const res = await fetch('/api/store-config', { cache: 'no-store' });
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.configured && data.url && data.anonKey) {
+            applyConfig({
+              url: data.url,
+              anonKey: data.anonKey,
+              configured: true,
+            });
+            return isConfigured();
+          }
+          if (data && data.configured === false) {
+            console.warn('[rachawei] Supabase env not ready on server', {
+              urlPresent: data.urlPresent,
+              keyPresent: data.keyPresent,
+              urlLooksValid: data.urlLooksValid,
+              keyLooksValid: data.keyLooksValid,
+              sameValue: data.sameValue,
+            });
+          }
+        }
+      } catch (e) {
+        console.warn('[rachawei] store-config fetch failed, using build-time env', e);
+      }
+      if (global.__RACHAWEI_SUPABASE__) {
+        applyConfig(global.__RACHAWEI_SUPABASE__);
+      }
+      return isConfigured();
+    })();
+    return initPromise;
   }
 
   function getClient() {
@@ -318,6 +377,7 @@
   }
 
   global.RachaweiStoreApi = {
+    init,
     isConfigured,
     getClient,
     fetchActiveProducts,
