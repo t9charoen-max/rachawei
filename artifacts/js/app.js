@@ -4675,11 +4675,19 @@
                     </td>
                     <td><span class="status-badge-tag ${st.badge}">${st.label}</span></td>
                     <td>
-                      <select class="status-select" onchange="adminSetOrderStatus('${escapeHtml(o.id)}', this.value)">
-                        ${opts}
-                      </select>
-                      <div class="admin-actions" style="margin-top:0.4rem;">
-                        <button class="btn btn-outline btn-xs" onclick="adminPrintOrder('${escapeHtml(o.id)}')">🖨️ ใบปะหน้า</button>
+                      <div class="admin-order-manage">
+                        <select class="status-select" onchange="adminSetOrderStatus('${escapeHtml(o.id)}', this.value)">
+                          ${opts}
+                        </select>
+                        <div class="admin-actions" style="margin-top:0.4rem;">
+                          <button class="btn btn-outline btn-xs" onclick="adminPrintOrder('${escapeHtml(o.id)}')">🖨️ ใบปะหน้า</button>
+                          <div class="admin-order-menu">
+                            <button type="button" class="btn btn-outline btn-xs admin-order-menu-btn" aria-label="เมนูออเดอร์" aria-haspopup="true" aria-expanded="false" onclick="adminToggleOrderMenu(event, '${escapeHtml(o.id)}')">⋯</button>
+                            <div class="admin-order-menu-panel" id="adminOrderMenu-${escapeHtml(o.id)}" hidden>
+                              <button type="button" class="admin-order-menu-item admin-order-menu-item--danger" onclick="adminDeleteOrder('${escapeHtml(o.id)}')">ลบออเดอร์</button>
+                            </div>
+                          </div>
+                        </div>
                       </div>
                     </td>
                   </tr>`;
@@ -4690,7 +4698,42 @@
         `)}
       `;
       bindAdminOrdersRetry();
+      bindAdminOrderMenus();
     }
+
+    function closeAllAdminOrderMenus() {
+      document.querySelectorAll('.admin-order-menu-panel').forEach((panel) => {
+        panel.hidden = true;
+      });
+      document.querySelectorAll('.admin-order-menu-btn').forEach((btn) => {
+        btn.setAttribute('aria-expanded', 'false');
+      });
+    }
+
+    function bindAdminOrderMenus() {
+      if (bindAdminOrderMenus._bound) return;
+      bindAdminOrderMenus._bound = true;
+      document.addEventListener('click', (e) => {
+        if (e.target.closest('.admin-order-menu')) return;
+        closeAllAdminOrderMenus();
+      });
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') closeAllAdminOrderMenus();
+      });
+    }
+
+    window.adminToggleOrderMenu = function(event, id) {
+      event.stopPropagation();
+      const panel = document.getElementById(`adminOrderMenu-${id}`);
+      const btn = event.currentTarget;
+      if (!panel || !btn) return;
+      const willOpen = panel.hidden;
+      closeAllAdminOrderMenus();
+      if (willOpen) {
+        panel.hidden = false;
+        btn.setAttribute('aria-expanded', 'true');
+      }
+    };
 
     window.adminSetOrderStatus = async function(id, idxStr) {
       const o = orders.find(x => x.id === id);
@@ -4711,6 +4754,42 @@
       }
       showToast('อัปเดตสถานะแล้ว ✓');
       renderAdminOrders();
+    };
+
+    window.adminDeleteOrder = async function(id) {
+      closeAllAdminOrderMenus();
+      const orderId = String(id || '').trim();
+      if (!orderId) return;
+      const o = orders.find((x) => x.id === orderId);
+      if (!o) {
+        showToast('ไม่พบออเดอร์นี้ในรายการ');
+        return;
+      }
+      const confirmed = confirm(
+        `ยืนยันลบออเดอร์?\n\nเลขที่: ${orderId}\n\nการลบจะลบรายการสินค้าในออเดอร์นี้ด้วย และไม่สามารถกู้คืนได้`,
+      );
+      if (!confirmed) return;
+
+      if (!adminLoggedIn) {
+        showToast('ต้องเข้าสู่ระบบแอดมินก่อนลบออเดอร์');
+        return;
+      }
+      if (!isSupabaseReady() || typeof RachaweiStoreApi.deleteOrderForAdmin !== 'function') {
+        showToast('ลบออเดอร์ไม่สำเร็จ: ยังไม่ได้เชื่อมต่อ Supabase');
+        return;
+      }
+
+      const remote = await RachaweiStoreApi.deleteOrderForAdmin(orderId);
+      if (!remote.ok) {
+        showToast(remote.message || remote.error || 'ลบออเดอร์ไม่สำเร็จ');
+        return;
+      }
+
+      orders = orders.filter((x) => x.id !== orderId);
+      saveOrders();
+      await refreshAdminOrdersFromSupabase();
+      renderAdminTab(adminTab);
+      showToast('ลบออเดอร์สำเร็จ');
     };
 
     window.adminPrintOrder = function(id) {
