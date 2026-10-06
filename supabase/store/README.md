@@ -12,6 +12,12 @@
 
 สร้าง/อัปเดตเฉพาะ `store_is_admin()` + `store_create_order()` และกระชับ RLS ของ admin
 
+จากนั้นรัน (เพื่อให้ Admin Dashboard โหลดออเดอร์+รายการสินค้าได้เสถียร):
+
+`005_store_admin_list_orders.sql`
+
+สร้าง `store_admin_list_orders()` — admin ที่ login แล้วดึง `store_orders` + `store_order_items` ได้
+
 ## เพิ่มเจ้าของร้าน (ถ้ายังไม่มีใน store_admins)
 
 ```sql

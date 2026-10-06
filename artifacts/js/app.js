@@ -1570,7 +1570,7 @@
     }
 
     function paymentNeedsSlip(method) {
-      return method === 'promptpay' || method === 'bank';
+      return method === 'promptpay' || method === 'bank' || method === 'transfer';
     }
 
     function renderSuccessSlipSection(order) {
@@ -1669,7 +1669,7 @@
 
     function methodLabel(m) {
       if (m === 'promptpay') return 'พร้อมเพย์ (PromptPay)';
-      if (m === 'bank') return 'โอนเงินผ่านธนาคาร';
+      if (m === 'bank' || m === 'transfer') return 'โอนเงินผ่านธนาคาร';
       return 'ชำระเมื่อรับสินค้า (COD)';
     }
 
@@ -2419,6 +2419,9 @@
     // ========== ADMIN PANEL ==========
     let adminLoggedIn = false;
     let adminTab = 'dash';
+    let adminOrdersError = null;
+    let adminOrdersSource = null;
+    let adminOrdersLoading = false;
     let editingProductId = null;
     let nextProductId = Math.max(...products.map(p => p.id), 0) + 1;
 
@@ -2828,16 +2831,92 @@
     }
 
     async function refreshAdminOrdersFromSupabase() {
-      if (!isSupabaseReady() || !adminLoggedIn) return;
-      try {
-        const remoteOrders = await RachaweiStoreApi.fetchOrdersForAdmin();
-        if (Array.isArray(remoteOrders)) {
-          orders = remoteOrders;
-          saveOrders();
-        }
-      } catch (e) {
-        console.warn('โหลดออเดอร์จาก Supabase ไม่สำเร็จ', e);
+      if (!adminLoggedIn) {
+        return { ok: false, skipped: true };
       }
+
+      if (!isSupabaseReady()) {
+        adminOrdersError =
+          'Supabase ยังไม่พร้อม — Dashboard แสดงเฉพาะออเดอร์ในเครื่องนี้ ไม่ใช่ข้อมูลคลาวด์';
+        adminOrdersSource = 'local';
+        // ลอง init อีกครั้งเผื่อ runtime /api/store-config พร้อมแล้ว
+        try {
+          if (typeof RachaweiStoreApi !== 'undefined') {
+            await RachaweiStoreApi.init();
+            if (RachaweiStoreApi.isConfigured()) {
+              // fall through to cloud path below by recursion once
+              return refreshAdminOrdersFromSupabase();
+            }
+          }
+        } catch (_) { /* keep local warning */ }
+        return { ok: false, error: adminOrdersError, source: 'local' };
+      }
+
+      adminOrdersLoading = true;
+      try {
+        const result = await RachaweiStoreApi.fetchOrdersForAdmin();
+        if (result && result.ok && Array.isArray(result.orders)) {
+          orders = result.orders;
+          adminOrdersError = null;
+          adminOrdersSource = result.source || 'supabase';
+          saveOrders();
+          return { ok: true, count: orders.length, source: adminOrdersSource };
+        }
+        adminOrdersError =
+          (result && result.error) ||
+          'อ่านออเดอร์จาก Supabase ไม่สำเร็จ — ไม่แสดง 0 แทนข้อมูลจริง';
+        adminOrdersSource = (result && result.source) || 'error';
+        return { ok: false, error: adminOrdersError, source: adminOrdersSource };
+      } catch (e) {
+        adminOrdersError = `โหลดออเดอร์จาก Supabase ไม่สำเร็จ: ${e?.message || e}`;
+        adminOrdersSource = 'exception';
+        console.warn(adminOrdersError, e);
+        return { ok: false, error: adminOrdersError, source: 'exception' };
+      } finally {
+        adminOrdersLoading = false;
+      }
+    }
+
+    function adminOrdersStatusBannerHtml() {
+      if (adminOrdersLoading) {
+        return `<div class="admin-sync-banner admin-sync-banner--info">กำลังโหลดออเดอร์จาก Supabase…</div>`;
+      }
+      if (!isSupabaseReady()) {
+        return `<div class="admin-sync-banner admin-sync-banner--error" role="alert">
+          <strong>ยังไม่เชื่อมต่อ Supabase</strong><br>
+          Dashboard ด้านล่างเป็นออเดอร์ในเครื่องนี้เท่านั้น — ลูกค้าคนอื่นสั่งซื้อแล้ว Admin จะไม่เห็น<br>
+          ตั้ง <code>VITE_SUPABASE_URL=https://YOUR_PROJECT.supabase.co</code> และ
+          <code>VITE_SUPABASE_ANON_KEY</code> คนละค่าใน Vercel แล้ว Redeploy
+          <div style="margin-top:0.55rem;">
+            <button type="button" class="btn btn-outline btn-xs" id="adminRetryOrdersBtn">ตรวจการเชื่อมต่ออีกครั้ง</button>
+          </div>
+        </div>`;
+      }
+      if (adminOrdersError) {
+        return `<div class="admin-sync-banner admin-sync-banner--error" role="alert">
+          <strong>อ่านออเดอร์จากคลาวด์ไม่สำเร็จ</strong><br>
+          ${escapeHtml(adminOrdersError)}
+          <div style="margin-top:0.55rem;">
+            <button type="button" class="btn btn-outline btn-xs" id="adminRetryOrdersBtn">ลองโหลดใหม่</button>
+          </div>
+        </div>`;
+      }
+      if (adminLoggedIn && adminOrdersSource) {
+        return `<div class="admin-sync-banner admin-sync-banner--ok">
+          ข้อมูลออเดอร์จาก Supabase (${escapeHtml(String(adminOrdersSource))}) · สถิติคำนวณจาก store_orders จริง
+          <button type="button" class="btn btn-outline btn-xs" id="adminRetryOrdersBtn" style="margin-left:0.5rem;">รีเฟรช</button>
+        </div>`;
+      }
+      return '';
+    }
+
+    function bindAdminOrdersRetry() {
+      document.getElementById('adminRetryOrdersBtn')?.addEventListener('click', () => {
+        void (async () => {
+          await refreshAdminOrdersFromSupabase();
+          renderAdminTab(adminTab);
+        })();
+      });
     }
 
     function openAdminPanel() {
@@ -2976,11 +3055,17 @@
     });
 
     function renderAdminTab(tab) {
-      if (tab === 'dash') renderAdminDash();
-      else if (tab === 'products') renderAdminProducts();
+      if (tab === 'dash') {
+        void (async () => {
+          adminContent.innerHTML = '<div class="empty-admin">กำลังโหลดแดชบอร์ดจาก Supabase…</div>';
+          await refreshAdminOrdersFromSupabase();
+          renderAdminDash();
+        })();
+      } else if (tab === 'products') renderAdminProducts();
       else if (tab === 'videos') renderAdminVideos();
       else if (tab === 'orders') {
         void (async () => {
+          adminContent.innerHTML = '<div class="empty-admin">กำลังโหลดออเดอร์จาก Supabase…</div>';
           await refreshAdminOrdersFromSupabase();
           renderAdminOrders();
         })();
@@ -3464,18 +3549,31 @@
     }
 
     function renderAdminDash() {
-      const totalSales = orders.reduce((s, o) => s + o.total, 0);
-      const pending = orders.filter(o => o.statusIndex < 2).length;
+      const cloudMode = isSupabaseReady();
+      const statsBlocked = Boolean(adminOrdersError) && cloudMode;
+      const totalSales = statsBlocked ? null : orders.reduce((s, o) => s + (Number(o.total) || 0), 0);
+      const pending = statsBlocked ? null : orders.filter(o => o.statusIndex < 2).length;
+      const orderCount = statsBlocked ? null : orders.length;
       const withImages = products.filter(p => getProductImages(p).length > 0).length;
-      const storageLabel = dbReady ? 'IndexedDB พร้อม' : 'หน่วยความจำชั่วคราว';
+      const storageLabel = cloudMode
+        ? (adminOrdersError
+          ? 'Supabase อ่านออเดอร์ไม่ได้'
+          : (adminOrdersSource === 'rpc' || adminOrdersSource === 'select'
+            ? 'Supabase (store_orders)'
+            : 'Supabase'))
+        : (dbReady ? 'IndexedDB พร้อม (โหมดท้องถิ่น)' : 'หน่วยความจำชั่วคราว');
+
+      const fmtStat = (v) => (v == null ? '—' : String(v));
+      const fmtMoney = (v) => (v == null ? '—' : formatPrice(v));
 
       adminContent.innerHTML = `
+        ${adminOrdersStatusBannerHtml()}
         <div class="admin-stats">
           <div class="stat-card"><div class="num">${products.length}</div><div class="lbl">สินค้าทั้งหมด</div></div>
           <div class="stat-card"><div class="num">${shopVideos.length}</div><div class="lbl">วิดีโอแนะนำ</div></div>
-          <div class="stat-card"><div class="num">${orders.length}</div><div class="lbl">ออเดอร์ทั้งหมด</div></div>
-          <div class="stat-card"><div class="num">${pending}</div><div class="lbl">รอดำเนินการ</div></div>
-          <div class="stat-card"><div class="num">${formatPrice(totalSales)}</div><div class="lbl">ยอดรวมโดยประมาณ</div></div>
+          <div class="stat-card"><div class="num">${fmtStat(orderCount)}</div><div class="lbl">ออเดอร์ทั้งหมด</div></div>
+          <div class="stat-card"><div class="num">${fmtStat(pending)}</div><div class="lbl">รอดำเนินการ</div></div>
+          <div class="stat-card"><div class="num">${fmtMoney(totalSales)}</div><div class="lbl">ยอดรวม</div></div>
         </div>
 
         <div class="admin-form-card">
@@ -3498,7 +3596,11 @@
         </div>
 
         <div class="admin-section-title">ออเดอร์ล่าสุด</div>
-        ${orders.length === 0 ? '<div class="empty-admin">ยังไม่มีออเดอร์</div>' : `
+        ${statsBlocked
+          ? '<div class="empty-admin">ไม่สามารถแสดงออเดอร์ได้จนกว่าจะเชื่อมต่อ Supabase สำเร็จ<br><small>กด «ลองโหลดใหม่» ด้านบนหลังแก้ env / RLS</small></div>'
+          : (orders.length === 0
+            ? '<div class="empty-admin">ยังไม่มีออเดอร์ในระบบ<br><small>เมื่อลูกค้าสั่งซื้อผ่าน store_create_order จะแสดงที่นี่ทันที</small></div>'
+            : `
           <div class="admin-table-wrap">
             <table class="admin-table">
               <thead>
@@ -3510,7 +3612,7 @@
                   const st = flow[o.statusIndex] || flow[0];
                   return `<tr>
                     <td><strong>${o.id}</strong></td>
-                    <td>${o.name}<br><small>${o.phoneDisplay}</small></td>
+                    <td>${escapeHtml(o.name)}<br><small>${escapeHtml(o.phoneDisplay || '')}</small></td>
                     <td>${formatPrice(o.total)}</td>
                     <td><span class="status-badge-tag ${st.badge}">${st.label}</span></td>
                   </tr>`;
@@ -3518,12 +3620,13 @@
               </tbody>
             </table>
           </div>
-        `}
+        `)}
         <div class="demo-hint" style="margin-top:1.2rem;">
           💡 แท็บ <strong>สินค้า</strong> = เพิ่ม/แก้ไขสินค้าและรูปภาพ · แท็บ <strong>ออเดอร์</strong> = ติดตามและอัปเดตสถานะ
         </div>
       `;
 
+      bindAdminOrdersRetry();
       document.getElementById('backupExportBtn').addEventListener('click', () => downloadBackup());
       document.getElementById('backupImportBtn').addEventListener('click', () => {
         document.getElementById('backupFileInput').click();
@@ -4209,11 +4312,18 @@
     };
 
     function renderAdminOrders() {
+      const cloudMode = isSupabaseReady();
+      const blocked = Boolean(adminOrdersError) && cloudMode;
       adminContent.innerHTML = `
+        ${adminOrdersStatusBannerHtml()}
         <div class="admin-section-title">
-          <span>ออเดอร์ทั้งหมด (${orders.length})</span>
+          <span>ออเดอร์ทั้งหมด ${blocked ? '' : `(${orders.length})`}</span>
         </div>
-        ${orders.length === 0 ? '<div class="empty-admin">ยังไม่มีออเดอร์<br><small>เมื่อลูกค้าสั่งซื้อ จะแสดงที่นี่</small></div>' : `
+        ${blocked
+          ? `<div class="empty-admin">ไม่สามารถแสดงรายการออเดอร์ได้<br><small>${escapeHtml(adminOrdersError)}</small></div>`
+          : (orders.length === 0
+            ? '<div class="empty-admin">ยังไม่มีออเดอร์<br><small>เมื่อลูกค้าสั่งซื้อ จะแสดงที่นี่จาก public.store_orders</small></div>'
+            : `
           <div class="admin-table-wrap">
             <table class="admin-table">
               <thead>
@@ -4231,31 +4341,31 @@
                 ${orders.map(o => {
                   const flow = o.method === 'cod' ? COD_FLOW : STATUS_FLOW;
                   const st = flow[o.statusIndex] || flow[0];
-                  const items = o.items.map(i => `${i.emoji || ''} ${i.name}×${i.qty}`).join('<br>');
+                  const items = (o.items || []).map(i => `${i.emoji || ''} ${escapeHtml(i.name || '')}×${i.qty}`).join('<br>');
                   const opts = flow.map((s, i) =>
                     `<option value="${i}" ${i === o.statusIndex ? 'selected' : ''}>${s.label}</option>`
                   ).join('');
                   return `<tr>
-                    <td><strong>${o.id}</strong><br><small>${formatDateTime(o.createdAt)}</small></td>
+                    <td><strong>${escapeHtml(o.id)}</strong><br><small>${formatDateTime(o.createdAt)}</small></td>
                     <td>
-                      <strong>${o.name}</strong><br>
-                      <small>${o.phoneDisplay}</small><br>
-                      <small style="color:var(--text-soft)">${(o.address || '').replace(/\n/g, ', ').slice(0, 50)}</small>
+                      <strong>${escapeHtml(o.name || '')}</strong><br>
+                      <small>${escapeHtml(o.phoneDisplay || '')}</small><br>
+                      <small style="color:var(--text-soft)">${escapeHtml((o.address || '').replace(/\n/g, ', ').slice(0, 50))}</small>
                     </td>
-                    <td style="font-size:0.8rem;">${items}</td>
+                    <td style="font-size:0.8rem;">${items || '—'}</td>
                     <td>${formatPrice(o.total)}<br><small>${methodLabel(o.method)}</small></td>
                     <td style="font-size:0.78rem;">
                       ${o.paymentSlip
-                        ? `<button type="button" class="btn btn-outline btn-xs" onclick="adminViewSlip('${o.id}')">🧾 ดูสลิป</button>`
+                        ? `<button type="button" class="btn btn-outline btn-xs" onclick="adminViewSlip('${escapeHtml(o.id)}')">🧾 ดูสลิป</button>`
                         : (paymentNeedsSlip(o.method) ? '<span style="color:var(--text-soft);">รอสลิป</span>' : '—')}
                     </td>
                     <td><span class="status-badge-tag ${st.badge}">${st.label}</span></td>
                     <td>
-                      <select class="status-select" onchange="adminSetOrderStatus('${o.id}', this.value)">
+                      <select class="status-select" onchange="adminSetOrderStatus('${escapeHtml(o.id)}', this.value)">
                         ${opts}
                       </select>
                       <div class="admin-actions" style="margin-top:0.4rem;">
-                        <button class="btn btn-outline btn-xs" onclick="adminPrintOrder('${o.id}')">🖨️ ใบปะหน้า</button>
+                        <button class="btn btn-outline btn-xs" onclick="adminPrintOrder('${escapeHtml(o.id)}')">🖨️ ใบปะหน้า</button>
                       </div>
                     </td>
                   </tr>`;
@@ -4263,8 +4373,9 @@
               </tbody>
             </table>
           </div>
-        `}
+        `)}
       `;
+      bindAdminOrdersRetry();
     }
 
     window.adminSetOrderStatus = async function(id, idxStr) {

@@ -199,9 +199,106 @@
     return { ok: true, orderId: data };
   }
 
+  function mapRemoteMethod(method) {
+    const m = String(method || '');
+    if (m === 'transfer') return 'bank';
+    return m || 'cod';
+  }
+
+  function normalizeAdminOrder(o, items) {
+    const itemRows = Array.isArray(items) ? items : [];
+    return {
+      id: o.id,
+      name: o.customer_name || o.name || '',
+      phone: o.customer_phone || o.phone || '',
+      phoneDisplay: o.phone_display || o.phoneDisplay || o.customer_phone || o.phone || '',
+      address: o.customer_address || o.address || '',
+      note: o.note || '',
+      method: mapRemoteMethod(o.method),
+      subtotal: Number(o.subtotal) || 0,
+      promoDiscount: Number(o.promo_discount != null ? o.promo_discount : o.promoDiscount) || 0,
+      shippingFee: Number(o.shipping_fee != null ? o.shipping_fee : o.shippingFee) || 0,
+      total: Number(o.total) || 0,
+      statusIndex: Number(o.status_index != null ? o.status_index : o.statusIndex) || 0,
+      history: Array.isArray(o.history) ? o.history : [],
+      createdAt: o.created_at
+        ? Date.parse(o.created_at) || Date.now()
+        : o.createdAt
+          ? Number(o.createdAt) || Date.now()
+          : Date.now(),
+      paymentSlip: o.payment_slip || o.paymentSlip || null,
+      slipUploadedAt: o.slip_uploaded_at
+        ? Date.parse(o.slip_uploaded_at)
+        : o.slipUploadedAt
+          ? Number(o.slipUploadedAt)
+          : null,
+      items: itemRows.map((it) => ({
+        id: it.product_id != null ? Number(it.product_id) : it.id != null ? Number(it.id) : null,
+        name: it.product_name || it.name || '',
+        emoji: it.emoji || '🧺',
+        qty: Number(it.qty) || 1,
+        price: Number(it.unit_price != null ? it.unit_price : it.price) || 0,
+      })),
+    };
+  }
+
+  /**
+   * Load admin orders from Supabase (RPC preferred, then direct SELECT).
+   * Returns { ok, orders, error, source } — never silent null for auth/RLS failures.
+   */
   async function fetchOrdersForAdmin() {
+    const ready = await init();
     const sb = getClient();
-    if (!sb) return null;
+    if (!ready || !sb) {
+      return {
+        ok: false,
+        orders: [],
+        error:
+          'ยังไม่ได้ตั้งค่า Supabase — ตรวจ VITE_SUPABASE_URL (https://xxx.supabase.co) และ VITE_SUPABASE_ANON_KEY บน Vercel แล้ว Redeploy',
+        source: 'unconfigured',
+      };
+    }
+
+    const session = await getSession();
+    if (!session) {
+      return {
+        ok: false,
+        orders: [],
+        error: 'ยังไม่ได้เข้าสู่ระบบ admin — กรุณา login ด้วยบัญชีเจ้าของร้าน',
+        source: 'no_session',
+      };
+    }
+
+    // 1) Preferred: security-definer RPC with items embedded
+    try {
+      const { data: rpcData, error: rpcErr } = await sb.rpc('store_admin_list_orders', {
+        p_limit: 200,
+      });
+      if (!rpcErr && Array.isArray(rpcData)) {
+        return {
+          ok: true,
+          orders: rpcData.map((row) => normalizeAdminOrder(row, row.items || [])),
+          error: null,
+          source: 'rpc',
+        };
+      }
+      if (rpcErr && !/store_admin_list_orders|PGRST202|404|function/i.test(rpcErr.message || '')) {
+        console.error('[rachawei] store_admin_list_orders:', rpcErr.message);
+        return {
+          ok: false,
+          orders: [],
+          error: `อ่านออเดอร์ไม่สำเร็จ: ${rpcErr.message}`,
+          source: 'rpc',
+        };
+      }
+      if (rpcErr) {
+        console.warn('[rachawei] store_admin_list_orders missing, fallback to SELECT', rpcErr.message);
+      }
+    } catch (e) {
+      console.warn('[rachawei] RPC list orders failed, fallback to SELECT', e);
+    }
+
+    // 2) Fallback: direct SELECT + store_order_items (requires admin RLS)
     const { data: orderRows, error } = await sb
       .from('store_orders')
       .select('*')
@@ -209,8 +306,14 @@
       .limit(200);
     if (error) {
       console.error('[rachawei] admin orders:', error.message);
-      return null;
+      return {
+        ok: false,
+        orders: [],
+        error: `อ่าน store_orders ไม่สำเร็จ: ${error.message} (ตรวจ RLS / store_admins)`,
+        source: 'select',
+      };
     }
+
     const ids = (orderRows || []).map((o) => o.id);
     let itemsByOrder = {};
     if (ids.length) {
@@ -220,38 +323,25 @@
         .in('order_id', ids);
       if (itemErr) {
         console.error('[rachawei] admin order items:', itemErr.message);
-      } else {
-        itemsByOrder = (itemRows || []).reduce((acc, row) => {
-          (acc[row.order_id] ||= []).push(row);
-          return acc;
-        }, {});
+        return {
+          ok: false,
+          orders: [],
+          error: `อ่าน store_order_items ไม่สำเร็จ: ${itemErr.message}`,
+          source: 'select_items',
+        };
       }
+      itemsByOrder = (itemRows || []).reduce((acc, row) => {
+        (acc[row.order_id] ||= []).push(row);
+        return acc;
+      }, {});
     }
-    return (orderRows || []).map((o) => ({
-      id: o.id,
-      name: o.customer_name,
-      phone: o.customer_phone,
-      phoneDisplay: o.phone_display || o.customer_phone,
-      address: o.customer_address,
-      note: o.note,
-      method: o.method,
-      subtotal: Number(o.subtotal) || 0,
-      promoDiscount: Number(o.promo_discount) || 0,
-      shippingFee: Number(o.shipping_fee) || 0,
-      total: Number(o.total) || 0,
-      statusIndex: Number(o.status_index) || 0,
-      history: Array.isArray(o.history) ? o.history : [],
-      createdAt: o.created_at ? Date.parse(o.created_at) || Date.now() : Date.now(),
-      paymentSlip: o.payment_slip || null,
-      slipUploadedAt: o.slip_uploaded_at ? Date.parse(o.slip_uploaded_at) : null,
-      items: (itemsByOrder[o.id] || []).map((it) => ({
-        id: it.product_id != null ? Number(it.product_id) : null,
-        name: it.product_name,
-        emoji: it.emoji || '🧺',
-        qty: Number(it.qty) || 1,
-        price: Number(it.unit_price) || 0,
-      })),
-    }));
+
+    return {
+      ok: true,
+      orders: (orderRows || []).map((o) => normalizeAdminOrder(o, itemsByOrder[o.id] || [])),
+      error: null,
+      source: 'select',
+    };
   }
 
   async function updateOrderStatus(orderId, statusIndex, history) {

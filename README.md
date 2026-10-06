@@ -49,6 +49,11 @@ on conflict (user_id) do nothing;
    - ห้ามใส่ค่าเดียวกันทั้งสองช่อง
    - ห้าม service_role
    - หลังแก้ต้อง **Redeploy**
+6. (แนะนำ) รัน `004_ensure_production_rpc.sql` + `005_store_admin_list_orders.sql`
+   เพื่อให้ Admin Dashboard โหลด `store_orders` / `store_order_items` ได้ทันทีหลัง login
+
+ตรวจสุขภาพการตั้งค่า: เปิด `/api/store-config` ต้องได้ `configured: true`
+(ถ้า `sameValue: true` แปลว่า URL กับ Key ใส่ค่าเดียวกัน — Admin จะขึ้นเตือนชัดเจน ไม่แสดง 0 เงียบ ๆ)
 
 ## Build
 
