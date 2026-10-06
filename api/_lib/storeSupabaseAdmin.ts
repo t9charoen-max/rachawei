@@ -27,16 +27,58 @@ export function getServiceRoleKey(): string {
   const key =
     read('SUPABASE_SERVICE_ROLE_KEY') ||
     read('SUPABASE_SERVICE_KEY') ||
-    read('SERVICE_ROLE_KEY');
+    read('SERVICE_ROLE_KEY') ||
+    read('SUPABASE_SECRET_KEY');
   if (!key) return '';
+  // Reject publishable/anon keys even if mis-assigned to a service env name
+  if (/publishable|anon/i.test(key) || key.startsWith('sb_publishable_')) return '';
   if (/service_role/i.test(key) || key.startsWith('eyJ') || key.startsWith('sb_secret_')) {
     return key;
   }
+  // JWT without visible role claim text — still accept eyJ* above; reject unknown shapes
   return '';
 }
 
 export function hasServiceRole(): boolean {
   return Boolean(getSupabaseUrl() && getServiceRoleKey());
+}
+
+/** Safe diagnostics — never includes secret values. */
+export function getServerEnvProbe(): {
+  hasSupabaseUrl: boolean;
+  hasServiceRoleEnv: boolean;
+  serviceRoleFormatOk: boolean;
+  hasDatabaseUrl: boolean;
+  hasBootstrapSecret: boolean;
+  hasAccessToken: boolean;
+} {
+  const rawKey =
+    read('SUPABASE_SERVICE_ROLE_KEY') ||
+    read('SUPABASE_SERVICE_KEY') ||
+    read('SERVICE_ROLE_KEY') ||
+    read('SUPABASE_SECRET_KEY');
+  return {
+    hasSupabaseUrl: Boolean(getSupabaseUrl()),
+    hasServiceRoleEnv: Boolean(rawKey),
+    serviceRoleFormatOk: Boolean(getServiceRoleKey()),
+    hasDatabaseUrl: Boolean(
+      read('DATABASE_URL') ||
+        read('POSTGRES_URL') ||
+        read('POSTGRES_URL_NON_POOLING') ||
+        read('SUPABASE_DB_URL'),
+    ),
+    hasBootstrapSecret: Boolean(read('STORE_ADMIN_BOOTSTRAP_SECRET')),
+    hasAccessToken: Boolean(read('SUPABASE_ACCESS_TOKEN')),
+  };
+}
+
+export function getDatabaseUrl(): string {
+  return (
+    read('DATABASE_URL') ||
+    read('POSTGRES_URL_NON_POOLING') ||
+    read('POSTGRES_URL') ||
+    read('SUPABASE_DB_URL')
+  );
 }
 
 export async function supabaseAdminFetch(

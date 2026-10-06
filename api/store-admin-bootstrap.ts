@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import {
+  getServerEnvProbe,
   getServiceRoleKey,
   getSupabaseUrl,
   hasServiceRole,
@@ -41,14 +42,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     } catch {
       host = '';
     }
+    const env = getServerEnvProbe();
     return res.status(200).json({
       ok: true,
       serviceRoleConfigured: hasServiceRole(),
       bootstrapSecretConfigured: Boolean(read('STORE_ADMIN_BOOTSTRAP_SECRET')),
       projectUrlHost: host,
+      env,
       hint: hasServiceRole()
         ? 'พร้อม bootstrap — ส่ง POST พร้อม secret + email + password'
-        : 'ยังไม่มี SUPABASE_SERVICE_ROLE_KEY บน Vercel — หรือรัน supabase/store/006_admin_auth_grants_bootstrap.sql ใน SQL Editor แล้วใช้ store_claim_first_admin / store_link_admin_by_email',
+        : env.hasServiceRoleEnv && !env.serviceRoleFormatOk
+          ? 'พบ env service role แต่รูปแบบคีย์ไม่ถูกต้อง — ต้องเป็น service_role JWT (eyJ…) หรือ sb_secret_… ไม่ใช่ anon/publishable'
+          : 'ยังไม่มี SUPABASE_SERVICE_ROLE_KEY บน Vercel Production (rachawei) — หรือรัน SQL 006 / POST /api/store-admin-migrate',
     });
   }
 

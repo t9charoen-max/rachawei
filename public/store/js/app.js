@@ -2909,12 +2909,24 @@
       if (emailGroup) emailGroup.style.display = supabaseMode ? 'block' : 'none';
       if (pinLabel) pinLabel.textContent = supabaseMode ? 'รหัสผ่าน (Supabase Auth)' : 'รหัสผ่าน';
       if (pinInput) {
-        pinInput.maxLength = supabaseMode ? 72 : 12;
-        pinInput.placeholder = supabaseMode ? 'รหัสผ่านบัญชีเจ้าของร้าน' : '••••';
-        pinInput.setAttribute('inputmode', supabaseMode ? 'text' : 'numeric');
-        if (supabaseMode) pinInput.removeAttribute('pattern');
-        else pinInput.setAttribute('pattern', '[0-9]*');
-        pinInput.setAttribute('autocomplete', supabaseMode ? 'current-password' : 'one-time-code');
+        // Supabase passwords can exceed the old local PIN limit (12).
+        // Always set both property + attribute so mobile browsers don't keep maxlength="12".
+        if (supabaseMode) {
+          pinInput.removeAttribute('maxlength');
+          pinInput.setAttribute('maxlength', '72');
+          pinInput.maxLength = 72;
+          pinInput.placeholder = 'รหัสผ่านบัญชีเจ้าของร้าน';
+          pinInput.setAttribute('inputmode', 'text');
+          pinInput.removeAttribute('pattern');
+          pinInput.setAttribute('autocomplete', 'current-password');
+        } else {
+          pinInput.setAttribute('maxlength', '12');
+          pinInput.maxLength = 12;
+          pinInput.placeholder = '••••';
+          pinInput.setAttribute('inputmode', 'numeric');
+          pinInput.setAttribute('pattern', '[0-9]*');
+          pinInput.setAttribute('autocomplete', 'one-time-code');
+        }
       }
 
       if (supabaseMode) {
@@ -2968,6 +2980,54 @@
       } catch (e) {
         console.warn('restore admin session failed', e);
       }
+    }
+
+    function bindAdminAuthState() {
+      if (!isSupabaseReady() || typeof RachaweiStoreApi.getClient !== 'function') return;
+      const sb = RachaweiStoreApi.getClient();
+      if (!sb?.auth?.onAuthStateChange || bindAdminAuthState._bound) return;
+      bindAdminAuthState._bound = true;
+      sb.auth.onAuthStateChange((event, session) => {
+        void (async () => {
+          if (event === 'SIGNED_OUT' || !session) {
+            if (adminLoggedIn) {
+              adminLoggedIn = false;
+              const topLogout = document.getElementById('adminTopLogoutBtn');
+              if (topLogout) topLogout.style.display = 'none';
+              const label = document.getElementById('adminUserLabel');
+              if (label) label.textContent = 'ราชาหวายสุรินทร์';
+              if (adminOverlay?.classList.contains('open')) {
+                adminLoginView.style.display = 'block';
+                adminMainView.style.display = 'none';
+                refreshAdminLoginView();
+              }
+            }
+            return;
+          }
+          if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION') {
+            if (!adminLoggedIn && session) {
+              try {
+                const access = await RachaweiStoreApi.ensureAdminAccess();
+                if (!access.ok) return;
+                adminLoggedIn = true;
+                const email = session.user?.email || access.email || '';
+                const label = document.getElementById('adminUserLabel');
+                if (label && email) {
+                  label.textContent = email;
+                  rememberAdminEmail(email);
+                }
+                if (adminOverlay?.classList.contains('open')) {
+                  adminTab = 'dash';
+                  await refreshAdminOrdersFromSupabase();
+                  showAdminMain();
+                }
+              } catch (e) {
+                console.warn('admin auth state sync failed', e);
+              }
+            }
+          }
+        })();
+      });
     }
 
     async function refreshAdminOrdersFromSupabase() {
@@ -3059,7 +3119,7 @@
       });
     }
 
-    function openAdminPanel() {
+    async function openAdminPanel() {
       if (!storeAppReady) {
         pendingAdminOpen = true;
         adminOverlay.classList.add('open');
@@ -3072,7 +3132,14 @@
       } else {
         adminLoginView.style.display = 'block';
         adminMainView.style.display = 'none';
-        // Freeze auth UI mode at open so async Supabase init cannot flip the path under the user.
+        // Wait for Supabase init so Production does not freeze into local PIN mode.
+        if (typeof RachaweiStoreApi !== 'undefined' && typeof RachaweiStoreApi.init === 'function') {
+          try {
+            await RachaweiStoreApi.init();
+          } catch (_) {
+            /* keep local fallback */
+          }
+        }
         adminAuthUiMode = isSupabaseReady() ? 'supabase' : 'local';
         setAdminPinState('', { syncInput: true });
         const emailEl = document.getElementById('adminEmail');
@@ -3087,7 +3154,9 @@
       }
     }
 
-    document.getElementById('adminOpenBtn')?.addEventListener('click', openAdminPanel);
+    document.getElementById('adminOpenBtn')?.addEventListener('click', () => {
+      void openAdminPanel();
+    });
 
     document.getElementById('adminCloseBtn').addEventListener('click', () => {
       adminOverlay.classList.remove('open');
@@ -3150,7 +3219,24 @@
       const errEl = document.getElementById('errAdminPin');
       const btn = document.getElementById('adminLoginBtn');
 
-      // Use frozen UI mode from panel open — do not re-read live isSupabaseReady().
+      // Prefer live Supabase when ready (and when email was entered) so a race at
+      // panel-open cannot trap Production into the local PIN path.
+      if (typeof RachaweiStoreApi !== 'undefined' && typeof RachaweiStoreApi.init === 'function') {
+        try {
+          await RachaweiStoreApi.init();
+        } catch (_) {
+          /* ignore */
+        }
+      }
+      if (isSupabaseReady()) {
+        adminAuthUiMode = 'supabase';
+        if (pinInput && pinInput.maxLength < 72) {
+          pinInput.removeAttribute('maxlength');
+          pinInput.setAttribute('maxlength', '72');
+          pinInput.maxLength = 72;
+        }
+      }
+
       if (adminAuthUiMode === 'supabase') {
         const email = getAdminEmailValue();
         if (!isAdminEmailValid(email)) {
@@ -3179,7 +3265,9 @@
           const result = await RachaweiStoreApi.signIn(email, pin);
           if (!result.ok) {
             if (errEl) {
-              errEl.textContent = result.message || 'อีเมลหรือรหัสผ่านไม่ถูกต้อง';
+              errEl.textContent =
+                result.message ||
+                `เข้าสู่ระบบไม่สำเร็จ${result.error ? ` (${result.error})` : ''}`;
               errEl.classList.add('show');
             }
             return;
@@ -3190,13 +3278,14 @@
             if (errEl) {
               errEl.textContent =
                 access.message ||
-                'บัญชีนี้ไม่มีสิทธิ์แอดมิน — ต้องอยู่ในตาราง store_admins';
+                `บัญชี ${email} ไม่มีสิทธิ์แอดมิน — ต้องอยู่ในตาราง store_admins`;
               errEl.classList.add('show');
             }
             return;
           }
           rememberAdminEmail(email);
           adminLoggedIn = true;
+          adminTab = 'dash';
           if (errEl) errEl.classList.remove('show');
           const label = document.getElementById('adminUserLabel');
           if (label) label.textContent = email;
@@ -3209,7 +3298,7 @@
           );
         } catch (e) {
           if (errEl) {
-            errEl.textContent = 'เข้าสู่ระบบไม่สำเร็จ — ลองใหม่อีกครั้ง';
+            errEl.textContent = `เข้าสู่ระบบไม่สำเร็จ: ${e?.message || e}`;
             errEl.classList.add('show');
           }
         } finally {
@@ -4787,7 +4876,7 @@
     });
 
     window.addEventListener('hashchange', () => {
-      if (location.hash === '#admin') openAdminPanel();
+      if (location.hash === '#admin') void openAdminPanel();
       const productId = parseProductHash();
       if (productId) openProductDetail(productId, { skipHash: true });
     });
@@ -5042,6 +5131,7 @@
         }
       }
       await restoreAdminSession();
+      bindAdminAuthState();
       renderProducts();
       updateBadge();
       setTheme(getTheme());
@@ -5059,7 +5149,7 @@
       if (deepProductId) openProductDetail(deepProductId, { skipHash: true, pushState: false });
 
       storeAppReady = true;
-      if (pendingAdminOpen || location.hash === '#admin') openAdminPanel();
+      if (pendingAdminOpen || location.hash === '#admin') void openAdminPanel();
 
       schedulePromoAfterInstall(900);
 
