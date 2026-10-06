@@ -30,7 +30,7 @@ export function shouldOpenAdminGate(): boolean {
 }
 
 export function adminInviteUrl(): string {
-  if (typeof window === 'undefined') return 'https://rachawei.vercel.app/?admin=1';
+  if (typeof window === 'undefined') return 'https://rachawei-gamma.vercel.app/?admin=1';
   const url = new URL(window.location.href);
   url.searchParams.set('admin', '1');
   url.hash = '';

@@ -495,8 +495,8 @@ export function ProductAdminPage({
     const handoff = [
       'ช่วยอัปเดตเว็บราชาหวายสุรินทร์ให้หน่อยครับ/ค่ะ',
       '',
-      'เว็บจริง (ส่งลูกค้า): https://rachawei.vercel.app',
-      'หลังร้าน (เจ้าของเท่านั้น): https://rachawei.vercel.app/?admin=1',
+      'เว็บจริง (ส่งลูกค้า): https://rachawei-gamma.vercel.app',
+      'หลังร้าน (เจ้าของเท่านั้น): https://rachawei-gamma.vercel.app/?admin=1',
       'โปรเจกต์: https://github.com/t9charoen-max/rachawei',
       '',
       'ฉันแก้ในหลังบ้านแล้ว ส่งไฟล์มาด้วย กรุณาทำตามนี้:',
@@ -528,7 +528,7 @@ export function ProductAdminPage({
       '1) ตรวจว่าไฟล์อยู่ในโฟลเดอร์ถูก (หรือรัน npm run grokbot:apply + npm run grokbot:validate)',
       '2) commit + push ไป branch main',
       '3) รอ Vercel deploy โปรเจกต์ rachawei เสร็จ',
-      '4) เปิด https://rachawei.vercel.app ตรวจว่าขึ้นถูกต้อง',
+      '4) เปิด https://rachawei-gamma.vercel.app ตรวจว่าขึ้นถูกต้อง',
       '',
       'คู่มือ grokbot: grokbot/README.md',
       '',
@@ -626,7 +626,7 @@ export function ProductAdminPage({
           <button type="button" className="admin-form__save" onClick={() => void copyAdminInvite()}>
             {inviteCopied ? 'คัดลอกแล้ว' : 'คัดลอกลิงก์+รหัสส่งแอดมิน'}
           </button>
-          <p className="admin-screen__hint">ลูกค้าใช้ลิงก์ปกติ https://rachawei.vercel.app (ไม่มี ?admin=1)</p>
+          <p className="admin-screen__hint">ลูกค้าใช้ลิงก์ปกติ https://rachawei-gamma.vercel.app (ไม่มี ?admin=1)</p>
         </div>
       </section>
     );

@@ -3976,11 +3976,67 @@
       display: flex;
       gap: 0.35rem;
       flex-wrap: wrap;
+      align-items: center;
     }
     .btn-xs {
       padding: 0.3rem 0.6rem;
       font-size: 0.75rem;
       border-radius: 8px;
+    }
+    .admin-order-menu {
+      position: relative;
+      display: inline-flex;
+    }
+    .admin-order-menu-btn {
+      min-width: 2rem;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      line-height: 1;
+    }
+    .admin-order-menu-panel {
+      position: absolute;
+      right: 0;
+      top: calc(100% + 0.25rem);
+      z-index: 40;
+      min-width: 9.5rem;
+      padding: 0.25rem;
+      background: #fffdf9;
+      border: 1px solid rgba(120, 90, 60, 0.28);
+      border-radius: 10px;
+      box-shadow: 0 8px 22px rgba(40, 28, 16, 0.12);
+    }
+    .admin-order-menu-item {
+      display: block;
+      width: 100%;
+      text-align: left;
+      border: 0;
+      background: transparent;
+      color: var(--rattan-deep, #5c4030);
+      font: inherit;
+      font-size: 0.82rem;
+      padding: 0.45rem 0.65rem;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+    .admin-order-menu-item:hover {
+      background: rgba(196, 164, 132, 0.18);
+    }
+    .admin-order-menu-item--danger {
+      color: #a93226;
+    }
+    .admin-order-menu-item--danger:hover {
+      background: rgba(231, 76, 60, 0.12);
+    }
+    [data-theme="dark"] .admin-order-menu-panel {
+      background: #2a241c;
+      border-color: rgba(220, 190, 150, 0.22);
+      box-shadow: 0 10px 24px rgba(0, 0, 0, 0.35);
+    }
+    [data-theme="dark"] .admin-order-menu-item {
+      color: #f0e6d8;
+    }
+    [data-theme="dark"] .admin-order-menu-item--danger {
+      color: #f0a8a0;
     }
 
     .admin-form-card {

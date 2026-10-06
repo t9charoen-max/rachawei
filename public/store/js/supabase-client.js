@@ -20,6 +20,8 @@
       const host = String(global.location?.hostname || '').toLowerCase();
       if (!host || host === 'localhost' || host === '127.0.0.1') return false;
       return (
+        host === 'rachawei-gamma.vercel.app' ||
+        host.endsWith('.rachawei-gamma.vercel.app') ||
         host === 'rachawei.vercel.app' ||
         host.endsWith('.rachawei.vercel.app') ||
         host === 'rachawei.com' ||
@@ -422,6 +424,78 @@
     return { ok: true };
   }
 
+  function mapDeleteOrderError(error) {
+    const raw = String(error?.message || error || '');
+    const lower = raw.toLowerCase();
+    if (/not_admin|42501|permission denied|jwt|auth/i.test(raw) || lower.includes('not_admin')) {
+      return 'ไม่มีสิทธิ์ลบออเดอร์ — ต้องเข้าสู่ระบบด้วยบัญชีแอดมินใน store_admins';
+    }
+    if (/order_not_found/i.test(raw)) {
+      return 'ไม่พบออเดอร์นี้ในระบบ (อาจถูกลบไปแล้ว)';
+    }
+    if (/missing_order_id/i.test(raw)) {
+      return 'เลขออเดอร์ไม่ถูกต้อง';
+    }
+    if (/store_admin_delete_order|pgrst202|404|could not find the function/i.test(raw)) {
+      return 'ยังไม่มีฟังก์ชันลบออเดอร์บนเซิร์ฟเวอร์ — ต้องรัน SQL 007 (store_admin_delete_order)';
+    }
+    if (/supabase_not_configured|not configured/i.test(raw)) {
+      return 'ยังไม่ได้เชื่อมต่อ Supabase — ตรวจการตั้งค่าแล้วลองใหม่';
+    }
+    if (/no_session|not authenticated|session/i.test(raw)) {
+      return 'ยังไม่ได้เข้าสู่ระบบแอดมิน — กรุณา login ก่อนลบออเดอร์';
+    }
+    return raw ? `ลบออเดอร์ไม่สำเร็จ: ${raw}` : 'ลบออเดอร์ไม่สำเร็จ';
+  }
+
+  async function deleteOrderForAdmin(orderId) {
+    const sb = getClient();
+    if (!sb) {
+      return { ok: false, error: 'supabase_not_configured', message: mapDeleteOrderError('supabase_not_configured') };
+    }
+
+    const session = await getSession();
+    if (!session) {
+      return { ok: false, error: 'no_session', message: mapDeleteOrderError('no_session') };
+    }
+
+    const id = String(orderId || '').trim();
+    if (!id) {
+      return { ok: false, error: 'missing_order_id', message: mapDeleteOrderError('missing_order_id') };
+    }
+
+    try {
+      const { data, error } = await sb.rpc('store_admin_delete_order', {
+        p_order_id: id,
+      });
+      if (error) {
+        return {
+          ok: false,
+          error: error.message || 'delete_failed',
+          message: mapDeleteOrderError(error),
+        };
+      }
+      if (data && data.ok === false) {
+        return {
+          ok: false,
+          error: data.error || 'delete_failed',
+          message: mapDeleteOrderError(data.error || data.message || 'delete_failed'),
+        };
+      }
+      return {
+        ok: true,
+        orderId: (data && data.order_id) || id,
+        deletedItems: data && data.deleted_items != null ? Number(data.deleted_items) : null,
+      };
+    } catch (e) {
+      return {
+        ok: false,
+        error: e?.message || 'delete_failed',
+        message: mapDeleteOrderError(e),
+      };
+    }
+  }
+
   async function upsertProduct(product) {
     const sb = getClient();
     if (!sb) return { ok: false, error: 'supabase_not_configured' };
@@ -716,6 +790,7 @@
     fetchOrdersForAdmin,
     fetchOrdersViaServiceProxy,
     updateOrderStatus,
+    deleteOrderForAdmin,
     upsertProduct,
     deleteProductRemote,
     saveShopSettingsRemote,

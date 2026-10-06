@@ -1,0 +1,6 @@
+{
+  "url": "https://jvgfudxdwdwfumdznymu.supabase.co",
+  "anonKey": "sb_publishable_oG6s4HUGebJ-XRyqU5gjeg_kfKqhYnY",
+  "project": "Rachawei-store",
+  "note": "Public anon/publishable key only — never service_role. Used when Vercel env is missing so rachawei-gamma can still run Store/Admin."
+}
