@@ -2845,7 +2845,14 @@
         const email = getAdminEmailValue();
         const ready = isAdminEmailValid(email) && isAdminPasswordLongEnough(pin);
         if (btn) btn.disabled = !ready;
-        if (err && ready) err.classList.remove('show');
+        if (err) {
+          if (/@example\.com$/i.test(email)) {
+            err.textContent = 'ห้ามใช้อีเมลตัวอย่าง — กรอกอีเมลจริงของเจ้าของร้านใน Supabase Auth';
+            err.classList.add('show');
+          } else if (ready) {
+            err.classList.remove('show');
+          }
+        }
         return;
       }
 
