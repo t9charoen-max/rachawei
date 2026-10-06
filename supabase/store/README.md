@@ -13,6 +13,12 @@
    - มี `store_link_admin_by_email(email)` สำหรับลิงก์จาก SQL Editor
 4. **ลบออเดอร์ (Admin):** รัน `007_store_admin_delete_order.sql` (ถ้ายังไม่มี)
    - สร้าง `store_admin_delete_order(p_order_id)` ตรวจสิทธิ์ด้วย `store_is_admin()`
+<<<<<<< HEAD
+5. **Shop settings public view:** รัน `008_fix_shop_settings_public_view.sql` (ถ้า anon อ่าน settings ไม่ได้)
+   - ตั้ง `store_shop_settings_public` เป็น `security_invoker=false`
+   - ให้ anon อ่านผ่าน view ได้ โดยไม่เปิด base table
+=======
+>>>>>>> origin/main
 
 > ไฟล์ `005_store_admin_list_orders.sql` ถูกแทนที่ด้วยส่วนใน `006` แล้ว — รัน 006 พอ  
 > Production หลัก: `https://rachawei-gamma.vercel.app`
