@@ -2792,6 +2792,54 @@
     const adminLoginView = document.getElementById('adminLoginView');
     const adminMainView = document.getElementById('adminMainView');
 
+    /** PIN typed by user — validate from this state, never from password-dot visuals. */
+    let adminPinState = '';
+    /** Frozen at panel open so late Supabase init cannot switch the login path mid-entry. */
+    let adminAuthUiMode = 'local'; // 'local' | 'supabase'
+    let storeAppReady = false;
+    let pendingAdminOpen = false;
+
+    function getAdminPinStateValue() {
+      return String(adminPinState ?? '').trim();
+    }
+
+    function isAdminPinLongEnough(pin) {
+      return String(pin ?? '').trim().length >= 4;
+    }
+
+    function syncAdminPinControls() {
+      const pin = getAdminPinStateValue();
+      const btn = document.getElementById('adminLoginBtn');
+      const err = document.getElementById('errAdminPin');
+      const longEnough = isAdminPinLongEnough(pin);
+      if (btn) btn.disabled = !longEnough;
+      if (!err) return;
+
+      if (adminAuthUiMode === 'local' && !hasAdminPinConfigured()) {
+        err.textContent = 'กรุณาตั้งรหัสอย่างน้อย 4 หลัก';
+        if (longEnough) err.classList.remove('show');
+        else if (pin.length > 0) err.classList.add('show');
+        else err.classList.remove('show');
+        return;
+      }
+
+      if (longEnough) err.classList.remove('show');
+    }
+
+    function setAdminPinState(next, { syncInput = false } = {}) {
+      adminPinState = String(next ?? '');
+      if (syncInput) {
+        const pinInput = document.getElementById('adminPin');
+        if (pinInput && pinInput.value !== adminPinState) pinInput.value = adminPinState;
+      }
+      syncAdminPinControls();
+    }
+
+    function captureAdminPinFromInput(el) {
+      // Read the real .value from the field into state (iOS/Safari input + change).
+      setAdminPinState(el ? el.value : '', { syncInput: false });
+    }
+
     function refreshAdminLoginView() {
       const title = document.getElementById('adminLoginTitle');
       const hint = document.getElementById('adminLoginHint');
@@ -2800,13 +2848,17 @@
       const emailGroup = document.getElementById('adminEmailGroup');
       const pinLabel = document.getElementById('adminPinLabel');
       const pinInput = document.getElementById('adminPin');
-      const supabaseMode = isSupabaseReady();
+      const supabaseMode = adminAuthUiMode === 'supabase';
 
       if (emailGroup) emailGroup.style.display = supabaseMode ? 'block' : 'none';
       if (pinLabel) pinLabel.textContent = supabaseMode ? 'รหัสผ่าน (Supabase Auth)' : 'รหัสผ่าน';
       if (pinInput) {
         pinInput.maxLength = supabaseMode ? 72 : 12;
         pinInput.placeholder = supabaseMode ? 'รหัสผ่านบัญชีเจ้าของร้าน' : '••••';
+        pinInput.setAttribute('inputmode', supabaseMode ? 'text' : 'numeric');
+        if (supabaseMode) pinInput.removeAttribute('pattern');
+        else pinInput.setAttribute('pattern', '[0-9]*');
+        pinInput.setAttribute('autocomplete', supabaseMode ? 'current-password' : 'one-time-code');
       }
 
       if (supabaseMode) {
@@ -2816,6 +2868,7 @@
         }
         if (btn) btn.textContent = 'เข้าสู่ระบบ';
         if (err) err.textContent = 'อีเมลหรือรหัสผ่านไม่ถูกต้อง หรือไม่มีสิทธิ์ admin';
+        syncAdminPinControls();
         return;
       }
 
@@ -2828,6 +2881,7 @@
       }
       if (btn) btn.textContent = setup ? 'เข้าสู่ระบบ' : 'บันทึกรหัสและเข้าใช้งาน';
       if (err) err.textContent = setup ? 'รหัสผ่านไม่ถูกต้อง' : 'กรุณาตั้งรหัสอย่างน้อย 4 หลัก';
+      syncAdminPinControls();
     }
 
     async function restoreAdminSession() {
@@ -2940,16 +2994,25 @@
     }
 
     function openAdminPanel() {
+      if (!storeAppReady) {
+        pendingAdminOpen = true;
+        adminOverlay.classList.add('open');
+        return;
+      }
+      pendingAdminOpen = false;
       adminOverlay.classList.add('open');
       if (adminLoggedIn) {
         showAdminMain();
       } else {
         adminLoginView.style.display = 'block';
         adminMainView.style.display = 'none';
-        document.getElementById('adminPin').value = '';
+        // Freeze auth UI mode at open so async Supabase init cannot flip the path under the user.
+        adminAuthUiMode = isSupabaseReady() ? 'supabase' : 'local';
+        setAdminPinState('', { syncInput: true });
         const emailEl = document.getElementById('adminEmail');
         if (emailEl) emailEl.value = emailEl.value || '';
-        document.getElementById('errAdminPin').classList.remove('show');
+        const errEl = document.getElementById('errAdminPin');
+        if (errEl) errEl.classList.remove('show');
         refreshAdminLoginView();
       }
     }
@@ -2964,11 +3027,25 @@
     });
 
     document.getElementById('adminLoginBtn').addEventListener('click', () => { void doAdminLogin(); });
-    document.getElementById('adminPin').addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') void doAdminLogin();
-    });
+    const adminPinEl = document.getElementById('adminPin');
+    if (adminPinEl) {
+      const onPinLive = (e) => captureAdminPinFromInput(e.target);
+      adminPinEl.addEventListener('input', onPinLive);
+      adminPinEl.addEventListener('change', onPinLive);
+      adminPinEl.addEventListener('keyup', onPinLive);
+      adminPinEl.addEventListener('paste', (e) => {
+        // After paste, read the updated value on next tick (Safari-safe).
+        setTimeout(() => captureAdminPinFromInput(e.target), 0);
+      });
+      adminPinEl.addEventListener('keydown', (e) => {
+        captureAdminPinFromInput(e.target);
+        if (e.key === 'Enter' && isAdminPinLongEnough(getAdminPinStateValue())) {
+          void doAdminLogin();
+        }
+      });
+    }
     document.getElementById('adminEmail')?.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') void doAdminLogin();
+      if (e.key === 'Enter' && isAdminPinLongEnough(getAdminPinStateValue())) void doAdminLogin();
     });
     document.getElementById('adminLogoutBtn')?.addEventListener('click', () => { void doAdminLogout(); });
     document.getElementById('adminTopLogoutBtn')?.addEventListener('click', () => { void doAdminLogout(); });
@@ -2983,18 +3060,37 @@
       adminLoginView.style.display = 'block';
       adminMainView.style.display = 'none';
       showToast('ออกจากระบบแล้ว');
+      adminAuthUiMode = isSupabaseReady() ? 'supabase' : 'local';
+      setAdminPinState('', { syncInput: true });
       refreshAdminLoginView();
     }
 
     async function doAdminLogin() {
-      const pin = document.getElementById('adminPin').value.trim();
+      const pinInput = document.getElementById('adminPin');
+      if (pinInput) captureAdminPinFromInput(pinInput);
+      const pin = getAdminPinStateValue();
       const errEl = document.getElementById('errAdminPin');
       const btn = document.getElementById('adminLoginBtn');
 
-      if (isSupabaseReady()) {
-        const email = (document.getElementById('adminEmail')?.value || '').trim();
-        if (!email || pin.length < 4) {
+      if (!isAdminPinLongEnough(pin)) {
+        if (errEl) {
+          if (adminAuthUiMode === 'local' && !hasAdminPinConfigured()) {
+            errEl.textContent = 'กรุณาตั้งรหัสอย่างน้อย 4 หลัก';
+          }
           errEl.classList.add('show');
+        }
+        if (btn) btn.disabled = true;
+        return;
+      }
+
+      // Use frozen UI mode from panel open — do not re-read live isSupabaseReady().
+      if (adminAuthUiMode === 'supabase') {
+        const email = (document.getElementById('adminEmail')?.value || '').trim();
+        if (!email) {
+          if (errEl) {
+            errEl.textContent = 'อีเมลหรือรหัสผ่านไม่ถูกต้อง หรือไม่มีสิทธิ์ admin';
+            errEl.classList.add('show');
+          }
           return;
         }
         if (btn) {
@@ -3004,54 +3100,61 @@
         try {
           const result = await RachaweiStoreApi.signIn(email, pin);
           if (!result.ok) {
-            errEl.classList.add('show');
+            if (errEl) {
+              errEl.textContent = 'อีเมลหรือรหัสผ่านไม่ถูกต้อง หรือไม่มีสิทธิ์ admin';
+              errEl.classList.add('show');
+            }
             return;
           }
           const ok = await RachaweiStoreApi.isAdminUser();
           if (!ok) {
             await RachaweiStoreApi.signOut();
-            errEl.textContent = 'บัญชีนี้ไม่มีสิทธิ์ admin';
-            errEl.classList.add('show');
+            if (errEl) {
+              errEl.textContent = 'บัญชีนี้ไม่มีสิทธิ์ admin';
+              errEl.classList.add('show');
+            }
             return;
           }
           adminLoggedIn = true;
-          errEl.classList.remove('show');
+          if (errEl) errEl.classList.remove('show');
           const label = document.getElementById('adminUserLabel');
           if (label) label.textContent = email;
           await refreshAdminOrdersFromSupabase();
           showAdminMain();
           showToast('เข้าสู่ระบบหลังร้านแล้ว ✓');
         } catch (e) {
-          errEl.classList.add('show');
+          if (errEl) {
+            errEl.textContent = 'อีเมลหรือรหัสผ่านไม่ถูกต้อง หรือไม่มีสิทธิ์ admin';
+            errEl.classList.add('show');
+          }
         } finally {
           if (btn) {
-            btn.disabled = false;
             btn.textContent = 'เข้าสู่ระบบ';
+            syncAdminPinControls();
           }
         }
         return;
       }
 
       if (!hasAdminPinConfigured()) {
-        if (pin.length < 4) {
-          errEl.classList.add('show');
-          return;
-        }
         SHOP_CONFIG.adminPinHash = hashAdminPin(pin);
-        saveShopSettings({});
+        await saveShopSettings({});
         adminLoggedIn = true;
-        errEl.classList.remove('show');
+        if (errEl) errEl.classList.remove('show');
         showAdminMain();
         showToast('ตั้งรหัสหลังร้านแล้ว ✓');
         return;
       }
       if (verifyAdminPin(pin)) {
         adminLoggedIn = true;
-        errEl.classList.remove('show');
+        if (errEl) errEl.classList.remove('show');
         showAdminMain();
         showToast('เข้าสู่ระบบหลังร้านแล้ว ✓');
       } else {
-        errEl.classList.add('show');
+        if (errEl) {
+          errEl.textContent = 'รหัสผ่านไม่ถูกต้อง';
+          errEl.classList.add('show');
+        }
       }
     }
 
@@ -3303,6 +3406,10 @@
           phoneTel = digits.startsWith('0') ? '+66' + digits.slice(1) : (digits ? '+' + digits : SHOP_CONFIG.phoneTel);
         }
         const nextPin = document.getElementById('setAdminPin').value.trim();
+        if (nextPin && !isAdminPinLongEnough(nextPin)) {
+          alert('รหัสผ่านต้องมีอย่างน้อย 4 หลัก');
+          return;
+        }
         const settingsPatch = {
           shopName: document.getElementById('setShopName').value.trim() || SHOP_CONFIG.shopName,
           phoneDisplay: phoneDisplay || SHOP_CONFIG.phoneDisplay,
@@ -4587,7 +4694,8 @@
       if (productId) openProductDetail(productId, { skipHash: true });
     });
 
-    if (location.hash === '#admin') openAdminPanel();
+    // Defer #admin open until after Supabase/IndexedDB init (see initApp).
+    // Opening earlier freezes local-PIN UI, then login click races into Supabase path.
 
 
     // ========== VIDEO MODAL ==========
@@ -4851,6 +4959,9 @@
 
       const deepProductId = parseProductHash();
       if (deepProductId) openProductDetail(deepProductId, { skipHash: true, pushState: false });
+
+      storeAppReady = true;
+      if (pendingAdminOpen || location.hash === '#admin') openAdminPanel();
 
       schedulePromoAfterInstall(900);
 
