@@ -123,11 +123,20 @@ try {
   });
   ok('news card readable in dark mode', newsContrast.darkText, `${newsContrast.h3} / ${newsContrast.excerpt}`);
 
-  // --- Admin ---
+  // --- Admin (Supabase Auth) ---
   await page.evaluate(() => document.getElementById('adminOverlay')?.classList.add('open'));
+  await page.waitForSelector('#adminEmail', { visible: true });
   await page.waitForSelector('#adminPin', { visible: true });
-  const testPin = process.env.STORE_ADMIN_PIN || '5678';
-  await page.type('#adminPin', testPin);
+  const adminEmail = process.env.STORE_ADMIN_EMAIL || '';
+  const adminPassword = process.env.STORE_ADMIN_PASSWORD || process.env.STORE_ADMIN_PIN || '';
+  const canAdminLogin = Boolean(adminEmail && adminPassword);
+  ok('admin auth UI present', true);
+  if (!canAdminLogin) {
+    ok('admin deep checks skipped (set STORE_ADMIN_EMAIL/PASSWORD)', true);
+    await page.evaluate(() => document.getElementById('adminOverlay')?.classList.remove('open'));
+  } else {
+  await page.type('#adminEmail', adminEmail);
+  await page.type('#adminPin', adminPassword);
   await page.click('#adminLoginBtn');
   await page.waitForSelector('#adminMainView', { visible: true });
   ok('admin login', true);
@@ -223,6 +232,8 @@ try {
 
   // Nav pages
   await page.evaluate(() => document.getElementById('adminOverlay')?.classList.remove('open'));
+  } // end canAdminLogin
+
   for (const pg of ['story', 'process', 'care', 'media']) {
     await page.click(`#mainNav button[data-page="${pg}"]`);
     await new Promise((r) => setTimeout(r, 200));
@@ -233,7 +244,13 @@ try {
 
   // Main build assets
   const assets = await page.evaluate(async () => {
-    const urls = ['/store/js/app.js', '/store/js/config.js', '/store/css/styles.css'];
+    const urls = [
+      '/store/js/app.js',
+      '/store/js/config.js',
+      '/store/css/styles.css',
+      '/store/js/supabase-api.js',
+      '/store/js/vendor/supabase.js',
+    ];
     const codes = await Promise.all(urls.map(async (u) => {
       try {
         const r = await fetch(u);

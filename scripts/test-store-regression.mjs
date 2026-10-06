@@ -91,16 +91,22 @@ try {
   const slipVisible = await page.evaluate(() => document.getElementById('slipUploadSection')?.style.display !== 'none');
   ok('slip upload visible for promptpay', slipVisible);
 
-  // Admin first-time setup (isolated browser context)
+  // Admin login UI (Supabase Auth — email + password)
   const ctx = await browser.createBrowserContext();
   const adminPage = await ctx.newPage();
   await adminPage.goto(BASE + '#admin', { waitUntil: 'networkidle0' });
   await adminPage.evaluate(() => document.getElementById('adminOverlay')?.classList.add('open'));
   await adminPage.waitForSelector('#adminLoginBtn');
-  const setupMode = await adminPage.evaluate(() =>
-    document.getElementById('adminLoginBtn')?.textContent?.includes('บันทึกรหัส'),
-  );
-  ok('admin setup mode on fresh profile', setupMode);
+  const authUi = await adminPage.evaluate(() => ({
+    email: !!document.getElementById('adminEmail'),
+    password: !!document.getElementById('adminPin'),
+    btn: document.getElementById('adminLoginBtn')?.textContent || '',
+    hint: document.getElementById('adminLoginHint')?.textContent || '',
+  }));
+  ok('admin has email field', authUi.email);
+  ok('admin has password field', authUi.password);
+  ok('admin login button label', authUi.btn.includes('เข้าสู่ระบบ'));
+  ok('admin hint mentions Supabase or env', /Supabase|VITE_SUPABASE/i.test(authUi.hint));
   await ctx.close();
 
   // React brochure links to /store/

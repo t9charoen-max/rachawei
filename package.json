@@ -9,17 +9,18 @@
   "scripts": {
     "dev": "vite",
     "build": "npm run build:store && tsc -b && vite build",
-    "build:store": "node scripts/sync-store-catalog.mjs && rm -rf public/store && mkdir -p public/store/css public/store/js public/store/brand public/store/images/shop && cp artifacts/index.html artifacts/rachawei-surin.html artifacts/manifest.webmanifest public/store/ && cp artifacts/css/styles.css public/store/css/ && cp artifacts/js/config.js artifacts/js/store-content.js artifacts/js/store-cms.js artifacts/js/catalog-products.js artifacts/js/app.js public/store/js/ && cp artifacts/brand/rachawei-logo.png artifacts/brand/rachawei-logo-square.png public/store/brand/ && cp artifacts/images/shop/* public/store/images/shop/ 2>/dev/null || true && touch public/store/.nojekyll",
+    "build:store": "node scripts/sync-store-catalog.mjs && node scripts/inject-store-supabase-env.mjs && rm -rf public/store && mkdir -p public/store/css public/store/js/vendor public/store/brand public/store/images/shop && cp artifacts/index.html artifacts/rachawei-surin.html artifacts/manifest.webmanifest public/store/ && cp artifacts/css/styles.css public/store/css/ && cp artifacts/js/config.js artifacts/js/store-content.js artifacts/js/store-cms.js artifacts/js/catalog-products.js artifacts/js/supabase-env.js artifacts/js/supabase-api.js artifacts/js/app.js public/store/js/ && cp node_modules/@supabase/supabase-js/dist/umd/supabase.js public/store/js/vendor/supabase.js && cp artifacts/brand/rachawei-logo.png artifacts/brand/rachawei-logo-square.png public/store/brand/ && cp artifacts/images/shop/* public/store/images/shop/ 2>/dev/null || true && touch public/store/.nojekyll",
     "sync:store-catalog": "node scripts/sync-store-catalog.mjs",
     "grokbot:validate": "node scripts/grokbot-validate.mjs",
     "grokbot:apply": "node scripts/grokbot-apply.mjs",
     "test:store": "node scripts/test-store-admin.mjs",
     "test:store:full": "node scripts/test-store-full.mjs",
-    "lint": "oxlint",
+    "lint": "oxlint --ignore-pattern '**/vendor/**'",
     "preview": "vite preview"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.30.0",
+    "@supabase/supabase-js": "^2.117.2",
     "pannellum": "^2.5.7",
     "qrcode.react": "^4.2.0",
     "react": "^19.2.7",
@@ -34,6 +35,7 @@
     "@vercel/node": "^5.10.2",
     "@vitejs/plugin-react": "^6.0.3",
     "oxlint": "^1.71.0",
+    "puppeteer-core": "^25.12.0",
     "tailwindcss": "^4.3.2",
     "typescript": "~6.0.2",
     "vite": "^8.1.1"

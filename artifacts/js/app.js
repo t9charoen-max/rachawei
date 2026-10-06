@@ -69,6 +69,28 @@
     let orderSeq = 1;
     let db = null;
     let dbReady = false;
+    let supabaseOnline = false;
+    let supabaseBannerShown = false;
+
+    const StoreApi = () => (typeof window !== 'undefined' ? window.RachaweiStoreApi : null);
+
+    function showStoreDataNotice(message) {
+      if (supabaseBannerShown || !message) return;
+      supabaseBannerShown = true;
+      try {
+        const bar = document.createElement('div');
+        bar.id = 'storeDataNotice';
+        bar.setAttribute('role', 'status');
+        bar.style.cssText = 'position:sticky;top:0;z-index:90;padding:0.55rem 0.85rem;background:#fff4e5;color:#5c4033;font-size:0.82rem;text-align:center;border-bottom:1px solid rgba(184,137,90,0.35);';
+        bar.textContent = message;
+        document.body.prepend(bar);
+      } catch (_) { /* ignore */ }
+    }
+
+    function isSupabaseReady() {
+      const api = StoreApi();
+      return Boolean(api && api.isConfigured && api.isConfigured());
+    }
 
     const DB_NAME = 'rachawei_surin_db';
     const DB_VER = 1;
@@ -263,6 +285,54 @@
         const savedCatalogVer = await idbGet('catalogSyncVersion');
         const savedVideoVer = await idbGet('videoSyncVersion');
 
+        // Supabase primary when configured + reachable
+        const api = StoreApi();
+        let loadedFromSupabase = false;
+        if (api && api.isConfigured && api.isConfigured()) {
+          const [prodRes, settingsRes, videoRes] = await Promise.all([
+            api.fetchActiveProducts(),
+            api.fetchPublicSettings(),
+            api.fetchActiveVideos(),
+          ]);
+          if (prodRes.ok && prodRes.products.length) {
+            products = prodRes.products.map((p) => ({ ...p }));
+            loadedFromSupabase = true;
+            supabaseOnline = true;
+            await idbSet('products', products);
+            await idbSet('catalogSyncVersion', CATALOG_SYNC_VERSION);
+          }
+          if (settingsRes.ok && settingsRes.settings) {
+            Object.assign(SHOP_CONFIG, settingsRes.settings);
+            if (typeof mergeStoreContent === 'function') {
+              SHOP_CONFIG.content = mergeStoreContent(settingsRes.settings.content);
+            }
+            migratePaymentFields();
+            await idbSet('shopSettings', {
+              ...settingsRes.settings,
+              content: SHOP_CONFIG.content || null,
+            });
+            supabaseOnline = true;
+          }
+          if (videoRes.ok && Array.isArray(videoRes.videos)) {
+            shopVideos = videoRes.videos.map((v) => ({
+              id: v.id,
+              title: v.title,
+              url: v.url || v.videoUrl,
+              productId: v.productId,
+              thumbnail: v.thumbnail,
+              views: v.views,
+            }));
+            await idbSet('shopVideos', shopVideos);
+            await idbSet(
+              'videoSyncVersion',
+              typeof VIDEO_SYNC_VERSION !== 'undefined' ? VIDEO_SYNC_VERSION : 'rachawei-videos-v1',
+            );
+          }
+          if (!prodRes.ok) {
+            showStoreDataNotice('เชื่อมต่อคลังสินค้าออนไลน์ไม่ได้ชั่วคราว — แสดงข้อมูลสำรองในเครื่อง');
+          }
+        }
+
         const catalogBase = await fetchLiveCatalogProducts();
         const baseProducts = (catalogBase && catalogBase.length)
           ? catalogBase
@@ -273,23 +343,27 @@
           : 'rachawei-videos-v1';
         const needsVideoResync = savedVideoVer !== videoSyncVersion;
 
-        if (needsCatalogResync || !Array.isArray(savedProducts) || !savedProducts.length) {
-          products = baseProducts.map(p => ({ ...p }));
-        } else {
-          products = mergeCatalogWithSaved(baseProducts, savedProducts);
+        if (!loadedFromSupabase) {
+          if (needsCatalogResync || !Array.isArray(savedProducts) || !savedProducts.length) {
+            products = baseProducts.map(p => ({ ...p }));
+          } else {
+            products = mergeCatalogWithSaved(baseProducts, savedProducts);
+          }
+          if (needsCatalogResync) {
+            sanitizeCartForProducts();
+            await idbSet('catalogSyncVersion', CATALOG_SYNC_VERSION);
+            await idbSet('products', products);
+          }
         }
 
-        if (needsCatalogResync) {
-          sanitizeCartForProducts();
-          await idbSet('catalogSyncVersion', CATALOG_SYNC_VERSION);
-          await idbSet('products', products);
-        }
-        if (needsVideoResync) {
-          shopVideos = (typeof DEFAULT_SHOP_VIDEOS !== 'undefined' ? DEFAULT_SHOP_VIDEOS : []).map((v) => ({ ...v }));
-          await idbSet('shopVideos', shopVideos);
-          await idbSet('videoSyncVersion', videoSyncVersion);
-        } else if (Array.isArray(savedVideos)) {
-          shopVideos = savedVideos;
+        if (!shopVideos.length) {
+          if (needsVideoResync && !supabaseOnline) {
+            shopVideos = (typeof DEFAULT_SHOP_VIDEOS !== 'undefined' ? DEFAULT_SHOP_VIDEOS : []).map((v) => ({ ...v }));
+            await idbSet('shopVideos', shopVideos);
+            await idbSet('videoSyncVersion', videoSyncVersion);
+          } else if (Array.isArray(savedVideos) && savedVideos.length) {
+            shopVideos = savedVideos;
+          }
         }
         if (Array.isArray(savedCart)) {
           cart = normalizeCart(savedCart);
@@ -314,7 +388,7 @@
         } catch (e) {
           setTheme('light');
         }
-        if (savedShop && typeof savedShop === 'object') {
+        if (!supabaseOnline && savedShop && typeof savedShop === 'object') {
           Object.assign(SHOP_CONFIG, savedShop);
           if (savedShop.adminPin && !savedShop.adminPinHash) {
             SHOP_CONFIG.adminPinHash = hashAdminPin(String(savedShop.adminPin));
@@ -369,11 +443,35 @@
     }
 
     function saveProducts() {
-      return persistAll();
+      const local = persistAll();
+      const api = StoreApi();
+      if (api && adminLoggedIn && isSupabaseReady()) {
+        Promise.all((products || []).map((p) => api.upsertProductRemote(p))).catch((e) => {
+          console.warn('ซิงก์สินค้าไป Supabase ไม่สำเร็จ', e && e.message ? e.message : e);
+        });
+      }
+      return local;
     }
 
     function saveShopVideos() {
-      return persistAll();
+      const local = persistAll();
+      const api = StoreApi();
+      if (api && adminLoggedIn && isSupabaseReady()) {
+        Promise.all(
+          (shopVideos || []).map((v) =>
+            api.upsertVideoRemote({
+              id: v.id,
+              title: v.title,
+              url: v.videoUrl || v.url,
+              productId: v.productId,
+              thumbnail: v.thumbnail,
+              views: v.views,
+              isActive: true,
+            }),
+          ),
+        ).catch((e) => console.warn('ซิงก์วิดีโอไม่สำเร็จ', e && e.message ? e.message : e));
+      }
+      return local;
     }
 
     function saveOrders() {
@@ -1732,14 +1830,55 @@
 
     let lastOrderId = null;
     let currentTrackOrder = null;
+    const ORDER_INFLIGHT_KEY = 'rachawei_order_inflight';
 
     function genOrderId() {
       const d = new Date();
       const y = d.getFullYear();
       const m = String(d.getMonth() + 1).padStart(2, '0');
       const day = String(d.getDate()).padStart(2, '0');
+      // Prefer unique suffix so concurrent browsers don't collide (anon cannot bump order_seq)
+      const rand = Math.floor(Math.random() * 900) + 100;
       const seq = String(orderSeq++).padStart(3, '0');
-      return `RW${y}${m}${day}-${seq}`;
+      return `RW${y}${m}${day}-${seq}${rand}`;
+    }
+
+    function checkoutFingerprint(payload) {
+      const itemsKey = (payload.items || [])
+        .map((i) => `${i.id}:${i.qty}:${i.price}`)
+        .join('|');
+      return [
+        payload.name || '',
+        payload.phone || '',
+        payload.method || '',
+        String(payload.total || 0),
+        itemsKey,
+      ].join('::');
+    }
+
+    function readInflightOrder() {
+      try {
+        const raw = sessionStorage.getItem(ORDER_INFLIGHT_KEY);
+        if (!raw) return null;
+        const parsed = JSON.parse(raw);
+        if (!parsed || !parsed.id || !parsed.fingerprint) return null;
+        return parsed;
+      } catch (_) {
+        return null;
+      }
+    }
+
+    function writeInflightOrder(id, fingerprint) {
+      try {
+        sessionStorage.setItem(
+          ORDER_INFLIGHT_KEY,
+          JSON.stringify({ id, fingerprint, at: Date.now() }),
+        );
+      } catch (_) { /* ignore */ }
+    }
+
+    function clearInflightOrder() {
+      try { sessionStorage.removeItem(ORDER_INFLIGHT_KEY); } catch (_) { /* ignore */ }
     }
 
     function formatDateTime(ts) {
@@ -1750,7 +1889,14 @@
       });
     }
 
-    function createOrder() {
+    let orderSubmitting = false;
+
+    async function createOrder() {
+      if (orderSubmitting) return null;
+      if (!Array.isArray(cart) || cart.length === 0) {
+        showToast('ตะกร้าว่าง — เพิ่มสินค้าก่อนสั่งซื้อ');
+        return null;
+      }
       const name = document.getElementById('custName').value.trim();
       const phoneRaw = document.getElementById('custPhone').value.trim();
       const phoneDisplay = formatPhoneDisplay(phoneRaw);
@@ -1764,14 +1910,30 @@
         const p = products.find(x => x.id === item.id);
         return p ? { id: p.id, name: p.name, emoji: p.emoji, qty: item.qty, price: p.price } : null;
       }).filter(Boolean);
+      if (!items.length) {
+        showToast('ไม่พบสินค้าในตะกร้า');
+        return null;
+      }
 
-      const id = genOrderId();
+      const phoneDigits = phoneDisplay.replace(/\D/g, '');
+      const fingerprint = checkoutFingerprint({
+        name,
+        phone: phoneDigits,
+        method: selectedMethod,
+        total,
+        items,
+      });
+      const inflight = readInflightOrder();
+      const id = (inflight && inflight.fingerprint === fingerprint && inflight.id)
+        ? inflight.id
+        : genOrderId();
+      writeInflightOrder(id, fingerprint);
+
       const now = Date.now();
-      const flow = selectedMethod === 'cod' ? COD_FLOW : STATUS_FLOW;
       const order = {
         id,
         name,
-        phone: phoneDisplay.replace(/\D/g, ''),
+        phone: phoneDigits,
         phoneDisplay,
         address,
         note,
@@ -1787,37 +1949,74 @@
         paymentSlip: pendingSlip || null,
         slipUploadedAt: pendingSlip ? now : null
       };
-      orders.unshift(order);
-      lastOrderId = id;
 
-      // clear cart after order
-      cart = [];
-      saveOrders();
-      saveCart();
-      updateBadge();
+      orderSubmitting = true;
+      try {
+        const api = StoreApi();
+        if (api && isSupabaseReady()) {
+          const remote = await api.createOrderRemote(order);
+          if (!remote.ok) {
+            showToast('บันทึกคำสั่งซื้อไม่สำเร็จ กรุณาลองอีกครั้ง (ตะกร้ายังอยู่)');
+            return null;
+          }
+          supabaseOnline = true;
+          order._supabase = true;
+          order._duplicate = Boolean(remote.duplicate);
+        }
 
-      return order;
+        // Only persist locally + clear cart AFTER remote success (or offline fallback)
+        if (!orders.find((o) => o.id === id)) {
+          orders.unshift(order);
+        }
+        lastOrderId = id;
+        try { sessionStorage.setItem('rachawei_last_order_id', id); } catch (_) {}
+        clearInflightOrder();
+        cart = [];
+        saveOrders();
+        saveCart();
+        updateBadge();
+        return order;
+      } finally {
+        orderSubmitting = false;
+      }
     }
 
-    document.getElementById('confirmOrderBtn').addEventListener('click', () => {
-      const order = createOrder();
-      resetPendingSlip();
-      document.getElementById('successOrderBox').innerHTML = `
-        <div>เลขที่ออเดอร์</div>
-        <strong id="successOrderId">${order.id}</strong>
-        <div style="margin-top:0.5rem;font-size:0.85rem;">
-          ลูกค้า: ${order.name}<br>
-          โทร: ${order.phoneDisplay}<br>
-          ยอดรวม: ${formatPrice(order.total)}<br>
-          วิธีชำระ: ${methodLabel(order.method)}
-        </div>
-      `;
-      renderSuccessSlipSection(order);
-      setPayStep(4);
-      if (order.paymentSlip) {
-        showToast('บันทึกคำสั่งซื้อและสลิปแล้ว ✓');
-      } else {
-        showToast('บันทึกคำสั่งซื้อแล้ว ✓');
+    document.getElementById('confirmOrderBtn').addEventListener('click', async () => {
+      const btn = document.getElementById('confirmOrderBtn');
+      if (orderSubmitting) return;
+      if (btn) {
+        btn.disabled = true;
+        btn.dataset.busy = '1';
+      }
+      try {
+        const order = await createOrder();
+        if (!order) return;
+        resetPendingSlip();
+        document.getElementById('successOrderBox').innerHTML = `
+          <div>เลขที่ออเดอร์</div>
+          <strong id="successOrderId">${order.id}</strong>
+          <div style="margin-top:0.5rem;font-size:0.85rem;">
+            ลูกค้า: ${order.name}<br>
+            โทร: ${order.phoneDisplay}<br>
+            ยอดรวม: ${formatPrice(order.total)}<br>
+            วิธีชำระ: ${methodLabel(order.method)}
+          </div>
+        `;
+        renderSuccessSlipSection(order);
+        setPayStep(4);
+        if (order.paymentSlip) {
+          showToast('บันทึกคำสั่งซื้อและสลิปแล้ว ✓');
+        } else {
+          showToast('บันทึกคำสั่งซื้อแล้ว ✓');
+        }
+      } finally {
+        // Keep disabled on success step to prevent double submit; re-enable only on failure
+        if (btn && btn.dataset.busy === '1') {
+          const onSuccess = document.getElementById('payStep4')?.classList.contains('active')
+            || document.querySelector('#successOrderId');
+          if (!onSuccess) btn.disabled = false;
+          delete btn.dataset.busy;
+        }
       }
     });
 
@@ -2605,31 +2804,91 @@
       const hint = document.getElementById('adminLoginHint');
       const btn = document.getElementById('adminLoginBtn');
       const err = document.getElementById('errAdminPin');
-      const setup = hasAdminPinConfigured();
-      if (title) title.textContent = setup ? 'เข้าสู่ระบบหลังร้าน' : 'ตั้งรหัสหลังร้านครั้งแรก';
+      if (title) title.textContent = 'เข้าสู่ระบบหลังร้าน';
       if (hint) {
-        hint.innerHTML = setup
-          ? 'รหัสผ่านสำหรับเจ้าของร้าน<br><small>เข้าผ่านลิงก์ #admin หรือเปลี่ยน PIN ในแท็บตั้งค่า</small>'
-          : 'ยังไม่มีรหัสในเครื่องนี้ — ตั้งรหัส 4 หลักขึ้นไป (เก็บเฉพาะเบราว์เซอร์นี้)';
+        hint.innerHTML = isSupabaseReady()
+          ? 'เข้าด้วยบัญชี Supabase ของเจ้าของร้าน<br><small>เปิดผ่านลิงก์ #admin</small>'
+          : 'ยังไม่ได้ตั้งค่า Supabase — ใส่ VITE_SUPABASE_URL และ VITE_SUPABASE_ANON_KEY แล้ว build ใหม่';
       }
-      if (btn) btn.textContent = setup ? 'เข้าสู่ระบบ' : 'บันทึกรหัสและเข้าใช้งาน';
-      if (err) err.textContent = setup ? 'รหัสผ่านไม่ถูกต้อง' : 'กรุณาตั้งรหัสอย่างน้อย 4 หลัก';
+      if (btn) btn.textContent = 'เข้าสู่ระบบ';
+      if (err) err.textContent = 'อีเมลหรือรหัสผ่านไม่ถูกต้อง';
     }
 
-    function openAdminPanel() {
+    let ordersRealtimeUnsub = null;
+    let adminOrdersRefreshing = false;
+
+    async function refreshAdminOrdersFromRemote({ silent = false } = {}) {
+      const api = StoreApi();
+      if (!api || !adminLoggedIn || !isSupabaseReady()) return { ok: false };
+      if (adminOrdersRefreshing) return { ok: false, busy: true };
+      adminOrdersRefreshing = true;
+      try {
+        const orderRes = await api.fetchAdminOrders();
+        if (orderRes.ok) {
+          orders = Array.isArray(orderRes.orders) ? orderRes.orders : [];
+          await saveOrders();
+          return { ok: true, count: orders.length };
+        }
+        if (!silent) showToast('โหลดออเดอร์จากเซิร์ฟเวอร์ไม่สำเร็จ');
+        return { ok: false };
+      } catch (e) {
+        if (!silent) showToast('โหลดออเดอร์จากเซิร์ฟเวอร์ไม่สำเร็จ');
+        return { ok: false, error: e };
+      } finally {
+        adminOrdersRefreshing = false;
+      }
+    }
+
+    function startOrdersRealtime() {
+      const api = StoreApi();
+      if (!api || !adminLoggedIn || !isSupabaseReady()) return;
+      if (typeof api.subscribeOrders !== 'function') return;
+      if (ordersRealtimeUnsub) return;
+      ordersRealtimeUnsub = api.subscribeOrders(async () => {
+        const res = await refreshAdminOrdersFromRemote({ silent: true });
+        if (res.ok && adminTab === 'orders' && adminOverlay.classList.contains('open')) {
+          paintAdminOrders();
+        }
+      });
+    }
+
+    function stopOrdersRealtime() {
+      if (typeof ordersRealtimeUnsub === 'function') {
+        try { ordersRealtimeUnsub(); } catch (_) { /* ignore */ }
+      }
+      ordersRealtimeUnsub = null;
+    }
+
+    async function openAdminPanel() {
       adminOverlay.classList.add('open');
+      const api = StoreApi();
+      if (!adminLoggedIn && api && isSupabaseReady()) {
+        const session = await api.getSession();
+        if (session) {
+          adminLoggedIn = true;
+          const lbl = document.getElementById('adminUserLabel');
+          if (lbl) lbl.textContent = session.user?.email || SHOP_CONFIG.shopName;
+        }
+      }
       if (adminLoggedIn) {
+        startOrdersRealtime();
         showAdminMain();
+        if (adminTab === 'orders') {
+          await refreshAdminOrdersFromRemote({ silent: true });
+          paintAdminOrders();
+        }
       } else {
         adminLoginView.style.display = 'block';
         adminMainView.style.display = 'none';
+        const emailEl = document.getElementById('adminEmail');
+        if (emailEl) emailEl.value = '';
         document.getElementById('adminPin').value = '';
         document.getElementById('errAdminPin').classList.remove('show');
         refreshAdminLoginView();
       }
     }
 
-    document.getElementById('adminOpenBtn')?.addEventListener('click', openAdminPanel);
+    document.getElementById('adminOpenBtn')?.addEventListener('click', () => { openAdminPanel(); });
 
     document.getElementById('adminCloseBtn').addEventListener('click', () => {
       adminOverlay.classList.remove('open');
@@ -2638,33 +2897,65 @@
       if (e.target === adminOverlay) adminOverlay.classList.remove('open');
     });
 
-    document.getElementById('adminLoginBtn').addEventListener('click', doAdminLogin);
+    document.getElementById('adminLoginBtn').addEventListener('click', () => { doAdminLogin(); });
     document.getElementById('adminPin').addEventListener('keydown', (e) => {
       if (e.key === 'Enter') doAdminLogin();
     });
+    document.getElementById('adminEmail')?.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') doAdminLogin();
+    });
 
-    function doAdminLogin() {
-      const pin = document.getElementById('adminPin').value.trim();
-      if (!hasAdminPinConfigured()) {
-        if (pin.length < 4) {
-          document.getElementById('errAdminPin').classList.add('show');
-          return;
+    async function doAdminLogin() {
+      const email = (document.getElementById('adminEmail')?.value || '').trim();
+      const password = document.getElementById('adminPin').value;
+      const errEl = document.getElementById('errAdminPin');
+      if (!isSupabaseReady()) {
+        if (errEl) {
+          errEl.textContent = 'ยังไม่ได้ตั้งค่า Supabase';
+          errEl.classList.add('show');
         }
-        SHOP_CONFIG.adminPinHash = hashAdminPin(pin);
-        saveShopSettings({});
-        adminLoggedIn = true;
-        document.getElementById('errAdminPin').classList.remove('show');
-        showAdminMain();
-        showToast('ตั้งรหัสหลังร้านแล้ว ✓');
         return;
       }
-      if (verifyAdminPin(pin)) {
+      if (!email || !password) {
+        if (errEl) {
+          errEl.textContent = 'กรุณากรอกอีเมลและรหัสผ่าน';
+          errEl.classList.add('show');
+        }
+        return;
+      }
+      const api = StoreApi();
+      const result = await api.signIn(email, password);
+      if (result.ok) {
         adminLoggedIn = true;
-        document.getElementById('errAdminPin').classList.remove('show');
+        errEl?.classList.remove('show');
+        const lbl = document.getElementById('adminUserLabel');
+        if (lbl) lbl.textContent = result.user?.email || email;
+        // Refresh admin data from Supabase
+        const [prodRes, orderRes, settingsRes] = await Promise.all([
+          api.fetchAdminProducts(),
+          api.fetchAdminOrders(),
+          api.fetchPublicSettings(),
+        ]);
+        if (prodRes.ok && prodRes.products.length) {
+          products = prodRes.products.map((p) => ({ ...p }));
+          await saveProducts();
+        }
+        if (orderRes.ok) {
+          orders = Array.isArray(orderRes.orders) ? orderRes.orders : [];
+          await saveOrders();
+        }
+        if (settingsRes.ok && settingsRes.settings) {
+          Object.assign(SHOP_CONFIG, settingsRes.settings);
+          applyShopConfig();
+        }
+        startOrdersRealtime();
         showAdminMain();
         showToast('เข้าสู่ระบบหลังร้านแล้ว ✓');
       } else {
-        document.getElementById('errAdminPin').classList.add('show');
+        if (errEl) {
+          errEl.textContent = 'อีเมลหรือรหัสผ่านไม่ถูกต้อง';
+          errEl.classList.add('show');
+        }
       }
     }
 
@@ -2715,7 +3006,6 @@
             facebookUrl: SHOP_CONFIG.facebookUrl,
             addressHtml: SHOP_CONFIG.addressHtml,
             mapUrl: SHOP_CONFIG.mapUrl,
-            adminPinHash: getAdminPinHash(),
             promoMin: SHOP_CONFIG.promoMin,
             promoDiscount: SHOP_CONFIG.promoDiscount,
             shippingFee: SHOP_CONFIG.shippingFee,
@@ -2732,6 +3022,14 @@
           await idbSet('shopSettings', toSave);
         } catch (e) { console.warn(e); }
       }
+      const api = StoreApi();
+      if (api && adminLoggedIn && isSupabaseReady()) {
+        const remote = await api.saveSettingsRemote(SHOP_CONFIG);
+        if (!remote.ok) {
+          showToast('บันทึกในเครื่องแล้ว แต่ซิงก์ออนไลน์ไม่สำเร็จ');
+          return;
+        }
+      }
       showToast('บันทึกตั้งค่าร้านแล้ว');
     }
 
@@ -2744,8 +3042,7 @@
       el.innerHTML = `
         <div class="admin-section-title">ตั้งค่าร้าน (แก้ไขได้ตลอด)</div>
         <p style="font-size:0.85rem;color:var(--text-soft);margin-bottom:1rem;line-height:1.55;">
-          ค่าเหล่านี้บันทึกในเบราว์เซอร์เครื่องนี้ และแสดงบนหน้าร้านทันที
-          หากต้องการให้ผู้เข้าชมทุกคนเห็นค่าเดียวกันถาวร ให้แก้ในไฟล์ <code>SHOP_CONFIG</code> แล้ว deploy ใหม่
+          ค่าเหล่านี้บันทึกไปยัง Supabase (เมื่อออนไลน์) และแคชในเครื่องนี้ — แสดงบนหน้าร้านทันทีหลังบันทึก
         </p>
         <div style="display:grid;gap:0.75rem;max-width:560px;">
           <label style="font-size:0.82rem;font-weight:600;">ชื่อร้าน
@@ -2778,8 +3075,10 @@
             <input class="admin-input" id="setBankAccNo" value="${escapeHtml(c.bankAccountNo || '')}" placeholder="แยกจากพร้อมเพย์" style="width:100%;margin-top:0.25rem;"></label>
           <label style="font-size:0.82rem;font-weight:600;">หมายเหตุการโอน
             <input class="admin-input" id="setBankNote" value="${escapeHtml(c.bankNote||'')}" style="width:100%;margin-top:0.25rem;"></label>
-          <label style="font-size:0.82rem;font-weight:600;">รหัสหลังร้าน (PIN ใหม่)
-            <input class="admin-input" type="password" id="setAdminPin" placeholder="เว้นว่าง = ไม่เปลี่ยน" autocomplete="new-password" style="width:100%;margin-top:0.25rem;"></label>
+          <p style="font-size:0.82rem;color:var(--text-soft);line-height:1.5;margin:0;">
+            บัญชีหลังร้านใช้ <strong>Supabase Auth</strong> (อีเมล/รหัสผ่าน) — ไม่เก็บ PIN ในเบราว์เซอร์แล้ว
+          </p>
+          <button type="button" class="btn btn-outline btn-sm" id="btnAdminLogout" style="justify-content:center;">ออกจากระบบหลังร้าน</button>
 
           <div class="admin-section-title" style="margin-top:0.5rem;">ภาพพื้นหลังหน้าแรก</div>
           <p style="font-size:0.82rem;color:var(--text-soft);margin:0;line-height:1.5;">
@@ -2885,6 +3184,15 @@
         showToast('ตั้งภาพพื้นหลังกลับเป็นค่าเริ่มต้นแล้ว (อย่าลืมกดบันทึก)');
       };
 
+      document.getElementById('btnAdminLogout')?.addEventListener('click', async () => {
+        const api = StoreApi();
+        stopOrdersRealtime();
+        if (api) await api.signOut();
+        adminLoggedIn = false;
+        adminOverlay.classList.remove('open');
+        showToast('ออกจากระบบแล้ว');
+      });
+
       document.getElementById('btnSaveShopSettings').onclick = () => {
         const phoneDisplay = document.getElementById('setPhoneDisplay').value.trim();
         let phoneTel = document.getElementById('setPhoneTel').value.trim();
@@ -2892,7 +3200,6 @@
           const digits = phoneDisplay.replace(/\D/g, '');
           phoneTel = digits.startsWith('0') ? '+66' + digits.slice(1) : (digits ? '+' + digits : SHOP_CONFIG.phoneTel);
         }
-        const nextPin = document.getElementById('setAdminPin').value.trim();
         const settingsPatch = {
           shopName: document.getElementById('setShopName').value.trim() || SHOP_CONFIG.shopName,
           phoneDisplay: phoneDisplay || SHOP_CONFIG.phoneDisplay,
@@ -2910,7 +3217,6 @@
           bankNote: document.getElementById('setBankNote').value.trim(),
           heroImages: (window._heroImagesDraft || []).slice(0, 10)
         };
-        if (nextPin) settingsPatch.adminPinHash = hashAdminPin(nextPin);
         saveShopSettings(settingsPatch);
         refreshHeroSlides();
       };
@@ -3680,6 +3986,12 @@
         if (v.productId === id) v.productId = null;
       });
       saveProducts();
+      const api = StoreApi();
+      if (api && adminLoggedIn && isSupabaseReady()) {
+        api.deleteProductRemote(id).then((res) => {
+          if (!res.ok) showToast('ลบในเครื่องแล้ว แต่ซิงก์ออนไลน์ไม่สำเร็จ');
+        });
+      }
       saveShopVideos();
       saveCart();
       updateBadge();
@@ -3886,15 +4198,20 @@
       if (idx >= 0) shopVideos.splice(idx, 1);
       if (editingVideoId === id) editingVideoId = null;
       saveShopVideos();
+      const api = StoreApi();
+      if (api && adminLoggedIn && isSupabaseReady()) {
+        api.deleteVideoRemote(id);
+      }
       renderShopVideos();
       renderAdminVideos();
       showToast('ลบวิดีโอแล้ว');
     };
 
-    function renderAdminOrders() {
+    function paintAdminOrders() {
       adminContent.innerHTML = `
-        <div class="admin-section-title">
+        <div class="admin-section-title" style="display:flex;align-items:center;justify-content:space-between;gap:0.75rem;flex-wrap:wrap;">
           <span>ออเดอร์ทั้งหมด (${orders.length})</span>
+          <button type="button" class="btn btn-outline btn-xs" id="adminOrdersRefreshBtn">รีเฟรช</button>
         </div>
         ${orders.length === 0 ? '<div class="empty-admin">ยังไม่มีออเดอร์<br><small>เมื่อลูกค้าสั่งซื้อ จะแสดงที่นี่</small></div>' : `
           <div class="admin-table-wrap">
@@ -3914,18 +4231,19 @@
                 ${orders.map(o => {
                   const flow = o.method === 'cod' ? COD_FLOW : STATUS_FLOW;
                   const st = flow[o.statusIndex] || flow[0];
-                  const items = o.items.map(i => `${i.emoji || ''} ${i.name}×${i.qty}`).join('<br>');
+                  const itemList = Array.isArray(o.items) ? o.items : [];
+                  const items = itemList.map(i => `${i.emoji || ''} ${i.name}×${i.qty}`).join('<br>');
                   const opts = flow.map((s, i) =>
                     `<option value="${i}" ${i === o.statusIndex ? 'selected' : ''}>${s.label}</option>`
                   ).join('');
                   return `<tr>
                     <td><strong>${o.id}</strong><br><small>${formatDateTime(o.createdAt)}</small></td>
                     <td>
-                      <strong>${o.name}</strong><br>
-                      <small>${o.phoneDisplay}</small><br>
-                      <small style="color:var(--text-soft)">${(o.address || '').replace(/\n/g, ', ').slice(0, 50)}</small>
+                      <strong>${escapeHtml(o.name || '')}</strong><br>
+                      <small>${escapeHtml(o.phoneDisplay || '')}</small><br>
+                      <small style="color:var(--text-soft)">${escapeHtml((o.address || '').replace(/\n/g, ', ').slice(0, 50))}</small>
                     </td>
-                    <td style="font-size:0.8rem;">${items}</td>
+                    <td style="font-size:0.8rem;">${items || '—'}</td>
                     <td>${formatPrice(o.total)}<br><small>${methodLabel(o.method)}</small></td>
                     <td style="font-size:0.78rem;">
                       ${o.paymentSlip
@@ -3948,19 +4266,46 @@
           </div>
         `}
       `;
+      document.getElementById('adminOrdersRefreshBtn')?.addEventListener('click', async () => {
+        const btn = document.getElementById('adminOrdersRefreshBtn');
+        if (btn) btn.disabled = true;
+        await refreshAdminOrdersFromRemote({ silent: false });
+        paintAdminOrders();
+        showToast('รีเฟรชออเดอร์แล้ว');
+        if (btn) btn.disabled = false;
+      });
     }
 
-    window.adminSetOrderStatus = function(id, idxStr) {
+    async function renderAdminOrders() {
+      paintAdminOrders();
+      startOrdersRealtime();
+      const res = await refreshAdminOrdersFromRemote({ silent: true });
+      if (res.ok && adminTab === 'orders') paintAdminOrders();
+    }
+
+    window.adminSetOrderStatus = async function(id, idxStr) {
       const o = orders.find(x => x.id === id);
       if (!o) return;
       const idx = parseInt(idxStr, 10);
+      const prev = o.statusIndex;
       o.statusIndex = idx;
       if (!o.history.find(h => h.index === idx)) {
         o.history.push({ index: idx, at: Date.now() });
       }
       saveOrders();
+      const api = StoreApi();
+      if (api && adminLoggedIn && isSupabaseReady()) {
+        const res = await api.updateOrderStatusRemote(o.id, o.statusIndex, o.history);
+        if (!res.ok) {
+          o.statusIndex = prev;
+          saveOrders();
+          showToast('อัปเดตสถานะออนไลน์ไม่สำเร็จ — ลองอีกครั้ง');
+          paintAdminOrders();
+          return;
+        }
+      }
       showToast('อัปเดตสถานะแล้ว ✓');
-      renderAdminOrders();
+      paintAdminOrders();
     };
 
     window.adminPrintOrder = function(id) {
@@ -4360,6 +4705,19 @@
       applyShopConfig();
       const ok = await loadPersisted();
       migratePaymentFields();
+      // Restore admin session if any
+      try {
+        const api = StoreApi();
+        if (api && isSupabaseReady()) {
+          const session = await api.getSession();
+          if (session) {
+            adminLoggedIn = true;
+            const lbl = document.getElementById('adminUserLabel');
+            if (lbl) lbl.textContent = session.user?.email || SHOP_CONFIG.shopName;
+            startOrdersRealtime();
+          }
+        }
+      } catch (_) { /* ignore */ }
       if (!Array.isArray(products) || products.length === 0) {
         products = DEFAULT_PRODUCTS.map(p => ({ ...p }));
       }
@@ -4375,7 +4733,9 @@
       renderProducts();
       updateBadge();
       setTheme(getTheme());
-      if (ok) {
+      if (supabaseOnline) {
+        console.log('โหลดข้อมูลจาก Supabase สำเร็จ');
+      } else if (ok) {
         console.log('โหลดข้อมูลถาวรจาก IndexedDB สำเร็จ');
       } else if (!products.length) {
         grid.innerHTML = `<div class="product-card" style="grid-column:1/-1;min-height:120px;align-items:center;justify-content:center;padding:1.25rem;text-align:center;color:#8a4b12;">โหลดรายการสินค้าไม่สำเร็จ — กรุณารีเฟรชหน้า</div>`;

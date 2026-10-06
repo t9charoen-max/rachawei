@@ -47,15 +47,22 @@ try {
   ok('main nav visible', frontCounts.nav === 5, `nav=${frontCounts.nav}`);
   ok('legacy filters hidden', !frontCounts.filtersVisible);
 
-  // Open admin via #admin (customer UI hides adminOpenBtn)
+  // Open admin via #admin (Supabase Auth)
   await page.goto(BASE + '#admin', { waitUntil: 'networkidle0' });
   await page.evaluate(() => {
     const overlay = document.getElementById('adminOverlay');
     if (overlay) overlay.classList.add('open');
   });
+  await page.waitForSelector('#adminEmail', { visible: true });
   await page.waitForSelector('#adminPin', { visible: true });
-  const testPin = process.env.STORE_ADMIN_PIN || '5678';
-  await page.type('#adminPin', testPin);
+  const adminEmail = process.env.STORE_ADMIN_EMAIL || '';
+  const adminPassword = process.env.STORE_ADMIN_PASSWORD || process.env.STORE_ADMIN_PIN || '';
+  if (!adminEmail || !adminPassword) {
+    ok('admin auth UI present (skip login — set STORE_ADMIN_EMAIL/PASSWORD)', true);
+    console.log('SKIP  admin deep checks — no STORE_ADMIN_EMAIL/STORE_ADMIN_PASSWORD');
+  } else {
+  await page.type('#adminEmail', adminEmail);
+  await page.type('#adminPin', adminPassword);
   await page.click('#adminLoginBtn');
   await page.waitForSelector('#adminMainView', { visible: true, timeout: 15000 });
 
@@ -161,6 +168,7 @@ try {
   ok('shop settings persist reload', persisted.shopName.includes('ทดสอบ'), persisted.shopName);
   ok('hero images persist reload', persisted.heroCount === 2, `heroCount=${persisted.heroCount}`);
   ok('product edit persists reload', persisted.productName === 'ทดสอบ', persisted.productName);
+  }
 } catch (err) {
   ok('test runner', false, String(err && err.stack || err));
 } finally {
