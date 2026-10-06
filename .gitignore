@@ -33,3 +33,4 @@ public/store/js/supabase-env.js
 *.njsproj
 *.sln
 *.sw?
+supabase/.temp/
