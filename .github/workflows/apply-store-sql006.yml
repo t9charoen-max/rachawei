@@ -1,0 +1,25 @@
+name: Apply store SQL 006
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'supabase/store/006_admin_auth_grants_bootstrap.sql'
+      - 'scripts/apply-store-sql006.mjs'
+      - '.github/workflows/apply-store-sql006.yml'
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    if: ${{ secrets.SUPABASE_ACCESS_TOKEN != '' || secrets.DATABASE_URL != '' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Apply 006
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          SUPABASE_PROJECT_REF: jvgfudxdwdwfumdznymu
+          VITE_SUPABASE_URL: https://jvgfudxdwdwfumdznymu.supabase.co
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+        run: node scripts/apply-store-sql006.mjs

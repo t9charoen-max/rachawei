@@ -1,5 +1,5 @@
 /* Service worker ราชาหวายสุรินทร์ — ให้เปิดแบบแอปและโหลดซ้ำเร็ว */
-const CACHE_VERSION = 'rachawei-v1940';
+const CACHE_VERSION = 'rachawei-v1941-order-fix';
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 
 self.addEventListener('install', (event) => {
@@ -19,12 +19,23 @@ self.addEventListener('activate', (event) => {
   );
 });
 
+function isStoreRuntimeScript(url) {
+  // Must never stale-serve checkout/admin logic — old cached JS caused false order failures
+  return (
+    url.pathname.startsWith('/store/js/') ||
+    url.pathname === '/store/js/app.js' ||
+    url.pathname === '/store/js/supabase-client.js' ||
+    url.pathname.startsWith('/api/')
+  );
+}
+
 function isCacheableAsset(url) {
+  if (isStoreRuntimeScript(url)) return false;
   return (
     url.pathname.startsWith('/assets/') ||
     url.pathname.startsWith('/icons/') ||
     url.pathname.startsWith('/images/') ||
-    /\.(js|css|png|jpg|jpeg|webp|svg|woff2?)$/.test(url.pathname)
+    /\.(css|png|jpg|jpeg|webp|svg|woff2?)$/.test(url.pathname)
   );
 }
 
@@ -34,6 +45,12 @@ self.addEventListener('fetch', (event) => {
 
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
+
+  // Store/app runtime + API: always network (no stale checkout JS)
+  if (isStoreRuntimeScript(url)) {
+    event.respondWith(fetch(request));
+    return;
+  }
 
   // หน้าเว็บ: network-first เพื่อให้ได้เวอร์ชันล่าสุด, ตกหล่นใช้แคช
   if (request.mode === 'navigate') {
@@ -53,7 +70,7 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // ไฟล์ static (js/css/รูป): stale-while-revalidate
+  // ไฟล์ static (css/รูป): stale-while-revalidate — ไม่รวม /store/js
   if (isCacheableAsset(url) || url.pathname.startsWith('/products/') || url.pathname.startsWith('/catalog/')) {
     event.respondWith(
       (async () => {
