@@ -11,6 +11,9 @@
    - สร้าง `store_claim_first_admin()`
    - สร้าง/อัปเดต `store_admin_list_orders()`
    - มี `store_link_admin_by_email(email)` สำหรับลิงก์จาก SQL Editor
+4. **ลบออเดอร์ (Admin):** รัน `007_store_admin_delete_order.sql`
+   - สร้าง `store_admin_delete_order(p_order_id)`
+   - ตรวจสิทธิ์ด้วย `store_is_admin()` แล้วลบ `store_order_items` + `store_orders`
 
 > ไฟล์ `005_store_admin_list_orders.sql` ถูกแทนที่ด้วยส่วนใน `006` แล้ว — รัน 006 พอ
 

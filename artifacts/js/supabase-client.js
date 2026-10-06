@@ -422,6 +422,78 @@
     return { ok: true };
   }
 
+  function mapDeleteOrderError(error) {
+    const raw = String(error?.message || error || '');
+    const lower = raw.toLowerCase();
+    if (/not_admin|42501|permission denied|jwt|auth/i.test(raw) || lower.includes('not_admin')) {
+      return 'ไม่มีสิทธิ์ลบออเดอร์ — ต้องเข้าสู่ระบบด้วยบัญชีแอดมินใน store_admins';
+    }
+    if (/order_not_found/i.test(raw)) {
+      return 'ไม่พบออเดอร์นี้ในระบบ (อาจถูกลบไปแล้ว)';
+    }
+    if (/missing_order_id/i.test(raw)) {
+      return 'เลขออเดอร์ไม่ถูกต้อง';
+    }
+    if (/store_admin_delete_order|pgrst202|404|could not find the function/i.test(raw)) {
+      return 'ยังไม่มีฟังก์ชันลบออเดอร์บนเซิร์ฟเวอร์ — ต้องรัน SQL 007 (store_admin_delete_order)';
+    }
+    if (/supabase_not_configured|not configured/i.test(raw)) {
+      return 'ยังไม่ได้เชื่อมต่อ Supabase — ตรวจการตั้งค่าแล้วลองใหม่';
+    }
+    if (/no_session|not authenticated|session/i.test(raw)) {
+      return 'ยังไม่ได้เข้าสู่ระบบแอดมิน — กรุณา login ก่อนลบออเดอร์';
+    }
+    return raw ? `ลบออเดอร์ไม่สำเร็จ: ${raw}` : 'ลบออเดอร์ไม่สำเร็จ';
+  }
+
+  async function deleteOrderForAdmin(orderId) {
+    const sb = getClient();
+    if (!sb) {
+      return { ok: false, error: 'supabase_not_configured', message: mapDeleteOrderError('supabase_not_configured') };
+    }
+
+    const session = await getSession();
+    if (!session) {
+      return { ok: false, error: 'no_session', message: mapDeleteOrderError('no_session') };
+    }
+
+    const id = String(orderId || '').trim();
+    if (!id) {
+      return { ok: false, error: 'missing_order_id', message: mapDeleteOrderError('missing_order_id') };
+    }
+
+    try {
+      const { data, error } = await sb.rpc('store_admin_delete_order', {
+        p_order_id: id,
+      });
+      if (error) {
+        return {
+          ok: false,
+          error: error.message || 'delete_failed',
+          message: mapDeleteOrderError(error),
+        };
+      }
+      if (data && data.ok === false) {
+        return {
+          ok: false,
+          error: data.error || 'delete_failed',
+          message: mapDeleteOrderError(data.error || data.message || 'delete_failed'),
+        };
+      }
+      return {
+        ok: true,
+        orderId: (data && data.order_id) || id,
+        deletedItems: data && data.deleted_items != null ? Number(data.deleted_items) : null,
+      };
+    } catch (e) {
+      return {
+        ok: false,
+        error: e?.message || 'delete_failed',
+        message: mapDeleteOrderError(e),
+      };
+    }
+  }
+
   async function upsertProduct(product) {
     const sb = getClient();
     if (!sb) return { ok: false, error: 'supabase_not_configured' };
@@ -495,13 +567,18 @@
 
   function mapAuthError(error) {
     const msg = String(error?.message || error || '');
-    const code = String(error?.code || error?.error_code || '');
+    const code = String(error?.code || error?.error_code || error?.status || '');
+    const status = error?.status != null ? String(error.status) : '';
     const lower = msg.toLowerCase();
+    const detailSuffix = [code && `code=${code}`, status && `status=${status}`, msg && `supabase: ${msg}`]
+      .filter(Boolean)
+      .join(' · ');
     if (code === 'email_not_confirmed' || /email not confirmed/i.test(msg)) {
       return {
         code: 'email_not_confirmed',
         message:
-          'อีเมลยังไม่ได้ยืนยัน — เปิดลิงก์ยืนยันในอีเมล หรือให้ปิด Confirm email ใน Supabase Auth สำหรับร้านนี้',
+          'อีเมลยังไม่ได้ยืนยัน — เปิดลิงก์ยืนยันในอีเมล' +
+          (detailSuffix ? ` (${detailSuffix})` : ''),
       };
     }
     if (
@@ -511,13 +588,17 @@
     ) {
       return {
         code: 'invalid_credentials',
-        message: 'อีเมลหรือรหัสผ่านไม่ถูกต้อง',
+        message:
+          'อีเมลหรือรหัสผ่านไม่ถูกต้อง (ตรวจรหัสใน Supabase Auth → Users)' +
+          (detailSuffix ? ` (${detailSuffix})` : ''),
       };
     }
     if (/too many requests|rate limit/i.test(msg)) {
       return {
         code: 'rate_limited',
-        message: 'พยายามเข้าสู่ระบบบ่อยเกินไป — รอสักครู่แล้วลองใหม่',
+        message:
+          'พยายามเข้าสู่ระบบบ่อยเกินไป — รอสักครู่แล้วลองใหม่' +
+          (detailSuffix ? ` (${detailSuffix})` : ''),
       };
     }
     if (!msg || msg === 'supabase_not_configured') {
@@ -526,7 +607,7 @@
         message: 'ยังเชื่อมต่อ Supabase ไม่ได้ — ตรวจ VITE_SUPABASE_URL และ VITE_SUPABASE_ANON_KEY',
       };
     }
-    return { code: code || 'auth_error', message: msg };
+    return { code: code || 'auth_error', message: detailSuffix || msg };
   }
 
   async function signIn(email, password) {
@@ -644,24 +725,36 @@
   }
 
   async function ensureAdminAccess() {
-    if (await isAdminUser()) return { ok: true, via: 'store_admins' };
+    const sb = getClient();
+    const { data: userData } = sb ? await sb.auth.getUser() : { data: { user: null } };
+    const email = userData?.user?.email || '';
+    const uid = userData?.user?.id || '';
+    if (await isAdminUser()) return { ok: true, via: 'store_admins', email, userId: uid };
     const claim = await claimFirstAdmin();
     if (claim.ok) {
       const ok = await isAdminUser();
       return ok
-        ? { ok: true, via: claim.claimed ? 'claimed_first_admin' : 'already_admin' }
+        ? {
+            ok: true,
+            via: claim.claimed ? 'claimed_first_admin' : 'already_admin',
+            email,
+            userId: uid,
+          }
         : {
             ok: false,
             error: 'not_admin',
-            message: 'เข้าสู่ระบบแล้วแต่ยังไม่มีสิทธิ์แอดมิน',
+            message: `เข้าสู่ระบบแล้วแต่ยังไม่มีสิทธิ์แอดมิน (${email || uid || 'unknown'})`,
           };
     }
     return {
       ok: false,
       error: claim.error || 'not_admin',
       message:
-        claim.message ||
-        'บัญชีนี้ไม่มีสิทธิ์แอดมิน — ต้องอยู่ในตาราง store_admins',
+        (claim.message ||
+          'บัญชีนี้ไม่มีสิทธิ์แอดมิน — ต้องอยู่ในตาราง store_admins') +
+        (email ? ` [${email}]` : ''),
+      email,
+      userId: uid,
     };
   }
 
@@ -716,6 +809,7 @@
     fetchOrdersForAdmin,
     fetchOrdersViaServiceProxy,
     updateOrderStatus,
+    deleteOrderForAdmin,
     upsertProduct,
     deleteProductRemote,
     saveShopSettingsRemote,

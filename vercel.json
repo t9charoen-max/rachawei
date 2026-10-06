@@ -25,6 +25,10 @@
     "api/store-admin-orders.ts": {
       "maxDuration": 20,
       "memory": 512
+    },
+    "api/store-admin-migrate.ts": {
+      "maxDuration": 60,
+      "memory": 512
     }
   },
   "headers": [
@@ -58,6 +62,13 @@
     },
     {
       "source": "/api/store-admin-orders",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-store" },
+        { "key": "Access-Control-Allow-Origin", "value": "*" }
+      ]
+    },
+    {
+      "source": "/api/store-admin-migrate",
       "headers": [
         { "key": "Cache-Control", "value": "no-store" },
         { "key": "Access-Control-Allow-Origin", "value": "*" }
