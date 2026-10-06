@@ -4825,7 +4825,7 @@
     });
 
     window.addEventListener('hashchange', () => {
-      if (location.hash === '#admin') openAdminPanel();
+      if (location.hash === '#admin') void openAdminPanel();
       const productId = parseProductHash();
       if (productId) openProductDetail(productId, { skipHash: true });
     });
@@ -5097,7 +5097,7 @@
       if (deepProductId) openProductDetail(deepProductId, { skipHash: true, pushState: false });
 
       storeAppReady = true;
-      if (pendingAdminOpen || location.hash === '#admin') openAdminPanel();
+      if (pendingAdminOpen || location.hash === '#admin') void openAdminPanel();
 
       schedulePromoAfterInstall(900);
 
