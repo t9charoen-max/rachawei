@@ -314,6 +314,7 @@
         const savedVideoVer = await idbGet('videoSyncVersion');
 
         const catalogBase = await fetchLiveCatalogProducts();
+        const usedSupabaseCatalog = isSupabaseReady() && Array.isArray(catalogBase) && catalogBase.length > 0;
         const baseProducts = (catalogBase && catalogBase.length)
           ? catalogBase
           : DEFAULT_PRODUCTS.map(p => ({ ...p }));
@@ -323,13 +324,18 @@
           : 'rachawei-videos-v1';
         const needsVideoResync = savedVideoVer !== videoSyncVersion;
 
-        if (needsCatalogResync || !Array.isArray(savedProducts) || !savedProducts.length) {
+        // เมื่อมี Supabase เป็นแหล่งจริง — ห้ามให้ IndexedDB overlay ทับข้อมูลคลาวด์
+        if (usedSupabaseCatalog) {
+          products = baseProducts.map(p => ({ ...p }));
+          await idbSet('products', products);
+          await idbSet('catalogSyncVersion', CATALOG_SYNC_VERSION);
+        } else if (needsCatalogResync || !Array.isArray(savedProducts) || !savedProducts.length) {
           products = baseProducts.map(p => ({ ...p }));
         } else {
           products = mergeCatalogWithSaved(baseProducts, savedProducts);
         }
 
-        if (needsCatalogResync) {
+        if (!usedSupabaseCatalog && needsCatalogResync) {
           sanitizeCartForProducts();
           await idbSet('catalogSyncVersion', CATALOG_SYNC_VERSION);
           await idbSet('products', products);
@@ -428,17 +434,28 @@
       }
     }
 
-    async function syncProductsToSupabase() {
+    async function syncProductsToSupabase(productIds) {
       if (!isSupabaseReady() || !adminLoggedIn) return;
-      for (const p of products) {
+      const okAdmin = await RachaweiStoreApi.isAdminUser();
+      if (!okAdmin) {
+        console.warn('ข้ามซิงก์สินค้า — ไม่ใช่ admin');
+        return;
+      }
+      const targets = Array.isArray(productIds) && productIds.length
+        ? products.filter((p) => productIds.map(Number).includes(Number(p.id)))
+        : products;
+      for (const p of targets) {
         const result = await RachaweiStoreApi.upsertProduct(p);
         if (!result.ok) console.warn('sync product failed', p.id, result.error);
       }
     }
 
-    async function saveProducts() {
+    async function saveProducts(options = {}) {
       await persistAll();
-      await syncProductsToSupabase();
+      // ซิงก์ขึ้นคลาวด์เฉพาะเมื่อ admin บันทึกโดยตั้งใจ (กันทับข้อมูลเดิมโดยไม่ตั้งใจ)
+      if (options.syncRemote) {
+        await syncProductsToSupabase(options.productIds);
+      }
     }
 
     function saveShopVideos() {
@@ -1871,7 +1888,10 @@
           promoDiscount: payload.promoDiscount,
           shippingFee: payload.shippingFee,
           total: payload.total,
-          paymentSlip: payload.paymentSlip,
+          paymentSlip:
+            payload.paymentSlip && payload.paymentSlip.length <= 350000
+              ? payload.paymentSlip
+              : null,
           items: payload.items.map((it) => ({
             id: String(it.id),
             name: it.name,
@@ -2737,7 +2757,7 @@
       nextProductId = Math.max(...products.map((p) => p.id), 0) + 1;
       const validIds = new Set(products.map((p) => p.id));
       cart = cart.filter((c) => validIds.has(c.id));
-      saveProducts();
+      saveProducts({ syncRemote: true });
       saveCart();
       updateBadge();
       renderProducts(document.querySelector('.filter-btn.active')?.dataset.filter || 'all');
@@ -3211,6 +3231,10 @@
       };
 
       document.getElementById('btnResetProductsDefault').onclick = async () => {
+        if (isSupabaseReady()) {
+          showToast('โหมดคลาวด์: ห้ามรีเซ็ตทับสินค้าบน Supabase — แก้ทีละรายการจากแท็บสินค้า');
+          return;
+        }
         if (!confirm('รีเซ็ตสินค้ากลับเป็นรายการเริ่มต้นในไฟล์เว็บ?')) return;
         products = JSON.parse(JSON.stringify(DEFAULT_PRODUCTS));
         await saveProducts();
@@ -3943,9 +3967,13 @@
         });
         showToast('เพิ่มสินค้าแล้ว ✓');
       }
+      const syncedId = editingProductId || products[products.length - 1]?.id;
       editingProductId = null;
       window._apImages = [];
-      saveProducts();
+      void saveProducts({
+        syncRemote: true,
+        productIds: syncedId != null ? [syncedId] : undefined,
+      });
       renderProducts(document.querySelector('.filter-btn.active')?.dataset.filter || 'all');
       renderAdminProducts();
     }
@@ -3968,7 +3996,7 @@
         const remote = await RachaweiStoreApi.deleteProductRemote(id);
         if (!remote.ok) console.warn('ลบสินค้าบน Supabase ไม่สำเร็จ', remote.error);
       }
-      await saveProducts();
+      await saveProducts(); // local only — remote delete already handled above
       saveShopVideos();
       saveCart();
       updateBadge();

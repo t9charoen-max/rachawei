@@ -293,8 +293,8 @@
   async function isAdminUser() {
     const sb = getClient();
     if (!sb) return false;
-    const session = await getSession();
-    if (!session?.user) return false;
+    const { data: userData, error: userErr } = await sb.auth.getUser();
+    if (userErr || !userData?.user) return false;
     const { data, error } = await sb.rpc('store_is_admin');
     if (error) {
       // ถ้ายังไม่มี RPC — อย่าเปิด admin ให้ user ทั่วไป

@@ -43,7 +43,8 @@ if (fs.existsSync(umdSrc)) {
   fs.copyFileSync(umdSrc, umdDest);
   console.log('inject-supabase-env: copied supabase UMD → artifacts/js/supabase.umd.js');
 } else {
-  console.warn('inject-supabase-env: UMD bundle not found — run npm install first');
+  console.error('inject-supabase-env: UMD bundle not found — run npm install first');
+  if (configured) process.exit(1);
 }
 
 console.log(

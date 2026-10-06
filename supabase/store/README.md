@@ -1,12 +1,18 @@
 # Rachawei-store Supabase migrations
 
-รันใน SQL Editor ของโปรเจกต์ **Rachawei-store เท่านั้น** ตามลำดับ:
+รันใน SQL Editor ของโปรเจกต์ **Rachawei-store เท่านั้น**
 
-1. `001_rachawei_store_schema.sql` — ตาราง + RLS พื้นฐาน
-2. `002_rachawei_store_seed_products.sql` — seed สินค้า/ตั้งค่าร้าน
-3. `003_store_create_order_rpc.sql` — admin allowlist + `store_create_order` RPC + เข้มงวด RLS admin
+## ถ้า schema ยังไม่เคยสร้าง
+รันตามลำดับ: `001` → `002` → `003`
 
-หลังจากสร้างผู้ใช้ใน Authentication:
+## ถ้ามีตาราง / store_admins อยู่แล้ว (แนะนำตอนนี้)
+รันเฉพาะไฟล์สั้นนี้ — **ไม่ลบและไม่ทับสินค้า**:
+
+`004_ensure_production_rpc.sql`
+
+สร้าง/อัปเดตเฉพาะ `store_is_admin()` + `store_create_order()` และกระชับ RLS ของ admin
+
+## เพิ่มเจ้าของร้าน (ถ้ายังไม่มีใน store_admins)
 
 ```sql
 insert into public.store_admins (user_id, email)
@@ -14,7 +20,7 @@ values ('<auth-user-uuid>', 'owner@example.com')
 on conflict (user_id) do nothing;
 ```
 
-ปิด Public sign-up ใน Supabase Auth settings เพื่อไม่ให้ผู้ใช้ทั่วไปสมัครแล้วได้ session (สิทธิ์ admin ยังต้องอยู่ใน `store_admins` อยู่แล้ว)
+ปิด Public sign-up ใน Supabase Auth
 
 Frontend ใช้เฉพาะ:
 - `VITE_SUPABASE_URL`
