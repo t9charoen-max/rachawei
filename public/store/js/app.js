@@ -1849,8 +1849,10 @@
       const shipping = getShippingFee();
       const total = getCartTotal();
       const items = cart.map(item => {
-        const p = products.find(x => x.id === item.id);
-        return p ? { id: p.id, name: p.name, emoji: p.emoji, qty: item.qty, price: p.price } : null;
+        const p = products.find((x) => String(x.id) === String(item.id));
+        return p
+          ? { id: p.id, name: p.name, emoji: p.emoji, qty: item.qty, price: p.price }
+          : null;
       }).filter(Boolean);
 
       return {
@@ -1873,6 +1875,10 @@
       const payload = buildOrderPayload();
       const now = Date.now();
       let id = null;
+
+      if (!payload.items.length) {
+        throw new Error('ไม่พบรายการสินค้าในตะกร้า — ลองเพิ่มสินค้าแล้วสั่งใหม่');
+      }
 
       // Always refresh runtime config before checkout (Production uses /api/store-config)
       if (typeof RachaweiStoreApi !== 'undefined') {
@@ -2000,7 +2006,12 @@
         }
       } catch (e) {
         console.error(e);
-        showToast('บันทึกคำสั่งซื้อไม่สำเร็จ — ลองใหม่อีกครั้ง');
+        const detail = String(e?.message || e || '').trim();
+        showToast(
+          detail && detail.length < 160
+            ? `บันทึกคำสั่งซื้อไม่สำเร็จ — ${detail}`
+            : 'บันทึกคำสั่งซื้อไม่สำเร็จ — ลองใหม่อีกครั้ง',
+        );
       } finally {
         orderSubmitting = false;
         if (btn) {
