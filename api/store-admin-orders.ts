@@ -4,7 +4,7 @@ import {
   isStoreAdminUserId,
   supabaseAdminFetch,
   verifyUserJwt,
-} from './lib/storeSupabaseAdmin';
+} from '../lib/storeSupabaseAdmin';
 
 function cors(res: VercelResponse) {
   res.setHeader('Cache-Control', 'no-store');

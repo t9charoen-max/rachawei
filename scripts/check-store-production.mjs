@@ -78,7 +78,7 @@ check(
 );
 check(
   'app.js rejects owner@example.com style emails',
-  app.ok && app.text.includes('@example.com'),
+  app.ok && (app.text.includes('@example.com') || app.text.includes('@example\\.com')),
 );
 
 const html = await getText('/store/');

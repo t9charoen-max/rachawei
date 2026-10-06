@@ -4,7 +4,7 @@ import {
   getSupabaseUrl,
   hasServiceRole,
   supabaseAdminFetch,
-} from './lib/storeSupabaseAdmin';
+} from '../lib/storeSupabaseAdmin';
 
 /**
  * One-time / operator bootstrap for store admin (server-only service role).
