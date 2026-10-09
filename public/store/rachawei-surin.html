@@ -683,11 +683,11 @@
   </nav>
 
   <!-- Cart Overlay + Drawer -->
-  <div class="cart-overlay" id="cartOverlay"></div>
-  <aside class="cart-drawer" id="cartDrawer">
+  <div class="cart-overlay" id="cartOverlay" aria-hidden="true"></div>
+  <aside class="cart-drawer" id="cartDrawer" role="dialog" aria-modal="true" aria-label="ตะกร้าสินค้า" aria-hidden="true">
     <div class="cart-header">
       <h2>🛒 ตะกร้าสินค้า</h2>
-      <button class="cart-close" id="cartClose" aria-label="ปิด">×</button>
+      <button type="button" class="cart-close" id="cartClose" aria-label="ปิดตะกร้า">×</button>
     </div>
     <div class="cart-body" id="cartBody">
       <!-- filled by JS -->

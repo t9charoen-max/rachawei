@@ -1,5 +1,5 @@
 /* Service worker ราชาหวายสุรินทร์ — ให้เปิดแบบแอปและโหลดซ้ำเร็ว */
-const CACHE_VERSION = 'rachawei-v1953-landing-store-entry';
+const CACHE_VERSION = 'rachawei-v1954-cart-overlay-fix';
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 
 self.addEventListener('install', (event) => {
