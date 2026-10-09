@@ -26,7 +26,10 @@ const CORS_HEADERS = {
 const DEFAULT_MODELS = [
   'gemini-2.5-flash-lite',
   'gemini-2.5-flash',
+  'gemini-2.0-flash',
   'gemini-2.0-flash-lite',
+  'gemini-1.5-flash',
+  'gemini-1.5-flash-latest',
 ];
 
 const RATE_WINDOW_MS = 60_000;
@@ -429,7 +432,8 @@ Deno.serve(async (req) => {
       answer: `${userMsg}\n\n${fallback.answer}`,
       products: fallback.products,
       error: code || 'gemini_unavailable',
-      // never include raw Gemini/API error text that might leak keys
+      // short sanitized hint only — never API key / full upstream dump
+      errorHint: safeErrorText((e as Error)?.message || ''),
     });
   }
 });

@@ -1,14 +1,14 @@
 /**
  * Storefront AI sales assistant client (vanilla)
- * Calls Supabase Edge Function `ai-sales-assistant`.
- * Falls back to local catalog search when AI/key/quota unavailable.
- * Never holds GEMINI_API_KEY.
+ * Calls existing Supabase Edge Function `ai-sales-assistant` only.
+ * Never holds GEMINI_API_KEY. Never invents product prices/stock.
  */
 (function (global) {
   'use strict';
 
   const MAX_MSG = 480;
   const HISTORY_KEY = 'rachawei_ai_chat_v1';
+  const FUNCTION_NAME = 'ai-sales-assistant';
 
   function esc(s) {
     return String(s || '')
@@ -19,16 +19,103 @@
   }
 
   function formatPrice(n) {
-    const v = Number(n) || 0;
-    return v.toLocaleString('th-TH') + ' บาท';
+    return (Number(n) || 0).toLocaleString('th-TH') + ' บาท';
   }
 
-  function getProducts() {
-    if (typeof global.products !== 'undefined' && Array.isArray(global.products)) {
-      return global.products;
+  async function getSupabasePublic() {
+    const api = global.RachaweiStoreApi;
+    if (api && typeof api.init === 'function') {
+      try {
+        await api.init();
+      } catch (_) { /* continue */ }
+      if (typeof api.getPublicConfig === 'function') {
+        const pub = api.getPublicConfig();
+        if (pub && pub.url && pub.anonKey && !/service_role/i.test(pub.anonKey)) {
+          return { url: pub.url, anonKey: pub.anonKey };
+        }
+      }
     }
-    // app.js keeps products in closure — use DOM catalog via RachaweiStoreApi if needed
-    return [];
+    try {
+      const conf = await fetch('/api/store-config', { cache: 'no-store' }).then((r) => r.json());
+      if (conf && conf.configured && conf.url && conf.anonKey && !/service_role/i.test(conf.anonKey)) {
+        return { url: conf.url, anonKey: conf.anonKey };
+      }
+    } catch (_) { /* ignore */ }
+    const inj = global.__RACHAWEI_SUPABASE__;
+    if (inj && inj.url && inj.anonKey && !/service_role/i.test(inj.anonKey)) {
+      return { url: inj.url, anonKey: inj.anonKey };
+    }
+    return null;
+  }
+
+  function functionUrl(base) {
+    return `${String(base).replace(/\/$/, '')}/functions/v1/${FUNCTION_NAME}`;
+  }
+
+  async function probeHealth() {
+    const pub = await getSupabasePublic();
+    if (!pub) {
+      return { ok: false, error: 'supabase_not_configured', message: 'ยังเชื่อมต่อ Supabase ไม่ได้' };
+    }
+    try {
+      const res = await fetch(functionUrl(pub.url), { method: 'GET', cache: 'no-store' });
+      const data = await res.json().catch(() => ({}));
+      if (res.status === 404) {
+        return {
+          ok: false,
+          error: 'not_deployed',
+          message: 'ยังไม่พบ Edge Function ai-sales-assistant บนเซิร์ฟเวอร์',
+        };
+      }
+      if (!res.ok || !data.ok) {
+        return {
+          ok: false,
+          error: 'health_failed',
+          message: 'ตรวจสอบผู้ช่วย AI ไม่สำเร็จ',
+          status: res.status,
+        };
+      }
+      return {
+        ok: true,
+        geminiKeyConfigured: Boolean(data.geminiKeyConfigured),
+        message: data.geminiKeyConfigured
+          ? 'พร้อมถามผู้ช่วย AI (สินค้าจากฐานข้อมูลจริง)'
+          : 'ฟังก์ชันพร้อม แต่ยังไม่ได้ตั้งค่า Gemini API Key — จะค้นหาสินค้าจากฐานข้อมูลแทน',
+      };
+    } catch (e) {
+      return {
+        ok: false,
+        error: 'network',
+        message: 'เชื่อมต่อผู้ช่วย AI ไม่ได้ — ตรวจเน็ตแล้วลองใหม่',
+      };
+    }
+  }
+
+  async function askRemote(message) {
+    const pub = await getSupabasePublic();
+    if (!pub) return { ok: false, error: 'supabase_not_configured', message: 'ยังเชื่อมต่อ Supabase ไม่ได้' };
+
+    const res = await fetch(functionUrl(pub.url), {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${pub.anonKey}`,
+        apikey: pub.anonKey,
+        'x-rachawei-client': 'storefront',
+      },
+      body: JSON.stringify({ message }),
+    });
+
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      return {
+        ok: false,
+        error: data.error || `http_${res.status}`,
+        message: data.message || null,
+        status: res.status,
+      };
+    }
+    return data;
   }
 
   function localSearch(query, products) {
@@ -64,7 +151,6 @@
       return {
         answer: 'ไม่พบสินค้าที่ตรงคำถามในคลังร้าน — ลองพิมพ์งบประมาณหรือชื่อสินค้า เช่น “ตะกร้าไม่เกิน 400”',
         products: [],
-        mode: 'local',
       };
     }
     const lines = picked.map(
@@ -76,7 +162,7 @@
     return {
       answer:
         `ค้นหาจากสินค้าจริงในร้าน:\n${lines.join('\n')}\n\n` +
-        'เลือกดูรายละเอียดหรือใส่ตะกร้าได้ด้านล่าง (โหมดสำรอง ไม่เรียก AI)',
+        'เลือกดูรายละเอียดหรือใส่ตะกร้าได้ด้านล่าง',
       products: picked.map((p) => ({
         id: String(p.id),
         name: p.name,
@@ -86,58 +172,7 @@
         image: (p.images && p.images[0]) || p.image || '',
         emoji: p.emoji || '🧺',
       })),
-      mode: 'local',
     };
-  }
-
-  async function askRemote(message) {
-    const api = global.RachaweiStoreApi;
-    if (!api || typeof api.init !== 'function') {
-      return { ok: false, error: 'supabase_not_ready' };
-    }
-    await api.init();
-    if (!api.isConfigured()) {
-      return { ok: false, error: 'supabase_not_configured' };
-    }
-    const pub = typeof api.getPublicConfig === 'function' ? api.getPublicConfig() : null;
-    let base = pub && pub.url ? pub.url : '';
-    let key = pub && pub.anonKey ? pub.anonKey : '';
-    if (!base || !key) {
-      try {
-        const conf = await fetch('/api/store-config', { cache: 'no-store' }).then((r) => r.json());
-        if (conf && conf.configured && conf.url && conf.anonKey) {
-          base = conf.url;
-          key = conf.anonKey;
-        }
-      } catch (_) { /* keep */ }
-    }
-
-    if (!base || !key || /service_role/i.test(key)) {
-      return { ok: false, error: 'supabase_not_configured' };
-    }
-
-    const endpoint = `${String(base).replace(/\/$/, '')}/functions/v1/ai-sales-assistant`;
-    const res = await fetch(endpoint, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${key}`,
-        apikey: key,
-        'x-rachawei-client': 'storefront',
-      },
-      body: JSON.stringify({ message }),
-    });
-
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      return {
-        ok: false,
-        error: data.error || `http_${res.status}`,
-        message: data.message || null,
-        status: res.status,
-      };
-    }
-    return data;
   }
 
   function productCardHtml(p) {
@@ -165,9 +200,11 @@
     </div>`;
   }
 
-  function appendMessage(logEl, role, text, products) {
+  function appendMessage(logEl, role, text, products, opts = {}) {
     const bubble = document.createElement('div');
     bubble.className = `ai-chat__msg ai-chat__msg--${role}`;
+    if (opts.loading) bubble.classList.add('ai-chat__msg--loading');
+    if (opts.id) bubble.id = opts.id;
     const body = document.createElement('div');
     body.className = 'ai-chat__bubble';
     body.innerHTML = esc(text).replace(/\n/g, '<br>');
@@ -180,6 +217,7 @@
     }
     logEl.appendChild(bubble);
     logEl.scrollTop = logEl.scrollHeight;
+    return bubble;
   }
 
   function bindProductActions(root) {
@@ -197,9 +235,7 @@
       btn.dataset.bound = '1';
       btn.addEventListener('click', () => {
         const id = Number(btn.getAttribute('data-ai-add'));
-        if (typeof global.addToCart === 'function') {
-          global.addToCart(id);
-        }
+        if (typeof global.addToCart === 'function') global.addToCart(id);
       });
     });
   }
@@ -220,6 +256,21 @@
     } catch (_) { /* ignore */ }
   }
 
+  function statusForMode(mode, health, result) {
+    if (mode === 'gemini') return 'ตอบโดย Gemini · สินค้าจากฐานข้อมูลจริง';
+    if (mode === 'fallback') {
+      if (result?.error === 'gemini_key_missing') {
+        return 'ยังไม่ได้ตั้งค่า Gemini API Key — แสดงสินค้าจากฐานข้อมูลแทน';
+      }
+      if (result?.error === 'gemini_quota') {
+        return 'โควตา Gemini เต็มชั่วคราว — แสดงสินค้าจากฐานข้อมูลแทน';
+      }
+      return 'ผู้ช่วย AI ใช้ไม่ได้ชั่วคราว — แสดงสินค้าจากฐานข้อมูลแทน';
+    }
+    if (health && !health.ok) return health.message || 'โหมดค้นหาในเครื่อง';
+    return 'โหมดค้นหาในเครื่อง (ยังเรียก Edge Function ไม่ได้)';
+  }
+
   function initUi() {
     const fab = document.getElementById('aiChatFab');
     const panel = document.getElementById('aiChatPanel');
@@ -230,12 +281,15 @@
     const statusEl = document.getElementById('aiChatStatus');
     if (!fab || !panel || !form || !input || !logEl) return;
 
+    let health = null;
+    let busy = false;
+
     const history = loadHistory();
     if (!history.length) {
       appendMessage(
         logEl,
         'bot',
-        'สวัสดีค่ะ ยินดีช่วยแนะนำงานจักสานหวายบ้านบุทม\nลองถามเช่น “ตะกร้าไม่เกิน 400 บาท” หรือ “ของขวัญงานแต่ง”',
+        'สวัสดีค่ะ ยินดีเป็นผู้ช่วย AI ของราชาหวายสุรินทร์\nถามได้ เช่น “ตะกร้าไม่เกิน 400 บาท” หรือ “ของขวัญงานแต่ง”',
         [],
       );
     } else {
@@ -243,12 +297,23 @@
       bindProductActions(logEl);
     }
 
+    async function refreshHealth() {
+      if (statusEl) statusEl.textContent = 'กำลังตรวจสอบการเชื่อมต่อ…';
+      health = await probeHealth();
+      if (statusEl) {
+        statusEl.textContent = health.message || (health.ok ? 'พร้อมใช้งาน' : 'เชื่อมต่อไม่สำเร็จ');
+      }
+      return health;
+    }
+
     function setOpen(open) {
       panel.hidden = !open;
       fab.setAttribute('aria-expanded', open ? 'true' : 'false');
+      document.body.classList.toggle('ai-chat-open', open);
       if (open) {
         input.focus();
         logEl.scrollTop = logEl.scrollHeight;
+        void refreshHealth();
       }
     }
 
@@ -263,7 +328,6 @@
       });
     });
 
-    let busy = false;
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       if (busy) return;
@@ -276,8 +340,13 @@
       saveHistory(hist);
 
       busy = true;
-      if (statusEl) statusEl.textContent = 'กำลังถามผู้ช่วย…';
-      form.querySelector('button[type="submit"]')?.setAttribute('disabled', 'true');
+      const submitBtn = form.querySelector('button[type="submit"]');
+      submitBtn?.setAttribute('disabled', 'true');
+      if (statusEl) statusEl.textContent = 'กำลังถามผู้ช่วย AI…';
+      const loadingEl = appendMessage(logEl, 'bot', 'กำลังค้นหาคำตอบ…', [], {
+        loading: true,
+        id: 'aiChatLoading',
+      });
 
       let result = null;
       try {
@@ -286,27 +355,31 @@
         result = { ok: false, error: String(err?.message || err) };
       }
 
+      loadingEl?.remove();
+
       let answer;
       let products = [];
       let mode = 'local';
 
       if (result && result.ok && result.answer) {
+        // Real Edge Function response (gemini or server-side catalog fallback)
         answer = result.answer;
         products = Array.isArray(result.products) ? result.products : [];
-        mode = result.mode || 'gemini';
+        mode = result.mode === 'gemini' ? 'gemini' : 'fallback';
       } else {
-        // Edge Function missing / network — local catalog only
         const productsLive =
           (typeof global.getStoreProductsForAi === 'function' && global.getStoreProductsForAi()) ||
-          getProducts();
+          [];
         const local = localSearch(message, productsLive);
         const errStr = String(result?.error || result?.message || '');
-        const why =
-          result?.status === 404 || /NOT_FOUND|Failed to fetch|NetworkError|Load failed/i.test(errStr)
-            ? 'ยังไม่ได้ Deploy Edge Function `ai-sales-assistant` หรือเรียกไม่สำเร็จ — '
-            : result?.error === 'rate_limited'
-              ? (result.message || 'ถามบ่อยเกินไป — ') + ' '
-              : 'เชื่อมผู้ช่วย AI ไม่ได้ชั่วคราว — ';
+        let why = 'เชื่อมผู้ช่วย AI ไม่ได้ชั่วคราว — ';
+        if (result?.status === 404 || /NOT_FOUND/i.test(errStr)) {
+          why = 'ยังไม่พบ Edge Function บนเซิร์ฟเวอร์ — ';
+        } else if (result?.error === 'rate_limited') {
+          why = (result.message || 'ถามบ่อยเกินไป') + ' — ';
+        } else if (result?.error === 'supabase_not_configured') {
+          why = 'ยังเชื่อมต่อฐานข้อมูลไม่ได้ — ';
+        }
         answer = why + local.answer;
         products = local.products;
         mode = 'local';
@@ -318,17 +391,15 @@
       hist2.push({ role: 'bot', text: answer, products, mode });
       saveHistory(hist2);
 
-      if (statusEl) {
-        statusEl.textContent =
-          mode === 'gemini'
-            ? 'ตอบโดย Gemini (สินค้าจาก Supabase)'
-            : mode === 'fallback'
-              ? 'โหมดสำรองจากเซิร์ฟเวอร์ (ไม่เรียก AI / โควตาเต็ม)'
-              : 'โหมดค้นหาในเครื่อง';
-      }
+      if (statusEl) statusEl.textContent = statusForMode(mode, health, result);
       busy = false;
-      form.querySelector('button[type="submit"]')?.removeAttribute('disabled');
+      submitBtn?.removeAttribute('disabled');
     });
+
+    // Warm health in background after store scripts load
+    setTimeout(() => {
+      void refreshHealth();
+    }, 800);
   }
 
   if (document.readyState === 'loading') {
@@ -337,5 +408,5 @@
     initUi();
   }
 
-  global.RachaweiAiSales = { askRemote, localSearch };
+  global.RachaweiAiSales = { askRemote, localSearch, probeHealth };
 })(typeof window !== 'undefined' ? window : globalThis);

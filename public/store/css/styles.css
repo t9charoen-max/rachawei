@@ -5395,31 +5395,42 @@
     .ai-chat-fab {
       position: fixed;
       right: 1rem;
-      bottom: calc(4.6rem + env(safe-area-inset-bottom, 0px));
-      z-index: 70;
+      bottom: calc(5.1rem + env(safe-area-inset-bottom, 0px));
+      z-index: 72;
       display: inline-flex;
       align-items: center;
-      gap: 0.4rem;
-      padding: 0.7rem 0.95rem;
+      gap: 0.45rem;
+      padding: 0.72rem 1rem 0.72rem 0.85rem;
       border: none;
       border-radius: 999px;
       background: #3d2a1c;
       color: #fffaf3;
       font-weight: 700;
-      font-size: 0.88rem;
-      box-shadow: 0 8px 24px rgba(40, 24, 12, 0.28);
+      font-size: 0.9rem;
+      box-shadow: 0 10px 28px rgba(40, 24, 12, 0.32);
       cursor: pointer;
     }
     .ai-chat-fab:hover { filter: brightness(1.06); }
+    .ai-chat-fab__icon { font-size: 1.1rem; line-height: 1; }
     .ai-chat-fab__label { white-space: nowrap; }
+
+    /* Keep LINE chat above tabbar but left of AI fab on mobile */
+    .shop-line {
+      right: auto;
+      left: 1rem;
+      bottom: calc(5.1rem + env(safe-area-inset-bottom, 0px));
+    }
 
     .ai-chat-panel {
       position: fixed;
       right: 0.75rem;
-      bottom: calc(7.4rem + env(safe-area-inset-bottom, 0px));
-      width: min(380px, calc(100vw - 1.5rem));
-      max-height: min(72vh, 560px);
-      z-index: 71;
+      left: 0.75rem;
+      bottom: calc(8.2rem + env(safe-area-inset-bottom, 0px));
+      width: auto;
+      max-width: 420px;
+      margin-left: auto;
+      max-height: min(70vh, 560px);
+      z-index: 73;
       display: flex;
       flex-direction: column;
       background: #fffaf4;
@@ -5505,6 +5516,14 @@
       color: #2a1b14;
       border-bottom-left-radius: 4px;
     }
+    .ai-chat__msg--loading .ai-chat__bubble {
+      color: var(--text-soft);
+      font-style: italic;
+    }
+    body.ai-chat-open .shop-tabbar {
+      opacity: 0.35;
+      pointer-events: none;
+    }
 
     .ai-chat__products { display: grid; gap: 0.45rem; width: 100%; }
     .ai-chat__product {
@@ -5567,12 +5586,18 @@
 
     @media (min-width: 900px) {
       .ai-chat-fab {
-        bottom: 1.25rem;
-        right: 6.5rem;
+        bottom: 1.35rem;
+        right: 1.35rem;
       }
       .ai-chat-panel {
-        bottom: 4.5rem;
-        right: 1.25rem;
+        left: auto;
+        right: 1.35rem;
+        bottom: 5.2rem;
+        width: min(380px, calc(100vw - 2rem));
       }
-      .shop-line { right: 1.25rem; }
+      .shop-line {
+        left: auto;
+        right: 8.5rem;
+        bottom: 1.35rem;
+      }
     }
