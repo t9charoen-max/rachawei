@@ -158,6 +158,18 @@
     return `/products/${s}`;
   }
 
+  function parseDimsFromSize(size) {
+    const m = String(size || '').match(
+      /(\d+(?:\.\d+)?)\s*[×xX]\s*(\d+(?:\.\d+)?)\s*[×xX]\s*(\d+(?:\.\d+)?)\s*ซม/,
+    );
+    if (!m) return { widthCm: null, lengthCm: null, heightCm: null };
+    return {
+      widthCm: Number(m[1]),
+      lengthCm: Number(m[2]),
+      heightCm: Number(m[3]),
+    };
+  }
+
   function rowToStoreProduct(row) {
     const id = Number(row.id);
     if (!Number.isFinite(id)) return null;
@@ -165,6 +177,8 @@
       .map(resolveProductImage)
       .filter(Boolean);
     const badge = row.badge || (row.featured ? 'พิเศษ' : null);
+    const size = row.size || '';
+    const dims = parseDimsFromSize(size);
     return {
       id,
       name: row.name,
@@ -174,7 +188,10 @@
       detail: row.description || '',
       price: Number(row.price) || 0,
       stock: row.stock != null ? Number(row.stock) : null,
-      size: row.size || '',
+      size,
+      widthCm: dims.widthCm,
+      lengthCm: dims.lengthCm,
+      heightCm: dims.heightCm,
       emoji: row.emoji || (row.category === 'เก้าอี้' ? '🪑' : '🧺'),
       badge,
       images,
@@ -720,7 +737,18 @@
       emoji: product.emoji || '🧺',
       badge: product.badge || null,
       featured: Boolean(product.featured) || product.badge === 'พิเศษ',
-      size: product.size || null,
+      // Persist ก×ย×ส into existing size text (no schema change)
+      size: (() => {
+        const w = Number(product.widthCm);
+        const l = Number(product.lengthCm);
+        const h = Number(product.heightCm);
+        const dims = [w, l, h].every((n) => Number.isFinite(n) && n > 0)
+          ? `${w}×${l}×${h} ซม.`
+          : '';
+        const free = String(product.size || '').trim();
+        if (dims && free && !free.includes('×') && !free.includes('x')) return `${dims} · ${free}`;
+        return dims || free || null;
+      })(),
       panorama360: product.panorama360
         ? String(product.panorama360).replace(/^\/products\//, '').split('?')[0]
         : null,

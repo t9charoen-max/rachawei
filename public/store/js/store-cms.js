@@ -96,10 +96,29 @@
             <div class="review-card__meta">
               <strong>${esc(item.name || '')}</strong>
               <span>${esc(item.meta || '')}</span>
+              ${item.date ? `<time class="review-card__date" datetime="${esc(item.date)}">${esc(item.date)}</time>` : ''}
             </div>
           </div>
         </article>`;
     }).join('');
+  }
+
+  function renderPolicyBlock(policy) {
+    const section = document.getElementById('storePolicy');
+    if (!section) return;
+    const title = policy?.title || '';
+    const lead = policy?.lead || '';
+    const body = String(policy?.bodyHtml || '').trim();
+    const hasBody = body.length > 0;
+    section.hidden = !hasBody;
+    if (!hasBody) {
+      const bodyEl = document.getElementById('storePolicyBody');
+      if (bodyEl) bodyEl.innerHTML = '';
+      return;
+    }
+    setText(document.getElementById('storePolicyTitle'), title || 'นโยบายคืน / เปลี่ยนสินค้า');
+    setText(document.getElementById('storePolicyLead'), lead);
+    setHtml(document.getElementById('storePolicyBody'), body);
   }
 
   function renderStoryPage(story) {
@@ -333,6 +352,7 @@
     renderMediaPage(content.media);
     renderProcessPage(content.process);
     renderCarePage(content.care);
+    renderPolicyBlock(content.policy);
     renderContactBlock(content.contact);
     renderFooterBlock(content.footer);
   }
@@ -493,6 +513,7 @@
         ${field('คำพูด', `revQuote_${i}`, item.quote, true, 2)}
         ${field('ชื่อ', `revName_${i}`, item.name)}
         ${field('เมือง · สินค้า', `revMeta_${i}`, item.meta)}
+        ${field('วันที่รีวิว (ถ้ามีของจริง เช่น 2026-03-15)', `revDate_${i}`, item.date || '')}
         ${field('ป้ายบนรูป', `revBadge_${i}`, item.badge)}
         ${field('ดาว (1–5)', `revStars_${i}`, String(item.stars || 5))}
         ${field('คำอธิบายรูป (alt)', `revAlt_${i}`, item.alt)}
@@ -505,6 +526,7 @@
     for (let i = 0; i < count; i++) {
       const quoteEl = document.getElementById(`revQuote_${i}`);
       if (!quoteEl) continue;
+      const date = document.getElementById(`revDate_${i}`)?.value.trim() || '';
       items.push({
         quote: quoteEl.value.trim(),
         name: document.getElementById(`revName_${i}`)?.value.trim() || '',
@@ -513,6 +535,7 @@
         stars: Number(document.getElementById(`revStars_${i}`)?.value) || 5,
         alt: document.getElementById(`revAlt_${i}`)?.value.trim() || '',
         img: document.getElementById(`revImg_${i}`)?.value.trim() || '',
+        ...(date ? { date } : {}),
       });
     }
     return items;
@@ -656,6 +679,15 @@
         ${field('หัวข้อ Line/FB', 'cmsContactSocialTitle', c.contact.socialTitle)}
         ${field('ข้อความ Line/FB', 'cmsContactSocialText', c.contact.socialText)}
       `, { open: false })}
+
+      ${details('นโยบายคืน / เปลี่ยนสินค้า', `
+        <p style="font-size:0.8rem;color:var(--text-soft);margin:0;line-height:1.45;">
+          กรอกเฉพาะนโยบายจริงของร้าน — ถ้าว่าง ส่วนนี้จะไม่แสดงบนหน้าร้าน (ห้ามใส่ข้อความสมมติ)
+        </p>
+        ${field('หัวข้อ', 'cmsPolicyTitle', (c.policy && c.policy.title) || 'นโยบายคืน / เปลี่ยนสินค้า')}
+        ${field('คำนำสั้น', 'cmsPolicyLead', (c.policy && c.policy.lead) || '', true, 2)}
+        ${field('เนื้อหานโยบาย (HTML ได้)', 'cmsPolicyBody', (c.policy && c.policy.bodyHtml) || '', true, 8)}
+      `, { open: false, id: 'cmsSecPolicy' })}
 
       ${details('ส่วนท้ายเว็บ', `
         ${field('บรรทัด 1 (HTML ได้)', 'cmsFooter1', c.footer.line1Html, true, 2)}
@@ -1082,6 +1114,11 @@
           socialTitle: document.getElementById('cmsContactSocialTitle').value.trim(),
           socialText: document.getElementById('cmsContactSocialText').value.trim(),
           photosTitle: document.getElementById('cmsPhotosTitle').value.trim(),
+        },
+        policy: {
+          title: document.getElementById('cmsPolicyTitle')?.value.trim() || 'นโยบายคืน / เปลี่ยนสินค้า',
+          lead: document.getElementById('cmsPolicyLead')?.value.trim() || '',
+          bodyHtml: document.getElementById('cmsPolicyBody')?.value || '',
         },
         footer: {
           line1Html: document.getElementById('cmsFooter1').value,

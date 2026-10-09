@@ -158,7 +158,28 @@
       });
     }
 
-    const PRODUCT_OVERLAY_KEYS = ['price', 'stock', 'size', 'badge', 'desc', 'detail', 'emoji'];
+    const PRODUCT_OVERLAY_KEYS = [
+      'price', 'stock', 'size', 'widthCm', 'lengthCm', 'heightCm',
+      'badge', 'desc', 'detail', 'emoji',
+    ];
+
+    function formatProductDims(p) {
+      if (!p || typeof p !== 'object') return '';
+      const w = Number(p.widthCm);
+      const l = Number(p.lengthCm);
+      const h = Number(p.heightCm);
+      const parts = [];
+      if (Number.isFinite(w) && w > 0) parts.push(`กว้าง ${w}`);
+      if (Number.isFinite(l) && l > 0) parts.push(`ยาว ${l}`);
+      if (Number.isFinite(h) && h > 0) parts.push(`สูง ${h}`);
+      if (!parts.length) return '';
+      return `${parts.join(' × ')} ซม.`;
+    }
+
+    function getShippingRatePerItem() {
+      const fee = Number(SHOP_CONFIG.shippingFee);
+      return Number.isFinite(fee) && fee >= 0 ? fee : 100;
+    }
 
     function mapStoreCatFromCategory(category, storeCat) {
       if (storeCat) return storeCat;
@@ -183,6 +204,9 @@
         price: Number(item.price) || 0,
         stock: item.stock != null ? Number(item.stock) : null,
         size: item.size || '',
+        widthCm: item.widthCm != null ? Number(item.widthCm) : null,
+        lengthCm: item.lengthCm != null ? Number(item.lengthCm) : null,
+        heightCm: item.heightCm != null ? Number(item.heightCm) : null,
         emoji: item.emoji || (item.category === 'เก้าอี้' ? '🪑' : '🧺'),
         badge,
         images,
@@ -252,6 +276,13 @@
       });
       if (typeof mergeStoreContent === 'function' && SHOP_CONFIG.content) {
         SHOP_CONFIG.content = mergeStoreContent(SHOP_CONFIG.content);
+      }
+      // Fulfillment copy lives in content.jsonb (no schema change)
+      const ful = SHOP_CONFIG.content?.fulfillment;
+      if (ful && typeof ful === 'object') {
+        if (ful.eta != null) SHOP_CONFIG.shippingEta = String(ful.eta || '');
+        if (ful.carrier != null) SHOP_CONFIG.shippingCarrier = String(ful.carrier || '');
+        if (ful.freeNote != null) SHOP_CONFIG.freeShippingNote = String(ful.freeNote || '');
       }
       migratePaymentFields();
       // If hero DOM already exists (mid-session refresh), paint immediately.
@@ -706,12 +737,30 @@
     window.buildPromoBarText = buildPromoBarText;
     window.getPromoDiscount = getPromoDiscount;
 
+    /** ค่าจัดส่ง = อัตราต่อชิ้น × จำนวนรวมในตะกร้า (ไม่ส่งฟรีอัตโนมัติ) */
     function getShippingFee() {
-      const subtotal = getCartSubtotal() - getPromoDiscount();
-      const freeMin = Number(SHOP_CONFIG.freeShippingMin) || 0;
-      if (freeMin > 0 && subtotal >= freeMin) return 0;
-      const fee = Number(SHOP_CONFIG.shippingFee);
-      return Number.isFinite(fee) ? Math.max(0, fee) : 80;
+      const qty = getCartCount();
+      if (qty <= 0) return 0;
+      return getShippingRatePerItem() * qty;
+    }
+
+    function formatShippingLabel(shipping) {
+      const qty = getCartCount();
+      const rate = getShippingRatePerItem();
+      if (qty <= 0) return 'ค่าจัดส่ง';
+      return `ค่าจัดส่ง (${rate.toLocaleString('th-TH')}×${qty} ชิ้น)`;
+    }
+
+    function getFulfillmentNoteHtml() {
+      const eta = String(SHOP_CONFIG.shippingEta || '').trim();
+      const carrier = String(SHOP_CONFIG.shippingCarrier || '').trim();
+      const freeNote = String(SHOP_CONFIG.freeShippingNote || '').trim();
+      const bits = [];
+      if (eta) bits.push(`ระยะเวลาจัดส่ง: ${escapeHtml(eta)}`);
+      if (carrier) bits.push(`ขนส่ง: ${escapeHtml(carrier)}`);
+      if (freeNote) bits.push(`เงื่อนไขส่งฟรี: ${escapeHtml(freeNote)}`);
+      if (!bits.length) return '';
+      return `<div class="cart-fulfillment-note">${bits.join('<br>')}</div>`;
     }
 
     function getCartTotal() {
@@ -978,8 +1027,12 @@
               <div class="product-price">${formatPrice(p.price)}</div>
               <div class="product-stock product-stock--${stock.className}">${stock.text}</div>
             </div>
-            ${p.size ? `<div class="product-size">ขนาด: ${escapeHtml(p.size)}</div>` : ''}
-            ${p.desc ? `<p class="product-card-desc">${escapeHtml(String(p.desc).slice(0, 72))}${String(p.desc).length > 72 ? '…' : ''}</p>` : ''}
+            ${(() => {
+              const dims = formatProductDims(p);
+              const sizeLine = dims || (p.size ? String(p.size) : '');
+              return sizeLine ? `<div class="product-size">ขนาด: ${escapeHtml(sizeLine)}</div>` : '';
+            })()}
+            ${p.desc ? `<p class="product-card-desc">${escapeHtml(String(p.desc))}</p>` : ''}
             <button type="button" class="btn btn-primary btn-add-full" ${available ? '' : 'disabled'} onclick="addToCart(${p.id})" aria-label="ใส่ ${p.name} ลงตะกร้า">
               🛒 ใส่ตะกร้า
             </button>
@@ -1211,74 +1264,11 @@
     }
 
     // ========== INSTALL BANNER ==========
+    // Disabled: แถบติดตั้งแอปซ้ำซ้อนกับแถบโปร — คง element ไว้แต่ไม่แสดง
+    // อย่าเรียก schedulePromoAfterInstall ที่นี่ (promoBar ประกาศทีหลัง — จะ TDZ)
     function initInstallBanner() {
       const banner = document.getElementById('installBanner');
-      const installBtn = document.getElementById('installBtn');
-      const closeBtn = document.getElementById('installClose');
-      const desc = document.getElementById('installDesc');
-      if (!banner) return;
-
-      const INSTALL_DELAY_MS = 8000;
-
-      const standalone = window.matchMedia('(display-mode: standalone)').matches
-        || window.navigator.standalone === true;
-      if (standalone) return;
-      try {
-        if (localStorage.getItem('rachawei-store-install-dismissed')) return;
-      } catch (_) {}
-
-      const isIos = /iphone|ipad|ipod/i.test(navigator.userAgent);
-      let deferredPrompt = null;
-      let revealTimer = null;
-
-      const schedulePromoIfReady = () => {
-        if (typeof schedulePromoAfterInstall === 'function') schedulePromoAfterInstall();
-      };
-
-      const revealBanner = (message, showInstall) => {
-        if (revealTimer) clearTimeout(revealTimer);
-        revealTimer = setTimeout(() => {
-          try {
-            if (localStorage.getItem('rachawei-store-install-dismissed')) return;
-          } catch (_) {}
-          if (desc && message) desc.textContent = message;
-          banner.hidden = false;
-          if (installBtn) installBtn.hidden = !showInstall;
-        }, INSTALL_DELAY_MS);
-      };
-
-      window.addEventListener('beforeinstallprompt', (event) => {
-        event.preventDefault();
-        deferredPrompt = event;
-        revealBanner('ติดตั้งแอป — เปิดร้านได้เร็วขึ้น', true);
-      });
-
-      if (isIos) {
-        revealBanner('ติดตั้ง: แชร์ ⎋ → เพิ่มลงหน้าจอโฮม', false);
-      }
-
-      if (installBtn) {
-        installBtn.addEventListener('click', async () => {
-          if (!deferredPrompt) return;
-          await deferredPrompt.prompt();
-          const choice = await deferredPrompt.userChoice;
-          deferredPrompt = null;
-          if (choice.outcome === 'accepted') {
-            banner.hidden = true;
-            try { localStorage.setItem('rachawei-store-install-dismissed', '1'); } catch (_) {}
-            schedulePromoIfReady();
-          }
-        });
-      }
-
-      if (closeBtn) {
-        closeBtn.addEventListener('click', () => {
-          banner.hidden = true;
-          if (revealTimer) clearTimeout(revealTimer);
-          try { localStorage.setItem('rachawei-store-install-dismissed', '1'); } catch (_) {}
-          schedulePromoIfReady();
-        });
-      }
+      if (banner) banner.hidden = true;
     }
 
     initInstallBanner();
@@ -1533,7 +1523,8 @@
         if (promo > 0) {
           lines += `<div class="cart-total-row cart-total-row--promo"><span>ส่วนลดโปรโมชั่น</span><span>-${formatPrice(promo)}</span></div>`;
         }
-        lines += `<div class="cart-total-row"><span>ค่าจัดส่ง</span><span>${shipping > 0 ? formatPrice(shipping) : 'ฟรี'}</span></div>`;
+        lines += `<div class="cart-total-row"><span>${formatShippingLabel(shipping)}</span><span>${formatPrice(shipping)}</span></div>`;
+        lines += getFulfillmentNoteHtml();
         breakdown.innerHTML = lines;
       }
 
@@ -1995,7 +1986,9 @@
       });
       html += `<div><span>ยอดสินค้า</span><span>${formatPrice(subtotal)}</span></div>`;
       if (promo > 0) html += `<div><span>ส่วนลดโปรโมชั่น</span><span>-${formatPrice(promo)}</span></div>`;
-      html += `<div><span>ค่าจัดส่ง</span><span>${shipping > 0 ? formatPrice(shipping) : 'ฟรี'}</span></div>`;
+      html += `<div><span>${formatShippingLabel(shipping)}</span><span>${formatPrice(shipping)}</span></div>`;
+      const fulfillNote = getFulfillmentNoteHtml();
+      if (fulfillNote) html += `<div class="pay-fulfillment-note" style="display:block;border:none;padding:0.35rem 0;font-size:0.82rem;color:var(--text-soft);">${fulfillNote.replace(/^<div[^>]*>|<\/div>$/g, '')}</div>`;
       html += `<div style="font-weight:700;border:none;padding-top:0.5rem;"><span>รวมทั้งสิ้น</span><span>${formatPrice(total)}</span></div>`;
       lines.innerHTML = html;
 
@@ -2003,8 +1996,11 @@
       const payment = getPaymentInfo();
       if (selectedMethod === 'promptpay') {
         box.innerHTML = `
-          <div style="font-size:0.85rem;color:var(--text-soft);">สแกน QR พร้อมเพย์ หรือโอนตามหมายเลขด้านล่าง</div>
-          <div class="pay-qr" title="QR พร้อมเพย์ (ตัวอย่าง)"></div>
+          <div style="font-size:0.85rem;color:var(--text-soft);">โอนเข้าพร้อมเพย์ตามหมายเลขด้านล่าง (แนะนำ)</div>
+          <div class="pay-qr pay-qr--sample" role="img" aria-label="ภาพตัวอย่าง QR ไม่ใช่ QR รับเงินจริง" title="ตัวอย่างเท่านั้น — ยังไม่ใช่ QR รับเงินของร้าน">
+            <span class="pay-qr__sample-label">ตัวอย่าง QR<br><small>ยังไม่ใช่ QR รับเงินจริง</small></span>
+          </div>
+          <p class="pay-qr-sample-note">ขณะนี้ยังไม่มี QR พร้อมเพย์จริงของร้าน — กรุณาโอนตามเบอร์พร้อมเพย์ด้านล่าง แล้วแนบสลิป</p>
           <div class="pay-amount">${formatPrice(total)}</div>
           <div class="pay-account">
             <strong>พร้อมเพย์:</strong> ${payment.promptpay.id}<br>
@@ -2064,7 +2060,10 @@
       text += '─────────────────\n';
       text += `ยอดสินค้า: ${formatPrice(getCartSubtotal())}\n`;
       if (getPromoDiscount() > 0) text += `ส่วนลด: -${formatPrice(getPromoDiscount())}\n`;
-      text += `ค่าจัดส่ง: ${getShippingFee() > 0 ? formatPrice(getShippingFee()) : 'ฟรี'}\n`;
+      text += `${formatShippingLabel(getShippingFee())}: ${formatPrice(getShippingFee())}\n`;
+      if (SHOP_CONFIG.shippingEta) text += `ระยะเวลาจัดส่ง: ${SHOP_CONFIG.shippingEta}\n`;
+      if (SHOP_CONFIG.shippingCarrier) text += `ขนส่ง: ${SHOP_CONFIG.shippingCarrier}\n`;
+      if (SHOP_CONFIG.freeShippingNote) text += `เงื่อนไขส่งฟรี: ${SHOP_CONFIG.freeShippingNote}\n`;
       text += `รวมทั้งสิ้น: ${formatPrice(total)}\n`;
       text += `จำนวน: ${getCartCount()} ชิ้น\n\n`;
       if (selectedMethod === 'promptpay') {
@@ -3901,13 +3900,24 @@
           <p style="font-size:0.78rem;color:var(--text-soft);margin:0;line-height:1.45;">
             ตัวเลขโปรใช้คำนวณ Checkout — แก้ข้อความ/เปิดปิดแถบโปรได้ที่แท็บ <strong>แบนเนอร์ → แถบโปรโมชัน</strong>
           </p>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.6rem;">
-            <label style="font-size:0.82rem;font-weight:600;">ค่าจัดส่ง (บาท)
-              <input class="admin-input" type="number" id="setShippingFee" value="${c.shippingFee ?? 80}" min="0" step="10" style="width:100%;margin-top:0.25rem;"></label>
-            <label style="font-size:0.82rem;font-weight:600;">ส่งฟรีเมื่อยอดถึง (บาท)
-              <input class="admin-input" type="number" id="setFreeShippingMin" value="${c.freeShippingMin || 0}" min="0" step="50" placeholder="0 = ไม่มีส่งฟรี" style="width:100%;margin-top:0.25rem;"></label>
-          </div>
-          <p style="font-size:0.78rem;color:var(--text-soft);margin:0;line-height:1.45;">ค่าจัดส่งและโปรจะใช้ทั้งหน้าร้านและตอนสร้างออเดอร์บนเซิร์ฟเวอร์ (หลังรัน SQL 009)</p>
+          <label style="font-size:0.82rem;font-weight:600;">ค่าจัดส่งมาตรฐาน (บาท / ชิ้น)
+            <input class="admin-input" type="number" id="setShippingFee" value="${c.shippingFee ?? 100}" min="0" step="10" style="width:100%;margin-top:0.25rem;">
+          </label>
+          <p style="font-size:0.78rem;color:var(--text-soft);margin:0;line-height:1.45;">
+            คิดจากจำนวนชิ้นในตะกร้า เช่น 100×3 = 300 บาท — <strong>ไม่ถูกส่งฟรีอัตโนมัติ</strong>
+            เงื่อนไขส่งฟรีใส่เป็นข้อความด้านล่างให้ลูกค้าอ่านเท่านั้น
+          </p>
+          <label style="font-size:0.82rem;font-weight:600;">ระยะเวลาจัดส่ง (ข้อความจริงจากร้าน)
+            <input class="admin-input" id="setShippingEta" value="${escapeHtml(c.shippingEta || '')}" placeholder="เช่น 3–5 วันทำการ หลังยืนยันชำระเงิน" style="width:100%;margin-top:0.25rem;">
+          </label>
+          <label style="font-size:0.82rem;font-weight:600;">บริษัทขนส่ง
+            <input class="admin-input" id="setShippingCarrier" value="${escapeHtml(c.shippingCarrier || '')}" placeholder="เช่น Kerry / Flash / ไปรษณีย์" style="width:100%;margin-top:0.25rem;">
+          </label>
+          <label style="font-size:0.82rem;font-weight:600;">เงื่อนไขส่งฟรี (ข้อความ — ไม่เปลี่ยนอัตราต่อชิ้น)
+            <textarea class="admin-input" id="setFreeShippingNote" rows="2" placeholder="ว่างไว้ถ้ายังไม่มีเงื่อนไขจริง" style="width:100%;margin-top:0.25rem;">${escapeHtml(c.freeShippingNote || '')}</textarea>
+          </label>
+          <input type="hidden" id="setFreeShippingMin" value="${c.freeShippingMin || 0}" />
+          <p style="font-size:0.78rem;color:var(--text-soft);margin:0;line-height:1.45;">ค่าจัดส่งต่อชิ้นใช้ทั้งหน้าร้านและตอนสร้างออเดอร์บนเซิร์ฟเวอร์</p>
           <label style="font-size:0.82rem;font-weight:600;">ธนาคาร
             <input class="admin-input" id="setBankName" value="${escapeHtml(c.bankName||'')}" style="width:100%;margin-top:0.25rem;"></label>
           <label style="font-size:0.82rem;font-weight:600;">ชื่อบัญชี
@@ -4037,6 +4047,18 @@
           alert('รหัสผ่านต้องมีอย่างน้อย 4 หลัก');
           return;
         }
+        const shippingEta = document.getElementById('setShippingEta')?.value.trim() || '';
+        const shippingCarrier = document.getElementById('setShippingCarrier')?.value.trim() || '';
+        const freeShippingNote = document.getElementById('setFreeShippingNote')?.value.trim() || '';
+        const contentNext = typeof mergeStoreContent === 'function'
+          ? mergeStoreContent(SHOP_CONFIG.content || {})
+          : { ...(SHOP_CONFIG.content || {}) };
+        contentNext.fulfillment = {
+          ...(contentNext.fulfillment || {}),
+          eta: shippingEta,
+          carrier: shippingCarrier,
+          freeNote: freeShippingNote,
+        };
         const settingsPatch = {
           shopName: document.getElementById('setShopName').value.trim() || SHOP_CONFIG.shopName,
           shopSub: document.getElementById('setShopSub')?.value.trim() || SHOP_CONFIG.shopSub || '',
@@ -4049,13 +4071,17 @@
           promoMin: Number(document.getElementById('setPromoMin').value) || 0,
           promoDiscount: Number(document.getElementById('setPromoDisc').value) || 0,
           shippingFee: Math.max(0, Number(document.getElementById('setShippingFee').value) || 0),
-          freeShippingMin: Math.max(0, Number(document.getElementById('setFreeShippingMin').value) || 0),
+          freeShippingMin: Math.max(0, Number(document.getElementById('setFreeShippingMin')?.value) || 0),
+          shippingEta,
+          shippingCarrier,
+          freeShippingNote,
           bankName: document.getElementById('setBankName').value.trim(),
           bankAccountName: document.getElementById('setBankAccName').value.trim(),
           promptPayNo: document.getElementById('setPromptPayNo').value.trim(),
           bankAccountNo: document.getElementById('setBankAccNo').value.trim(),
           bankNote: document.getElementById('setBankNote').value.trim(),
-          heroImages: (window._heroImagesDraft || []).slice(0, 10)
+          heroImages: (window._heroImagesDraft || []).slice(0, 10),
+          content: contentNext,
         };
         if (nextPin) settingsPatch.adminPinHash = hashAdminPin(nextPin);
         void (async () => {
@@ -4502,10 +4528,25 @@
               <input type="number" id="apStock" value="${editP && editP.stock != null ? editP.stock : 10}" min="0" step="1" placeholder="0" />
             </div>
             <div class="form-group">
-              <label>ขนาด / สเปก</label>
+              <label>ขนาด / สเปก (ข้อความ)</label>
               <input type="text" id="apSize" value="${editP && editP.size ? String(editP.size).replace(/"/g, '&quot;') : ''}" placeholder="เช่น เส้นผ่านศูนย์กลาง 30 ซม." />
             </div>
           </div>
+          <div class="form-row" style="grid-template-columns:1fr 1fr 1fr;">
+            <div class="form-group">
+              <label>กว้าง (ซม.)</label>
+              <input type="number" id="apWidthCm" value="${editP && editP.widthCm != null && editP.widthCm !== '' ? editP.widthCm : ''}" min="0" step="0.1" placeholder="ว่างได้" />
+            </div>
+            <div class="form-group">
+              <label>ยาว (ซม.)</label>
+              <input type="number" id="apLengthCm" value="${editP && editP.lengthCm != null && editP.lengthCm !== '' ? editP.lengthCm : ''}" min="0" step="0.1" placeholder="ว่างได้" />
+            </div>
+            <div class="form-group">
+              <label>สูง (ซม.)</label>
+              <input type="number" id="apHeightCm" value="${editP && editP.heightCm != null && editP.heightCm !== '' ? editP.heightCm : ''}" min="0" step="0.1" placeholder="ว่างได้" />
+            </div>
+          </div>
+          <p style="font-size:0.78rem;color:var(--text-soft);margin:-0.35rem 0 0.6rem;line-height:1.45;">ช่อง ก×ย×ส ไม่บังคับ — กรอกเฉพาะเมื่อมีขนาดจริง</p>
           <div class="form-group">
             <label>รายละเอียดสั้น (บนการ์ด)</label>
             <textarea id="apDesc" placeholder="คำอธิบายสั้น ๆ แสดงบนการ์ดสินค้า">${editP ? editP.desc : ''}</textarea>
@@ -4903,6 +4944,15 @@
       const stockRaw = document.getElementById('apStock')?.value;
       const stock = stockRaw === '' || stockRaw == null ? 0 : Math.max(0, Math.floor(Number(stockRaw) || 0));
       const size = (document.getElementById('apSize')?.value || '').trim();
+      const parseDim = (id) => {
+        const raw = document.getElementById(id)?.value;
+        if (raw === '' || raw == null) return null;
+        const n = Number(raw);
+        return Number.isFinite(n) && n > 0 ? n : null;
+      };
+      const widthCm = parseDim('apWidthCm');
+      const lengthCm = parseDim('apLengthCm');
+      const heightCm = parseDim('apHeightCm');
       const images = (window._apImages || []).slice(0, MAX_PRODUCT_IMAGES);
       const image = images[0] || null;
 
@@ -4949,6 +4999,9 @@
         badge,
         stock,
         size,
+        widthCm,
+        lengthCm,
+        heightCm,
         status,
         featured: badge === 'พิเศษ' || badge === 'ยอดนิยม',
       };

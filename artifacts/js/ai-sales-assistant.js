@@ -78,10 +78,10 @@
       return {
         ok: true,
         geminiKeyConfigured: Boolean(data.geminiKeyConfigured),
-        // Health only proves the Edge Function responds — never claim Gemini is ready.
+        // Customer-facing: no internal Gemini/key jargon
         message: data.geminiKeyConfigured
-          ? 'เชื่อมต่อเซิร์ฟเวอร์ผู้ช่วยแล้ว · ยังไม่ยืนยันว่า Gemini พร้อม (ถ้าไม่พร้อมจะค้นหาจากสินค้าในร้าน)'
-          : 'ฟังก์ชันพร้อม แต่ยังไม่ได้ตั้งค่า Gemini API Key — จะค้นหาสินค้าจากฐานข้อมูลแทน',
+          ? 'เชื่อมต่อผู้ช่วยร้านแล้ว'
+          : 'พร้อมค้นหาสินค้าจากคลังร้าน',
         statusTone: data.geminiKeyConfigured ? 'info' : 'warn',
       };
     } catch (e) {
@@ -259,32 +259,25 @@
   }
 
   function statusForMode(mode, health, result) {
+    // Customer-facing status: no internal quota/API-key jargon
     if (mode === 'gemini') {
-      return { text: 'ตอบโดย Gemini · สินค้าจากฐานข้อมูลจริง', tone: 'ok' };
+      return { text: 'ตอบจากผู้ช่วยร้าน · สินค้าจากฐานข้อมูลจริง', tone: 'ok' };
     }
     if (mode === 'fallback') {
-      if (result?.error === 'gemini_key_missing') {
-        return {
-          text: 'ยังไม่ได้ตั้งค่า Gemini API Key — แสดงสินค้าจากฐานข้อมูลแทน',
-          tone: 'warn',
-        };
-      }
-      if (result?.error === 'gemini_quota') {
-        return {
-          text: 'โควตา Gemini เต็มชั่วคราว — แสดงสินค้าจากฐานข้อมูลแทน',
-          tone: 'warn',
-        };
-      }
       return {
-        text: 'ผู้ช่วย AI ใช้ไม่ได้ชั่วคราว — แสดงสินค้าจากฐานข้อมูลแทน',
+        text: 'แสดงสินค้าจากคลังร้านแทนชั่วคราว',
         tone: 'warn',
       };
     }
     if (health && !health.ok) {
-      return { text: health.message || 'โหมดค้นหาในเครื่อง', tone: 'error' };
+      const msg = String(health.message || '');
+      if (/โควตา|Gemini|API Key|quota/i.test(msg)) {
+        return { text: 'ผู้ช่วยค้นหาจากคลังสินค้าในร้านชั่วคราว', tone: 'warn' };
+      }
+      return { text: msg || 'ค้นหาสินค้าในร้านได้', tone: 'error' };
     }
     return {
-      text: 'โหมดค้นหาในเครื่อง (ยังเรียก Edge Function ไม่ได้)',
+      text: 'ค้นหาสินค้าในร้านได้',
       tone: 'error',
     };
   }
@@ -396,15 +389,12 @@
         answer = result.answer;
         products = Array.isArray(result.products) ? result.products : [];
         mode = result.mode === 'gemini' ? 'gemini' : 'fallback';
-        if (mode === 'fallback' && result.error && !/โควตา|Gemini|ฐานข้อมูล|ค้นหา/i.test(answer)) {
-          // Ensure failure reason is visible in the chat bubble, not only in the status line.
-          const prefix =
-            result.error === 'gemini_quota'
-              ? 'โควตาฟรีของ Gemini เต็มชั่วคราว — แสดงผลการค้นหาสินค้าในร้านแทน\n\n'
-              : result.error === 'gemini_key_missing'
-                ? 'ยังไม่ได้ตั้งค่า Gemini API Key — แสดงผลการค้นหาสินค้าในร้านแทน\n\n'
-                : 'เชื่อมต่อ Gemini ไม่สำเร็จ — แสดงผลการค้นหาสินค้าในร้านแทน\n\n';
-          answer = prefix + answer;
+        if (mode === 'fallback' && result.error) {
+          // Soft prefix for customers — hide internal quota/key details
+          const soft = 'ขอแสดงผลการค้นหาสินค้าในร้านแทนชั่วคราวค่ะ\n\n';
+          if (!/ค้นหาสินค้าในร้าน|คลังร้าน/i.test(answer)) {
+            answer = soft + answer;
+          }
         }
       } else {
         const productsLive =
