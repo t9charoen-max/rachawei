@@ -723,7 +723,7 @@
 
       <!-- Step 1: Customer info / Shipping address -->
       <div id="payPanel1">
-        <p style="margin-bottom:0.9rem;font-size:0.9rem;">กรอกชื่อ ที่อยู่ สำหรับพิมพ์ใบปะหน้าไปรษณีย์</p>
+        <p style="margin-bottom:0.9rem;font-size:0.9rem;">กรอกชื่อและที่อยู่จัดส่งของผู้รับ</p>
         <div class="form-group">
           <label for="custName">ชื่อ-นามสกุล ผู้รับ *</label>
           <input type="text" id="custName" placeholder="เช่น สมชาย ใจดี" autocomplete="name" />
@@ -858,7 +858,6 @@
         </div>
         <div class="slip-attached-msg" id="successSlipAttached" style="display:none;">✓ ส่งสลิปให้ร้านแล้ว — รอร้านยืนยันการชำระเงิน</div>
         <div class="modal-actions">
-          <button class="btn btn-primary" id="printLabelBtn">🖨️ พิมพ์ใบปะหน้าไปรษณีย์</button>
           <button class="btn btn-outline" id="viewStatusBtn">📦 ดูสถานะคำสั่งซื้อ</button>
           <button class="btn btn-outline" id="copyOrderIdBtn">📋 คัดลอกเลขที่ออเดอร์</button>
           <button class="btn btn-outline" id="closeSuccessBtn">ปิด</button>
@@ -893,7 +892,6 @@
           💡 <strong>โหมดสาธิต:</strong> กดปุ่มด้านล่างเพื่อจำลองการอัปเดตสถานะ (ร้านจริงจะอัปเดตเอง)
         </div>
         <div class="modal-actions" style="margin-top:0.8rem;">
-          <button class="btn btn-primary" id="printLabelFromStatusBtn">🖨️ พิมพ์ใบปะหน้าไปรษณีย์</button>
           <button class="btn btn-outline" id="advanceStatusBtn">▶️ จำลองอัปเดตสถานะถัดไป</button>
         </div>
       </div>

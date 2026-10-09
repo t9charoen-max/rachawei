@@ -2753,18 +2753,7 @@
       w.document.close();
     }
 
-    document.getElementById('printLabelBtn').addEventListener('click', () => {
-      const order = orders.find(o => o.id === lastOrderId);
-      if (!order) {
-        showToast('ไม่พบข้อมูลออเดอร์ล่าสุด');
-        return;
-      }
-      printShippingLabel(order);
-    });
-
-    document.getElementById('printLabelFromStatusBtn').addEventListener('click', () => {
-      printShippingLabel(currentTrackOrder);
-    });
+    // Shipping-label print is admin-only (see adminPrintOrder). No customer UI buttons.
 
     // ========== ADMIN PANEL ==========
     let adminLoggedIn = false;
