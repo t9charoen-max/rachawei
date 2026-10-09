@@ -178,7 +178,9 @@
 
     function getShippingRatePerItem() {
       const fee = Number(SHOP_CONFIG.shippingFee);
-      return Number.isFinite(fee) && fee >= 0 ? fee : 100;
+      // Use only the configured / DB value. Never invent or coerce to 100.
+      // Invalid / missing → 0 (Admin must set the real rate).
+      return Number.isFinite(fee) && fee >= 0 ? fee : 0;
     }
 
     /** COD surcharge from Admin only — never invent a fee */
@@ -1597,6 +1599,7 @@
     window.getCodFeeAmount = getCodFeeAmount;
     window.getProductPack = getProductPack;
     window.truncateCardDesc = truncateCardDesc;
+    window.getShippingRatePerItem = getShippingRatePerItem;
     window.pdGo = pdGo;
     window.pdPrev = pdPrev;
     window.pdNext = pdNext;

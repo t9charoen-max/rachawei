@@ -147,9 +147,9 @@ try {
     lineCheck.priceText,
   );
 
-  // Shipping note vs product price consistency
+  // Shipping note vs product price consistency — use a non-100 Admin rate to prove no coerce-to-100
   const ship = await page.evaluate(() => {
-    SHOP_CONFIG.shippingFee = 100;
+    SHOP_CONFIG.shippingFee = 80;
     SHOP_CONFIG.codFee = 0;
     if (SHOP_CONFIG.content?.fulfillment) SHOP_CONFIG.content.fulfillment.codFee = 0;
     cart.length = 0;
@@ -169,10 +169,10 @@ try {
       rate: getShippingRatePerItem(),
     };
   });
-  ok('cart note uses configured rate not fake 100-on-product', /ค่าจัดส่งแยกจากราคาสินค้า/.test(ship.note) && ship.note.includes('100'));
+  ok('cart note uses configured rate (80) not invented 100', /ค่าจัดส่งแยกจากราคาสินค้า/.test(ship.note) && ship.note.includes('80') && !/100 บาท\/ชิ้น/.test(ship.note), ship.note);
   ok('cart item shows product price', ship.itemPrice.replace(/,/g, '').includes(String(ship.productPrice)), ship.itemPrice);
-  ok('cart shipping = rate × qty', ship.shipping === ship.rate * 1, `${ship.shipping} vs ${ship.rate}`);
-  ok('cart breakdown separates shipping label', /ค่าจัดส่ง/.test(ship.breakdown));
+  ok('cart shipping = rate × qty', ship.shipping === 80 && ship.rate === 80, `${ship.shipping} vs ${ship.rate}`);
+  ok('cart breakdown separates shipping label', /ค่าจัดส่ง/.test(ship.breakdown) && /80/.test(ship.breakdown));
   ok('no COD line when codFee=0', !/ค่าธรรมเนียมปลายทาง/.test(ship.breakdown + ship.note));
 
   const cod = await page.evaluate(() => {
