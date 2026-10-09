@@ -358,6 +358,8 @@ const DEFAULT_STORE_CONTENT = {
     eta: '',
     carrier: '',
     freeNote: '',
+    /** COD surcharge in baht — only show when > 0 (admin-set, never invented) */
+    codFee: 0,
   },
   footer: {
     line1Html: '© 2026 <strong>ราชาหวายสุรินทร์</strong> · งานหัตถกรรมหวายจากบ้านบุทม สุรินทร์',

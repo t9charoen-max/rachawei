@@ -62,7 +62,7 @@
 
   <!-- Header -->
   <header>
-    <a href="/" class="store-back" id="storeBackHome" aria-label="กลับหน้าเปิดตัว">← เปิดตัว</a>
+    <a href="#home" class="store-back" id="storeBackHome" aria-label="ไปหน้าแรกหน้าร้าน">← หน้าแรก</a>
     <a href="#home" class="logo" id="storeLogoHome">
       <img class="logo-mark" src="/brand/rachawei-logo-square.png?v=1940" alt="ราชาหวายสุรินทร์" width="40" height="40" />
       <div class="logo-copy">
@@ -709,7 +709,7 @@
         <span>รวมทั้งสิ้น</span>
         <span id="cartTotalText">0 บาท</span>
       </div>
-      <p class="cart-note">* ค่าจัดส่งคิด 100 บาทต่อชิ้น × จำนวนในตะกร้า (ไม่บวกซ้ำ) รวมส่วนลดโปรแล้วถ้ามี</p>
+      <p class="cart-note" id="cartShippingNote">* ค่าจัดส่งแยกจากราคาสินค้า — คิดตามอัตราที่ร้านตั้ง × จำนวนชิ้นในตะกร้า</p>
       <div class="cart-actions">
         <button class="btn btn-primary" id="checkoutBtn">💳 ชำระเงิน / สั่งซื้อ</button>
         <button class="btn btn-outline" id="clearCartBtn">ล้างตะกร้า</button>
@@ -918,10 +918,12 @@
           <div class="product-cat" id="pdCat"></div>
           <h3 id="pdName"></h3>
           <div class="pd-price" id="pdPrice"></div>
+          <div class="pd-bundle" id="pdBundle" hidden></div>
           <div class="pd-meta" id="pdMeta"></div>
           <div class="pd-desc" id="pdDesc"></div>
           <div class="pd-actions">
             <button class="btn btn-primary" id="pdAddCart" style="justify-content:center;">🛒 เพิ่มลงตะกร้า</button>
+            <a class="btn btn-outline pd-line-order" id="pdLineOrder" href="#" target="_blank" rel="noopener" hidden style="justify-content:center;">💬 สั่งซื้อทาง LINE</a>
             <button class="btn btn-outline" id="pdCloseBtn" style="justify-content:center;">ปิด</button>
           </div>
         </div>
