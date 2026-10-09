@@ -87,6 +87,15 @@
       <input id="productSearch" type="search" placeholder="ค้นหาสินค้า เช่น ตะกร้า, กระเป๋า..." autocomplete="off" />
       <button type="submit" class="shop-search__btn">🔍 ค้นหา</button>
     </div>
+    <label class="shop-sort" for="productSort">
+      <span class="visually-hidden">เรียงสินค้า</span>
+      <select id="productSort" aria-label="เรียงสินค้า">
+        <option value="default">เรียง: แนะนำ</option>
+        <option value="price-asc">ราคา: ต่ำ → สูง</option>
+        <option value="price-desc">ราคา: สูง → ต่ำ</option>
+        <option value="name">ชื่อ A–Z</option>
+      </select>
+    </label>
   </form>
 
   <nav class="main-nav" id="mainNav" aria-label="เมนูเนื้อหา">
@@ -986,6 +995,32 @@
     </div>
   </div>
 
+  <!-- AI Sales Assistant -->
+  <button type="button" class="ai-chat-fab" id="aiChatFab" aria-expanded="false" aria-controls="aiChatPanel" aria-label="เปิดผู้ช่วย AI">
+    <span class="ai-chat-fab__icon" aria-hidden="true">💬</span>
+    <span class="ai-chat-fab__label">ผู้ช่วย AI</span>
+  </button>
+  <div class="ai-chat-panel" id="aiChatPanel" hidden role="dialog" aria-label="ผู้ช่วย AI ราชาหวายสุรินทร์">
+    <div class="ai-chat-panel__head">
+      <div>
+        <strong>ผู้ช่วย AI · ราชาหวายสุรินทร์</strong>
+        <p id="aiChatStatus">กำลังตรวจสอบการเชื่อมต่อ…</p>
+      </div>
+      <button type="button" class="ai-chat-panel__close" id="aiChatClose" aria-label="ปิดแชต">×</button>
+    </div>
+    <div class="ai-chat-suggests">
+      <button type="button" data-ai-suggest="แนะนำตะกร้าไม่เกิน 400 บาท">ตะกร้า ≤ 400</button>
+      <button type="button" data-ai-suggest="ของขวัญงานแต่งจากหวาย">ของขวัญ</button>
+      <button type="button" data-ai-suggest="เปรียบเทียบตะกร้ามีฝากับไม่มีฝา">เปรียบเทียบ</button>
+    </div>
+    <div class="ai-chat-log" id="aiChatLog" aria-live="polite"></div>
+    <form class="ai-chat-form" id="aiChatForm">
+      <label class="visually-hidden" for="aiChatInput">พิมพ์คำถาม</label>
+      <input id="aiChatInput" type="text" maxlength="480" placeholder="ถามภาษาไทย เช่น ตะกร้าไม่เกิน 500…" autocomplete="off" />
+      <button type="submit" class="btn btn-primary btn-sm">ส่ง</button>
+    </form>
+  </div>
+
   <!-- Toast -->
   <div class="toast" id="toast"></div>
 
@@ -997,5 +1032,6 @@
   <script src="js/supabase.umd.js"></script>
   <script src="js/supabase-client.js"></script>
   <script src="js/app.js"></script>
+  <script src="js/ai-sales-assistant.js"></script>
 </body>
 </html>

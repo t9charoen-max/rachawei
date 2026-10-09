@@ -1,0 +1,3 @@
+# Minimal config for Edge Functions deploy (project linked separately)
+[functions.ai-sales-assistant]
+verify_jwt = false

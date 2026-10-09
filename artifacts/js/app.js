@@ -646,6 +646,7 @@
 
     let catalogFilter = 'all';
     let catalogQuery = '';
+    let catalogSort = 'default';
     let wishlist = [];
     try {
       wishlist = JSON.parse(localStorage.getItem('rachawei_wishlist') || '[]');
@@ -727,9 +728,29 @@
       }
     }
 
+    function sortCatalogProducts(list) {
+      const arr = list.slice();
+      switch (catalogSort) {
+        case 'price-asc':
+          return arr.sort((a, b) => (Number(a.price) || 0) - (Number(b.price) || 0));
+        case 'price-desc':
+          return arr.sort((a, b) => (Number(b.price) || 0) - (Number(a.price) || 0));
+        case 'name':
+          return arr.sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''), 'th'));
+        default:
+          return arr.sort((a, b) => {
+            const sa = a.sortOrder != null ? Number(a.sortOrder) : Number(a.id) || 0;
+            const sb = b.sortOrder != null ? Number(b.sortOrder) : Number(b.id) || 0;
+            return sa - sb || (Number(a.id) || 0) - (Number(b.id) || 0);
+          });
+      }
+    }
+
     function renderProducts(filter = catalogFilter) {
       catalogFilter = filter || 'all';
-      const filtered = products.filter((p) => matchesCatalog(p, catalogFilter, catalogQuery));
+      const filtered = sortCatalogProducts(
+        products.filter((p) => matchesCatalog(p, catalogFilter, catalogQuery)),
+      );
 
       if (!filtered.length) {
         grid.innerHTML = `<div class="product-card" style="grid-column:1/-1;min-height:120px;align-items:center;justify-content:center;padding:1.25rem;text-align:center;">ไม่พบสินค้าที่ตรงกับรายการนี้</div>`;
@@ -759,6 +780,8 @@
               <div class="product-price">${formatPrice(p.price)}</div>
               <div class="product-stock product-stock--${stock.className}">${stock.text}</div>
             </div>
+            ${p.size ? `<div class="product-size">ขนาด: ${escapeHtml(p.size)}</div>` : ''}
+            ${p.desc ? `<p class="product-card-desc">${escapeHtml(String(p.desc).slice(0, 72))}${String(p.desc).length > 72 ? '…' : ''}</p>` : ''}
             <button type="button" class="btn btn-primary btn-add-full" ${available ? '' : 'disabled'} onclick="addToCart(${p.id})" aria-label="ใส่ ${p.name} ลงตะกร้า">
               🛒 ใส่ตะกร้า
             </button>
@@ -1226,6 +1249,13 @@
         catalogQuery = searchInput.value || '';
         showPage('home');
         applyCatalogFilter(catalogQuery ? catalogFilter : 'all', true);
+      });
+    }
+    const sortSelect = document.getElementById('productSort');
+    if (sortSelect) {
+      sortSelect.addEventListener('change', () => {
+        catalogSort = sortSelect.value || 'default';
+        renderProducts(catalogFilter);
       });
     }
     document.getElementById('viewAllProducts')?.addEventListener('click', () => {
@@ -1802,10 +1832,11 @@
     // ========== ORDER STATUS SYSTEM ==========
     const STATUS_FLOW = [
       { key: 'pending', label: 'รอชำระเงิน / รอแจ้งสลิป', badge: 'pending' },
-      { key: 'confirmed', label: 'ร้านรับออเดอร์แล้ว', badge: 'paid' },
+      { key: 'confirmed', label: 'ชำระแล้ว / ร้านรับออเดอร์', badge: 'paid' },
       { key: 'preparing', label: 'กำลังจัดเตรียมสินค้า', badge: 'preparing' },
       { key: 'shipping', label: 'จัดส่งแล้ว', badge: 'shipping' },
-      { key: 'completed', label: 'เสร็จสิ้น', badge: 'done' }
+      { key: 'completed', label: 'เสร็จสิ้น', badge: 'done' },
+      { key: 'cancelled', label: 'ยกเลิกออเดอร์', badge: 'cancelled' },
     ];
 
     const COD_FLOW = [
@@ -1813,8 +1844,11 @@
       { key: 'confirmed', label: 'ร้านรับออเดอร์แล้ว', badge: 'paid' },
       { key: 'preparing', label: 'กำลังจัดเตรียมสินค้า', badge: 'preparing' },
       { key: 'shipping', label: 'ออกจัดส่ง / นัดรับ', badge: 'shipping' },
-      { key: 'completed', label: 'รับสินค้าและชำระแล้ว', badge: 'done' }
+      { key: 'completed', label: 'รับสินค้าและชำระแล้ว', badge: 'done' },
+      { key: 'cancelled', label: 'ยกเลิกออเดอร์', badge: 'cancelled' },
     ];
+
+    const ORDER_CANCELLED_INDEX = 5;
 
     let lastOrderId = null;
     let currentTrackOrder = null;
@@ -1914,9 +1948,18 @@
           })),
         });
         if (!remote.ok) {
-          throw new Error(remote.error || 'สร้างออเดอร์ไม่สำเร็จ');
+          throw new Error(remote.message || remote.error || 'สร้างออเดอร์ไม่สำเร็จ');
         }
         id = remote.orderId;
+        // Refresh catalog so stock reflects server decrement (after SQL 009)
+        try {
+          const fresh = await fetchLiveCatalogProducts();
+          if (Array.isArray(fresh) && fresh.length) {
+            products = fresh;
+            nextProductId = Math.max(...products.map((p) => Number(p.id) || 0), 0) + 1;
+            renderProducts(catalogFilter);
+          }
+        } catch (_) { /* keep local catalog */ }
       } else {
         const status =
           typeof RachaweiStoreApi !== 'undefined' && RachaweiStoreApi.getConfigStatus
@@ -2071,15 +2114,38 @@
       if (submitBtn) submitBtn.style.display = 'inline-flex';
     });
 
-    document.getElementById('successSlipSubmitBtn')?.addEventListener('click', () => {
+    document.getElementById('successSlipSubmitBtn')?.addEventListener('click', async () => {
       if (!lastOrderId || !successPendingSlip) return;
       const order = orders.find(x => x.id === lastOrderId);
       if (!order) return;
-      order.paymentSlip = successPendingSlip;
-      order.slipUploadedAt = Date.now();
-      saveOrders();
-      renderSuccessSlipSection(order);
-      showToast('ส่งสลิปให้ร้านแล้ว ✓');
+      const submitBtn = document.getElementById('successSlipSubmitBtn');
+      if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'กำลังส่ง…';
+      }
+      try {
+        if (isSupabaseReady() && typeof RachaweiStoreApi.attachPaymentSlipRemote === 'function') {
+          const remote = await RachaweiStoreApi.attachPaymentSlipRemote(
+            order.id,
+            order.phone || order.phoneDisplay,
+            successPendingSlip,
+          );
+          if (!remote.ok) {
+            showToast(remote.message || remote.error || 'ส่งสลิปขึ้นคลาวด์ไม่สำเร็จ');
+            return;
+          }
+        }
+        order.paymentSlip = successPendingSlip;
+        order.slipUploadedAt = Date.now();
+        saveOrders();
+        renderSuccessSlipSection(order);
+        showToast('ส่งสลิปให้ร้านแล้ว ✓');
+      } finally {
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.textContent = 'ส่งสลิปให้ร้าน';
+        }
+      }
     });
 
     document.getElementById('copyOrderIdBtn').addEventListener('click', () => {
@@ -2174,19 +2240,43 @@
       statusResult.classList.add('show');
 
       const advBtn = document.getElementById('advanceStatusBtn');
-      if (order.statusIndex >= flow.length - 1) {
+      if (!advBtn) { /* ok */ }
+      else if (isSupabaseReady() && !adminLoggedIn) {
+        advBtn.style.display = 'none';
+      } else if (order.statusIndex === ORDER_CANCELLED_INDEX) {
+        advBtn.style.display = 'none';
+      } else if (order.statusIndex >= flow.length - 1) {
         advBtn.style.display = 'none';
       } else {
         advBtn.style.display = 'inline-flex';
       }
     }
 
-    function doTrack() {
+    async function doTrack() {
       const q = trackInput.value.trim();
       document.getElementById('errTrack').classList.toggle('show', !q);
       if (!q) return;
 
-      const found = findOrders(q);
+      let found = findOrders(q);
+      if (!found.length && isSupabaseReady() && typeof RachaweiStoreApi.lookupOrdersRemote === 'function') {
+        try {
+          const remote = await RachaweiStoreApi.lookupOrdersRemote(q);
+          if (remote.ok && Array.isArray(remote.orders) && remote.orders.length) {
+            found = remote.orders;
+            remote.orders.forEach((ro) => {
+              const idx = orders.findIndex((x) => x.id === ro.id);
+              if (idx >= 0) {
+                orders[idx] = { ...orders[idx], ...ro, paymentSlip: orders[idx].paymentSlip || null };
+              } else {
+                orders.unshift(ro);
+              }
+            });
+            saveOrders();
+          }
+        } catch (e) {
+          console.warn('lookupOrdersRemote failed', e);
+        }
+      }
       if (found.length === 0) {
         statusResult.classList.remove('show');
         statusNotFound.classList.add('show');
@@ -2196,13 +2286,18 @@
       renderStatus(found[0]);
     }
 
-    trackBtn.addEventListener('click', doTrack);
+    trackBtn.addEventListener('click', () => { void doTrack(); });
     trackInput.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') doTrack();
+      if (e.key === 'Enter') void doTrack();
     });
 
     document.getElementById('advanceStatusBtn').addEventListener('click', () => {
       if (!currentTrackOrder) return;
+      // Production: only admin may advance status (customers track read-only)
+      if (isSupabaseReady() && !adminLoggedIn) {
+        showToast('สถานะออเดอร์อัปเดตโดยร้านเท่านั้น — รีเฟรชเพื่อดูสถานะล่าสุด');
+        return;
+      }
       const flow = getFlow(currentTrackOrder);
       if (currentTrackOrder.statusIndex >= flow.length - 1) return;
       currentTrackOrder.statusIndex += 1;
@@ -2453,6 +2548,10 @@
     let adminOrdersError = null;
     let adminOrdersSource = null;
     let adminOrdersLoading = false;
+    let adminOrderQuery = '';
+    let adminOrderStatusFilter = 'all';
+    let adminOrderSlipFilter = 'all';
+    let adminOrderDateFrom = '';
     let editingProductId = null;
     let nextProductId = Math.max(...products.map(p => p.id), 0) + 1;
 
@@ -3379,6 +3478,13 @@
             <label style="font-size:0.82rem;font-weight:600;">ส่วนลด (บาท)
               <input class="admin-input" type="number" id="setPromoDisc" value="${c.promoDiscount||0}" style="width:100%;margin-top:0.25rem;"></label>
           </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.6rem;">
+            <label style="font-size:0.82rem;font-weight:600;">ค่าจัดส่ง (บาท)
+              <input class="admin-input" type="number" id="setShippingFee" value="${c.shippingFee ?? 80}" min="0" step="10" style="width:100%;margin-top:0.25rem;"></label>
+            <label style="font-size:0.82rem;font-weight:600;">ส่งฟรีเมื่อยอดถึง (บาท)
+              <input class="admin-input" type="number" id="setFreeShippingMin" value="${c.freeShippingMin || 0}" min="0" step="50" placeholder="0 = ไม่มีส่งฟรี" style="width:100%;margin-top:0.25rem;"></label>
+          </div>
+          <p style="font-size:0.78rem;color:var(--text-soft);margin:0;line-height:1.45;">ค่าจัดส่งและโปรจะใช้ทั้งหน้าร้านและตอนสร้างออเดอร์บนเซิร์ฟเวอร์ (หลังรัน SQL 009)</p>
           <label style="font-size:0.82rem;font-weight:600;">ธนาคาร
             <input class="admin-input" id="setBankName" value="${escapeHtml(c.bankName||'')}" style="width:100%;margin-top:0.25rem;"></label>
           <label style="font-size:0.82rem;font-weight:600;">ชื่อบัญชี
@@ -3518,6 +3624,8 @@
           mapUrl: document.getElementById('setMapUrl').value.trim() || SHOP_CONFIG.mapUrl,
           promoMin: Number(document.getElementById('setPromoMin').value) || 0,
           promoDiscount: Number(document.getElementById('setPromoDisc').value) || 0,
+          shippingFee: Math.max(0, Number(document.getElementById('setShippingFee').value) || 0),
+          freeShippingMin: Math.max(0, Number(document.getElementById('setFreeShippingMin').value) || 0),
           bankName: document.getElementById('setBankName').value.trim(),
           bankAccountName: document.getElementById('setBankAccName').value.trim(),
           promptPayNo: document.getElementById('setPromptPayNo').value.trim(),
@@ -3777,7 +3885,14 @@
       const cloudMode = isSupabaseReady();
       const statsBlocked = Boolean(adminOrdersError) && cloudMode;
       const totalSales = statsBlocked ? null : orders.reduce((s, o) => s + (Number(o.total) || 0), 0);
-      const pending = statsBlocked ? null : orders.filter(o => o.statusIndex < 2).length;
+      const pending = statsBlocked
+        ? null
+        : orders.filter((o) => {
+            if (o.statusIndex === ORDER_CANCELLED_INDEX) return false;
+            if (o.statusIndex >= 4) return false;
+            if (paymentNeedsSlip(o.method) && !o.paymentSlip && o.statusIndex === 0) return true;
+            return o.statusIndex < 2;
+          }).length;
       const orderCount = statsBlocked ? null : orders.length;
       const withImages = products.filter(p => getProductImages(p).length > 0).length;
       const storageLabel = cloudMode
@@ -3929,6 +4044,16 @@
               <input type="text" id="apEmoji" value="${editP ? (editP.emoji || '') : '🧺'}" placeholder="🧺" maxlength="4" />
             </div>
           </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>สต็อก (ชิ้น)</label>
+              <input type="number" id="apStock" value="${editP && editP.stock != null ? editP.stock : 10}" min="0" step="1" placeholder="0" />
+            </div>
+            <div class="form-group">
+              <label>ขนาด / สเปก</label>
+              <input type="text" id="apSize" value="${editP && editP.size ? String(editP.size).replace(/"/g, '&quot;') : ''}" placeholder="เช่น เส้นผ่านศูนย์กลาง 30 ซม." />
+            </div>
+          </div>
           <div class="form-group">
             <label>รายละเอียดสั้น (บนการ์ด)</label>
             <textarea id="apDesc" placeholder="คำอธิบายสั้น ๆ แสดงบนการ์ดสินค้า">${editP ? editP.desc : ''}</textarea>
@@ -3965,7 +4090,7 @@
         <div class="admin-table-wrap">
           <table class="admin-table">
             <thead>
-              <tr><th>รูป</th><th>ชื่อ</th><th>ราคา</th><th>หมวด</th><th>จัดการ</th></tr>
+              <tr><th>รูป</th><th>ชื่อ</th><th>ราคา</th><th>สต็อก</th><th>ขนาด</th><th>หมวด</th><th>จัดการ</th></tr>
             </thead>
             <tbody>
               ${products.map(p => `
@@ -3973,6 +4098,8 @@
                   <td>${productThumb(p)}</td>
                   <td><strong>${p.name}</strong><br><small style="color:var(--text-soft)">${(p.desc || '').slice(0, 40)}${(p.desc || '').length > 40 ? '…' : ''}</small></td>
                   <td>${formatPrice(p.price)}</td>
+                  <td>${p.stock != null ? p.stock : '—'}</td>
+                  <td style="font-size:0.78rem;">${p.size ? escapeHtml(p.size) : '—'}</td>
                   <td>${categoryMap[p.cat] || p.cat}</td>
                   <td>
                     <div class="admin-actions">
@@ -4256,6 +4383,9 @@
       const desc = document.getElementById('apDesc').value.trim();
       const detail = document.getElementById('apDetail').value.trim();
       const badge = document.getElementById('apBadge').value.trim() || null;
+      const stockRaw = document.getElementById('apStock')?.value;
+      const stock = stockRaw === '' || stockRaw == null ? 0 : Math.max(0, Math.floor(Number(stockRaw) || 0));
+      const size = (document.getElementById('apSize')?.value || '').trim();
       const images = (window._apImages || []).slice(0, MAX_PRODUCT_IMAGES);
       const image = images[0] || null;
 
@@ -4277,6 +4407,8 @@
           p.images = images;
           p.image = image;
           p.badge = badge;
+          p.stock = stock;
+          p.size = size;
         }
         showToast('บันทึกสินค้าแล้ว ✓');
       } else {
@@ -4291,7 +4423,9 @@
           detail,
           images,
           image,
-          badge
+          badge,
+          stock,
+          size,
         });
         showToast('เพิ่มสินค้าแล้ว ✓');
       }
@@ -4536,18 +4670,68 @@
       showToast('ลบวิดีโอแล้ว');
     };
 
+    function getFilteredAdminOrders() {
+      const q = String(adminOrderQuery || '').trim().toLowerCase();
+      const qDigits = q.replace(/\D/g, '');
+      return orders.filter((o) => {
+        if (adminOrderStatusFilter !== 'all' && String(o.statusIndex) !== String(adminOrderStatusFilter)) {
+          return false;
+        }
+        if (adminOrderSlipFilter === 'has' && !o.paymentSlip) return false;
+        if (adminOrderSlipFilter === 'wait' && (!paymentNeedsSlip(o.method) || o.paymentSlip)) return false;
+        if (adminOrderDateFrom) {
+          const from = Date.parse(`${adminOrderDateFrom}T00:00:00`);
+          const created = Number(o.createdAt) || 0;
+          if (created < from) return false;
+        }
+        if (!q) return true;
+        const id = String(o.id || '').toLowerCase();
+        const name = String(o.name || '').toLowerCase();
+        const phone = String(o.phoneDisplay || o.phone || '').toLowerCase();
+        const phoneDigits = phone.replace(/\D/g, '');
+        const address = String(o.address || '').toLowerCase();
+        return (
+          id.includes(q)
+          || name.includes(q)
+          || phone.includes(q)
+          || address.includes(q)
+          || (qDigits.length >= 3 && phoneDigits.includes(qDigits))
+        );
+      });
+    }
+
     function renderAdminOrders() {
       const cloudMode = isSupabaseReady();
       const blocked = Boolean(adminOrdersError) && cloudMode;
+      const filtered = blocked ? [] : getFilteredAdminOrders();
+      const statusOptions = STATUS_FLOW.map((s, i) =>
+        `<option value="${i}" ${String(adminOrderStatusFilter) === String(i) ? 'selected' : ''}>${s.label}</option>`
+      ).join('');
       adminContent.innerHTML = `
         ${adminOrdersStatusBannerHtml()}
         <div class="admin-section-title">
-          <span>ออเดอร์ทั้งหมด ${blocked ? '' : `(${orders.length})`}</span>
+          <span>ออเดอร์ทั้งหมด ${blocked ? '' : `(${filtered.length}${filtered.length !== orders.length ? ` / ${orders.length}` : ''})`}</span>
         </div>
         ${blocked
           ? `<div class="empty-admin">ไม่สามารถแสดงรายการออเดอร์ได้<br><small>${escapeHtml(adminOrdersError)}</small></div>`
           : (orders.length === 0
             ? '<div class="empty-admin">ยังไม่มีออเดอร์<br><small>เมื่อลูกค้าสั่งซื้อ จะแสดงที่นี่จาก public.store_orders</small></div>'
+            : `
+          <div class="admin-order-filters">
+            <input type="search" class="admin-input" id="adminOrderSearch" placeholder="ค้นหา เลขออเดอร์ / ชื่อ / เบอร์ / ที่อยู่" value="${escapeHtml(adminOrderQuery)}" />
+            <input type="date" class="admin-input" id="adminOrderDateFrom" aria-label="ตั้งแต่วันที่" value="${escapeHtml(adminOrderDateFrom)}" />
+            <select class="admin-input" id="adminOrderStatusFilter" aria-label="กรองสถานะ">
+              <option value="all" ${adminOrderStatusFilter === 'all' ? 'selected' : ''}>ทุกสถานะ</option>
+              ${statusOptions}
+            </select>
+            <select class="admin-input" id="adminOrderSlipFilter" aria-label="กรองสลิป">
+              <option value="all" ${adminOrderSlipFilter === 'all' ? 'selected' : ''}>สลิปทั้งหมด</option>
+              <option value="wait" ${adminOrderSlipFilter === 'wait' ? 'selected' : ''}>รอสลิป</option>
+              <option value="has" ${adminOrderSlipFilter === 'has' ? 'selected' : ''}>มีสลิปแล้ว</option>
+            </select>
+          </div>
+          ${filtered.length === 0
+            ? '<div class="empty-admin">ไม่พบออเดอร์ที่ตรงเงื่อนไข</div>'
             : `
           <div class="admin-table-wrap">
             <table class="admin-table">
@@ -4563,26 +4747,39 @@
                 </tr>
               </thead>
               <tbody>
-                ${orders.map(o => {
+                ${filtered.map(o => {
                   const flow = o.method === 'cod' ? COD_FLOW : STATUS_FLOW;
                   const st = flow[o.statusIndex] || flow[0];
                   const items = (o.items || []).map(i => `${i.emoji || ''} ${escapeHtml(i.name || '')}×${i.qty}`).join('<br>');
                   const opts = flow.map((s, i) =>
                     `<option value="${i}" ${i === o.statusIndex ? 'selected' : ''}>${s.label}</option>`
                   ).join('');
+                  const breakdown = [
+                    `สินค้า ${formatPrice(o.subtotal || 0)}`,
+                    (o.promoDiscount > 0 ? `โปร −${formatPrice(o.promoDiscount)}` : null),
+                    `ส่ง ${formatPrice(o.shippingFee || 0)}`,
+                  ].filter(Boolean).join(' · ');
                   return `<tr>
                     <td><strong>${escapeHtml(o.id)}</strong><br><small>${formatDateTime(o.createdAt)}</small></td>
                     <td>
                       <strong>${escapeHtml(o.name || '')}</strong><br>
                       <small>${escapeHtml(o.phoneDisplay || '')}</small><br>
-                      <small style="color:var(--text-soft)">${escapeHtml((o.address || '').replace(/\n/g, ', ').slice(0, 50))}</small>
+                      <small style="color:var(--text-soft)">${escapeHtml((o.address || '').replace(/\n/g, ', ').slice(0, 80))}</small>
+                      ${o.note ? `<br><small style="color:var(--rattan-deep)">โน้ต: ${escapeHtml(o.note)}</small>` : ''}
                     </td>
                     <td style="font-size:0.8rem;">${items || '—'}</td>
-                    <td>${formatPrice(o.total)}<br><small>${methodLabel(o.method)}</small></td>
+                    <td>${formatPrice(o.total)}<br><small>${methodLabel(o.method)}</small><br><small style="color:var(--text-soft)">${breakdown}</small></td>
                     <td style="font-size:0.78rem;">
-                      ${o.paymentSlip
-                        ? `<button type="button" class="btn btn-outline btn-xs" onclick="adminViewSlip('${escapeHtml(o.id)}')">🧾 ดูสลิป</button>`
-                        : (paymentNeedsSlip(o.method) ? '<span style="color:var(--text-soft);">รอสลิป</span>' : '—')}
+                      ${o.paymentSlip && o.paymentSlip !== '__remote__'
+                        ? `<div class="admin-slip-actions">
+                            <button type="button" class="btn btn-outline btn-xs" onclick="adminViewSlip('${escapeHtml(o.id)}')">🧾 ดู</button>
+                            <button type="button" class="btn btn-primary btn-xs" onclick="adminConfirmPayment('${escapeHtml(o.id)}')">✓ ยืนยัน</button>
+                            <button type="button" class="btn btn-outline btn-xs" onclick="adminRejectSlip('${escapeHtml(o.id)}')">✕ ปฏิเสธ</button>
+                          </div>`
+                        : (o.paymentSlip === '__remote__'
+                          ? `<span style="color:#2e7d32;">มีสลิป</span>
+                             <button type="button" class="btn btn-primary btn-xs" style="margin-top:0.25rem;" onclick="adminConfirmPayment('${escapeHtml(o.id)}')">✓ ยืนยัน</button>`
+                          : (paymentNeedsSlip(o.method) ? '<span style="color:var(--text-soft);">รอสลิป</span>' : '—'))}
                     </td>
                     <td><span class="status-badge-tag ${st.badge}">${st.label}</span></td>
                     <td>
@@ -4605,12 +4802,92 @@
                 }).join('')}
               </tbody>
             </table>
-          </div>
+          </div>`}
         `)}
       `;
       bindAdminOrdersRetry();
       bindAdminOrderMenus();
+      const searchEl = document.getElementById('adminOrderSearch');
+      const statusEl = document.getElementById('adminOrderStatusFilter');
+      const slipEl = document.getElementById('adminOrderSlipFilter');
+      const dateEl = document.getElementById('adminOrderDateFrom');
+      if (searchEl) {
+        searchEl.addEventListener('input', () => {
+          adminOrderQuery = searchEl.value;
+          renderAdminOrders();
+          const again = document.getElementById('adminOrderSearch');
+          if (again) {
+            again.focus();
+            const len = again.value.length;
+            again.setSelectionRange(len, len);
+          }
+        });
+      }
+      if (statusEl) {
+        statusEl.addEventListener('change', () => {
+          adminOrderStatusFilter = statusEl.value;
+          renderAdminOrders();
+        });
+      }
+      if (slipEl) {
+        slipEl.addEventListener('change', () => {
+          adminOrderSlipFilter = slipEl.value;
+          renderAdminOrders();
+        });
+      }
+      if (dateEl) {
+        dateEl.addEventListener('change', () => {
+          adminOrderDateFrom = dateEl.value || '';
+          renderAdminOrders();
+        });
+      }
     }
+
+    window.adminConfirmPayment = async function(id) {
+      const o = orders.find((x) => x.id === id);
+      if (!o) return;
+      if (o.statusIndex === ORDER_CANCELLED_INDEX) {
+        showToast('ออเดอร์นี้ยกเลิกแล้ว');
+        return;
+      }
+      const idx = 1;
+      o.statusIndex = idx;
+      if (!o.history.find((h) => h.index === idx)) {
+        o.history.push({ index: idx, at: Date.now(), note: 'admin_confirm_payment' });
+      }
+      saveOrders();
+      if (isSupabaseReady() && adminLoggedIn) {
+        const remote = await RachaweiStoreApi.updateOrderStatus(id, o.statusIndex, o.history);
+        if (!remote.ok) {
+          showToast('ยืนยันชำระบนคลาวด์ไม่สำเร็จ');
+          renderAdminOrders();
+          return;
+        }
+      }
+      showToast('ยืนยันการชำระแล้ว ✓');
+      renderAdminOrders();
+    };
+
+    window.adminRejectSlip = async function(id) {
+      const o = orders.find((x) => x.id === id);
+      if (!o) return;
+      if (!confirm(`ปฏิเสธสลิปออเดอร์ ${id}?\n\nสลิปจะถูกลบและสถานะกลับเป็นรอชำระ/รอสลิป`)) return;
+      if (isSupabaseReady() && adminLoggedIn && typeof RachaweiStoreApi.rejectPaymentSlipForAdmin === 'function') {
+        const remote = await RachaweiStoreApi.rejectPaymentSlipForAdmin(id);
+        if (!remote.ok) {
+          showToast(remote.message || remote.error || 'ปฏิเสธสลิปไม่สำเร็จ');
+          return;
+        }
+      }
+      o.paymentSlip = null;
+      o.slipUploadedAt = null;
+      o.statusIndex = 0;
+      o.history.push({ index: 0, at: Date.now(), note: 'admin_reject_slip' });
+      saveOrders();
+      await refreshAdminOrdersFromSupabase();
+      renderAdminOrders();
+      showToast('ปฏิเสธสลิปแล้ว — รอลูกค้าแนบใหม่');
+    };
 
     function closeAllAdminOrderMenus() {
       document.querySelectorAll('.admin-order-menu-panel').forEach((panel) => {
@@ -4650,6 +4927,10 @@
       const o = orders.find(x => x.id === id);
       if (!o) return;
       const idx = parseInt(idxStr, 10);
+      if (idx === ORDER_CANCELLED_INDEX && !confirm(`ยกเลิกออเดอร์ ${id}?\n\nระบบจะคืนสต็อกสินค้า (หลังรัน SQL 010) และไม่สามารถกู้คืนออเดอร์ได้`)) {
+        renderAdminOrders();
+        return;
+      }
       o.statusIndex = idx;
       if (!o.history.find(h => h.index === idx)) {
         o.history.push({ index: idx, at: Date.now() });
@@ -4662,8 +4943,17 @@
           renderAdminOrders();
           return;
         }
+        if (idx === ORDER_CANCELLED_INDEX) {
+          try {
+            const fresh = await fetchLiveCatalogProducts();
+            if (Array.isArray(fresh) && fresh.length) {
+              products = fresh;
+              renderProducts(catalogFilter);
+            }
+          } catch (_) { /* ignore */ }
+        }
       }
-      showToast('อัปเดตสถานะแล้ว ✓');
+      showToast(idx === ORDER_CANCELLED_INDEX ? 'ยกเลิกออเดอร์และคืนสต็อกแล้ว ✓' : 'อัปเดตสถานะแล้ว ✓');
       renderAdminOrders();
     };
 
@@ -4729,6 +5019,22 @@
 
     // Expose for inline onclick
     window.addToCart = addToCart;
+    window.getStoreProductsForAi = function getStoreProductsForAi() {
+      return (products || []).map((p) => ({
+        id: p.id,
+        name: p.name,
+        price: p.price,
+        stock: p.stock,
+        size: p.size || '',
+        desc: p.desc || '',
+        detail: p.detail || '',
+        category: p.category || '',
+        badge: p.badge || '',
+        emoji: p.emoji || '🧺',
+        images: Array.isArray(p.images) ? p.images.slice() : [],
+        image: p.image || (Array.isArray(p.images) ? p.images[0] : '') || '',
+      }));
+    };
     window.saveShopSettings = saveShopSettings;
     window.saveProducts = saveProducts;
     window.renderProducts = renderProducts;

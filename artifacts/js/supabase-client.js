@@ -66,6 +66,16 @@
     }
   }
 
+  /** Public anon config only — never service_role */
+  function getPublicConfig() {
+    if (!isConfigured()) return { url: '', anonKey: '', configured: false };
+    return {
+      url: String(cfg.url || ''),
+      anonKey: String(cfg.anonKey || ''),
+      configured: true,
+    };
+  }
+
   function applyConfig(next) {
     if (!next || typeof next !== 'object') return false;
     const url = String(next.url || '').trim();
@@ -240,12 +250,108 @@
 
     if (error) {
       console.error('[rachawei] create order:', error.message);
-      return { ok: false, error: error.message };
+      return { ok: false, error: error.message, message: mapCreateOrderError(error) };
     }
     if (!data) {
-      return { ok: false, error: 'store_create_order returned empty order id' };
+      return { ok: false, error: 'store_create_order returned empty order id', message: 'สร้างออเดอร์ไม่สำเร็จ' };
     }
     return { ok: true, orderId: data };
+  }
+
+  function mapCreateOrderError(error) {
+    const raw = String(error?.message || error || '');
+    if (/insufficient_stock/i.test(raw)) {
+      const parts = raw.split(':');
+      const left = parts[2] != null ? parts[2].replace(/[^0-9].*$/, '') : '';
+      return left
+        ? `สินค้าในตะกร้ามีไม่พอ (เหลือ ${left} ชิ้น) — ปรับจำนวนแล้วลองใหม่`
+        : 'สินค้าในตะกร้ามีไม่พอสต็อก — ปรับจำนวนแล้วลองใหม่';
+    }
+    if (/product_not_found/i.test(raw)) {
+      return 'ไม่พบสินค้าบางรายการในระบบ — รีเฟรชหน้าแล้วเลือกใหม่';
+    }
+    if (/product_id_required|items_required/i.test(raw)) {
+      return 'ตะกร้าว่างหรือข้อมูลสินค้าไม่ครบ';
+    }
+    if (/customer_name_required/i.test(raw)) {
+      return 'กรุณากรอกชื่อผู้สั่งซื้อ';
+    }
+    if (/pgrst202|could not find the function/i.test(raw)) {
+      return 'ระบบสร้างออเดอร์ยังไม่พร้อมบนเซิร์ฟเวอร์ — ต้องรัน SQL 009';
+    }
+    return raw || 'สร้างออเดอร์ไม่สำเร็จ';
+  }
+
+  async function attachPaymentSlipRemote(orderId, customerPhone, paymentSlip) {
+    await init();
+    const sb = getClient();
+    if (!sb) return { ok: false, error: 'supabase_not_configured', message: 'ยังไม่ได้เชื่อมต่อ Supabase' };
+
+    const { data, error } = await sb.rpc('store_attach_payment_slip', {
+      p_order_id: String(orderId || '').trim(),
+      p_customer_phone: String(customerPhone || '').trim(),
+      p_payment_slip: paymentSlip || null,
+    });
+
+    if (error) {
+      const raw = String(error.message || '');
+      let message = raw || 'แนบสลิปไม่สำเร็จ';
+      if (/order_not_found/i.test(raw)) message = 'ไม่พบออเดอร์นี้';
+      else if (/phone_mismatch|phone_required/i.test(raw)) message = 'เบอร์โทรไม่ตรงกับออเดอร์ — ใช้เบอร์ตอนสั่งซื้อ';
+      else if (/payment_slip_required|payment_slip_too_large/i.test(raw)) message = 'ไฟล์สลิปไม่ถูกต้องหรือใหญ่เกินไป';
+      else if (/pgrst202|could not find the function/i.test(raw)) {
+        message = 'ยังไม่มีฟังก์ชันแนบสลิปบนเซิร์ฟเวอร์ — ต้องรัน SQL 009';
+      }
+      return { ok: false, error: raw, message };
+    }
+    return { ok: Boolean(data), data };
+  }
+
+  async function lookupOrdersRemote(query) {
+    await init();
+    const sb = getClient();
+    if (!sb) return { ok: false, orders: [], error: 'supabase_not_configured' };
+
+    const { data, error } = await sb.rpc('store_lookup_orders', {
+      p_query: String(query || '').trim(),
+    });
+
+    if (error) {
+      const raw = String(error.message || '');
+      if (/pgrst202|could not find the function/i.test(raw)) {
+        return {
+          ok: false,
+          orders: [],
+          error: raw,
+          message: 'ยังไม่มีฟังก์ชันตรวจสถานะบนเซิร์ฟเวอร์ — ต้องรัน SQL 009',
+        };
+      }
+      return { ok: false, orders: [], error: raw, message: raw };
+    }
+
+    const rows = Array.isArray(data) ? data : [];
+    const orders = rows.map((o) => {
+      const items = Array.isArray(o.items) ? o.items : [];
+      return normalizeAdminOrder(
+        {
+          ...o,
+          payment_slip: null,
+          slip_uploaded_at: o.slip_uploaded_at || null,
+        },
+        items.map((it) => ({
+          product_id: it.product_id,
+          product_name: it.product_name,
+          emoji: it.emoji,
+          qty: it.qty,
+          unit_price: it.unit_price,
+        })),
+      );
+    }).map((o, idx) => ({
+      ...o,
+      paymentSlip: rows[idx]?.has_payment_slip ? '__remote__' : null,
+    }));
+
+    return { ok: true, orders };
   }
 
   function mapRemoteMethod(method) {
@@ -413,15 +519,53 @@
   async function updateOrderStatus(orderId, statusIndex, history) {
     const sb = getClient();
     if (!sb) return { ok: false, error: 'supabase_not_configured' };
+
+    const id = String(orderId || '').trim();
+    const idx = Number(statusIndex) || 0;
+    const hist = history || [];
+
+    try {
+      const { data, error } = await sb.rpc('store_admin_set_order_status', {
+        p_order_id: id,
+        p_status_index: idx,
+        p_history: hist,
+      });
+      if (!error) return { ok: Boolean(data), source: 'rpc' };
+      if (!/pgrst202|could not find the function/i.test(String(error.message || ''))) {
+        return { ok: false, error: error.message, source: 'rpc' };
+      }
+    } catch (e) {
+      /* fall through to direct update for older DB */
+    }
+
     const { error } = await sb
       .from('store_orders')
       .update({
-        status_index: statusIndex,
-        history: history || [],
+        status_index: idx,
+        history: hist,
       })
-      .eq('id', orderId);
-    if (error) return { ok: false, error: error.message };
-    return { ok: true };
+      .eq('id', id);
+    if (error) return { ok: false, error: error.message, source: 'select' };
+    return { ok: true, source: 'select' };
+  }
+
+  async function rejectPaymentSlipForAdmin(orderId) {
+    const sb = getClient();
+    if (!sb) return { ok: false, error: 'supabase_not_configured' };
+    const session = await getSession();
+    if (!session) return { ok: false, error: 'no_session' };
+
+    const { data, error } = await sb.rpc('store_admin_reject_payment_slip', {
+      p_order_id: String(orderId || '').trim(),
+    });
+    if (error) {
+      const raw = String(error.message || '');
+      if (/pgrst202|could not find the function/i.test(raw)) {
+        return { ok: false, error: raw, message: 'ยังไม่มีฟังก์ชันปฏิเสธสลิป — รัน SQL 010' };
+      }
+      return { ok: false, error: raw, message: raw };
+    }
+    return { ok: Boolean(data) };
   }
 
   function mapDeleteOrderError(error) {
@@ -782,14 +926,18 @@
   global.RachaweiStoreApi = {
     init,
     isConfigured,
+    getPublicConfig,
     getConfigStatus,
     getClient,
     fetchActiveProducts,
     fetchPublicShopSettings,
     createOrderRemote,
+    attachPaymentSlipRemote,
+    lookupOrdersRemote,
     fetchOrdersForAdmin,
     fetchOrdersViaServiceProxy,
     updateOrderStatus,
+    rejectPaymentSlipForAdmin,
     deleteOrderForAdmin,
     upsertProduct,
     deleteProductRemote,

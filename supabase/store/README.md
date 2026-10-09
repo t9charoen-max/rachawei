@@ -13,12 +13,12 @@
    - มี `store_link_admin_by_email(email)` สำหรับลิงก์จาก SQL Editor
 4. **ลบออเดอร์ (Admin):** รัน `007_store_admin_delete_order.sql` (ถ้ายังไม่มี)
    - สร้าง `store_admin_delete_order(p_order_id)` ตรวจสิทธิ์ด้วย `store_is_admin()`
-<<<<<<< HEAD
 5. **Shop settings public view:** รัน `008_fix_shop_settings_public_view.sql` (ถ้า anon อ่าน settings ไม่ได้)
    - ตั้ง `store_shop_settings_public` เป็น `security_invoker=false`
    - ให้ anon อ่านผ่าน view ได้ โดยไม่เปิด base table
-=======
->>>>>>> origin/main
+6. **Hardening ขายจริง:** รัน `009_harden_store_create_order.sql` แล้วตามด้วย `010_order_stock_restore_and_admin_ops.sql`
+   - 009: คำนวณราคา/โปร/ค่าส่งจาก DB + ตัดสต็อก, แนบสลิป, lookup, ปิด anon INSERT
+   - 010: คืนสต็อกเมื่อลบ/ยกเลิกออเดอร์, ป้องกันกดสั่งซ้ำ 120 วินาที, RPC ยืนยัน/ปฏิเสธสลิปและเปลี่ยนสถานะแอดมิน
 
 > ไฟล์ `005_store_admin_list_orders.sql` ถูกแทนที่ด้วยส่วนใน `006` แล้ว — รัน 006 พอ  
 > Production หลัก: `https://rachawei-gamma.vercel.app`
@@ -55,3 +55,7 @@ curl -X POST https://rachawei-gamma.vercel.app/api/store-admin-bootstrap \
 - `VITE_SUPABASE_ANON_KEY`
 
 ห้ามใส่ `service_role` ใน frontend
+
+## AI Sales Assistant
+
+ดู `supabase/functions/ai-sales-assistant/README.md` — Edge Function + Gemini Free Tier
