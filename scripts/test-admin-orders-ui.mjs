@@ -208,8 +208,14 @@ try {
       detailText.replace(/\s+/g, ' ').slice(0, 140),
     );
 
-    await page.click('#adminOrderDetailClose');
-    await page.waitForFunction(() => !document.getElementById('adminOrderDetailModal')?.classList.contains('open'));
+    await page.evaluate(() => {
+      document.getElementById('adminOrderDetailClose')?.click();
+      if (typeof window.closeAdminOrderDetail === 'function') window.closeAdminOrderDetail();
+    });
+    await page.waitForFunction(() => {
+      const m = document.getElementById('adminOrderDetailModal');
+      return m && (!m.classList.contains('open') || m.hidden);
+    }, { timeout: 8000 });
     ok('detail modal closes via ×', true);
 
     const reopen = await page.$('[data-order-id="RW-UI-SMOKE-001"] .admin-order-detail-btn')

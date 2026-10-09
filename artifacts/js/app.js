@@ -458,8 +458,31 @@
       }
     }
 
-    function saveShopVideos() {
-      return persistAll();
+    async function saveShopVideos(options = {}) {
+      await persistAll();
+      if (options.syncRemote === false) return { ok: true, local: true };
+      if (!(isSupabaseReady() && adminLoggedIn && typeof RachaweiStoreApi?.upsertVideo === 'function')) {
+        return { ok: true, local: true };
+      }
+      const ids = options.videoIds
+        ? options.videoIds.map(String)
+        : shopVideos.map((v) => String(v.id));
+      let failed = 0;
+      for (const id of ids) {
+        const video = shopVideos.find((v) => String(v.id) === String(id));
+        if (!video) continue;
+        const remote = await RachaweiStoreApi.upsertVideo(video);
+        if (!remote.ok) {
+          failed += 1;
+          console.warn('sync video failed', id, remote.error);
+        } else if (remote.id != null && String(remote.id) !== String(video.id)) {
+          video.id = remote.id;
+          nextVideoId = Math.max(nextVideoId, Number(remote.id) + 1 || nextVideoId);
+        }
+      }
+      if (failed) return { ok: false, error: 'video_sync_partial' };
+      await persistAll();
+      return { ok: true };
     }
 
     function saveOrders() {
@@ -690,18 +713,18 @@
       return true;
     }
 
+    function isProductPublished(p) {
+      const st = String(p?.status || 'active');
+      return st === 'active';
+    }
+
     function renderPopularCats() {
       const el = document.getElementById('popularCatGrid');
       if (!el) return;
-      const groups = [
-        { filter: 'basket', name: 'ตะกร้าหวาย', emoji: '🧺' },
-        { filter: 'chair', name: 'เก้าอี้หวาย', emoji: '🪑' },
-        { filter: 'home', name: 'ของใช้ในบ้าน', emoji: '🏡' },
-        { filter: 'gift', name: 'ของขวัญ/ของฝาก', emoji: '🎁' },
-      ];
+      const groups = getStoreCategoryTiles();
       el.innerHTML = groups.map((g) => {
-        const count = products.filter((p) => matchesCatalog(p, g.filter, '')).length;
-        const sample = products.find((p) => matchesCatalog(p, g.filter, ''));
+        const count = products.filter((p) => isProductPublished(p) && matchesCatalog(p, g.filter, '')).length;
+        const sample = products.find((p) => isProductPublished(p) && matchesCatalog(p, g.filter, ''));
         const cover = sample ? getCoverImage(sample) : null;
         const media = cover
           ? `<img src="${cover}" alt="">`
@@ -749,7 +772,7 @@
     function renderProducts(filter = catalogFilter) {
       catalogFilter = filter || 'all';
       const filtered = sortCatalogProducts(
-        products.filter((p) => matchesCatalog(p, catalogFilter, catalogQuery)),
+        products.filter((p) => isProductPublished(p) && matchesCatalog(p, catalogFilter, catalogQuery)),
       );
 
       if (!filtered.length) {
@@ -1554,6 +1577,50 @@
       toast.classList.add('show');
       clearTimeout(toastTimer);
       toastTimer = setTimeout(() => toast.classList.remove('show'), 2200);
+    }
+
+    let adminSaveStatusTimer;
+    function setAdminSaveStatus(state, message) {
+      const el = document.getElementById('adminSaveStatus');
+      if (!el) return;
+      clearTimeout(adminSaveStatusTimer);
+      if (!state || !message) {
+        el.hidden = true;
+        el.className = 'admin-save-status';
+        el.textContent = '';
+        return;
+      }
+      el.hidden = false;
+      el.className = `admin-save-status is-${state}`;
+      el.textContent = message;
+      if (state === 'ok') {
+        adminSaveStatusTimer = setTimeout(() => {
+          el.hidden = true;
+        }, 3200);
+      }
+    }
+
+    function getStoreCategoryTiles() {
+      const content = (typeof mergeStoreContent === 'function')
+        ? mergeStoreContent(SHOP_CONFIG.content)
+        : (SHOP_CONFIG.content || {});
+      const defaults = [
+        { filter: 'basket', name: 'ตะกร้าหวาย', emoji: '🧺' },
+        { filter: 'chair', name: 'เก้าอี้หวาย', emoji: '🪑' },
+        { filter: 'home', name: 'ของใช้ในบ้าน', emoji: '🏡' },
+        { filter: 'gift', name: 'ของขวัญ/ของฝาก', emoji: '🎁' },
+      ];
+      const raw = content?.home?.categories;
+      if (!Array.isArray(raw) || !raw.length) return defaults;
+      return defaults.map((d) => {
+        const hit = raw.find((x) => String(x.filter || '') === d.filter);
+        if (!hit) return { ...d };
+        return {
+          filter: d.filter,
+          name: String(hit.name || d.name).trim() || d.name,
+          emoji: String(hit.emoji || d.emoji).trim() || d.emoji,
+        };
+      });
     }
 
     // ========== PAYMENT INFO (ดึงจาก SHOP_CONFIG — แก้ที่หัวสคริปต์) ==========
@@ -3434,12 +3501,37 @@
     function renderAdminTab(tab) {
       if (tab === 'dash') {
         void (async () => {
-          adminContent.innerHTML = '<div class="empty-admin">กำลังโหลดแดชบอร์ดจาก Supabase…</div>';
+          adminContent.innerHTML = '<div class="empty-admin">กำลังโหลดแดชบอร์ด…</div>';
+          setAdminSaveStatus('saving', 'กำลังโหลดภาพรวม…');
           await refreshAdminOrdersFromSupabase();
+          if (typeof RachaweiStoreApi?.fetchVideosForAdmin === 'function' && isSupabaseReady() && adminLoggedIn) {
+            try {
+              const vids = await RachaweiStoreApi.fetchVideosForAdmin();
+              if (vids.ok && Array.isArray(vids.videos)) {
+                shopVideos = vids.videos;
+                saveShopVideos({ syncRemote: false });
+              }
+            } catch (_) { /* keep local */ }
+          }
           renderAdminDash();
+          setAdminSaveStatus(null);
         })();
       } else if (tab === 'products') renderAdminProducts();
-      else if (tab === 'videos') renderAdminVideos();
+      else if (tab === 'categories') renderAdminCategories();
+      else if (tab === 'media') renderAdminMedia();
+      else if (tab === 'videos') {
+        void (async () => {
+          adminContent.innerHTML = '<div class="empty-admin">กำลังโหลดวิดีโอ…</div>';
+          if (typeof RachaweiStoreApi?.fetchVideosForAdmin === 'function' && isSupabaseReady() && adminLoggedIn) {
+            const vids = await RachaweiStoreApi.fetchVideosForAdmin();
+            if (vids.ok && Array.isArray(vids.videos)) {
+              shopVideos = vids.videos;
+              await saveShopVideos({ syncRemote: false });
+            }
+          }
+          renderAdminVideos();
+        })();
+      }
       else if (tab === 'orders') {
         void (async () => {
           adminContent.innerHTML = '<div class="empty-admin">กำลังโหลดออเดอร์จาก Supabase…</div>';
@@ -3449,18 +3541,22 @@
       }
       else if (tab === 'content') {
         if (typeof renderAdminFrontContent === 'function') renderAdminFrontContent();
-        else document.getElementById('adminContent').innerHTML = '<p>โหลดแท็บหน้าบ้านไม่สำเร็จ</p>';
+        else document.getElementById('adminContent').innerHTML = '<p>โหลดแท็บเนื้อหาไม่สำเร็จ</p>';
       }
+      else if (tab === 'banners') renderAdminBanners();
+      else if (tab === 'customers') renderAdminCustomers();
       else if (tab === 'settings') renderAdminSettings();
     }
 
     async function saveShopSettings(partial) {
-      // exposed for tests
+      setAdminSaveStatus('saving', 'กำลังบันทึก…');
       Object.assign(SHOP_CONFIG, partial);
       if (partial && partial.content && typeof mergeStoreContent === 'function') {
         SHOP_CONFIG.content = mergeStoreContent(partial.content);
       }
       applyShopConfig();
+      renderPopularCats();
+      refreshHeroSlides();
       const toSave = {
         shopName: SHOP_CONFIG.shopName,
         shopSub: SHOP_CONFIG.shopSub,
@@ -3493,11 +3589,14 @@
         const remote = await RachaweiStoreApi.saveShopSettingsRemote(toSave);
         if (!remote.ok) {
           console.warn('บันทึกตั้งค่าร้านขึ้น Supabase ไม่สำเร็จ', remote.error);
+          setAdminSaveStatus('error', 'บันทึกในเครื่องแล้ว แต่ซิงก์คลาวด์ไม่สำเร็จ');
           showToast('บันทึกในเครื่องแล้ว แต่ซิงก์คลาวด์ไม่สำเร็จ');
-          return;
+          return { ok: false, error: remote.error };
         }
       }
+      setAdminSaveStatus('ok', 'บันทึกสำเร็จ ✓ — หน้าร้านอัปเดตแล้ว');
       showToast('บันทึกตั้งค่าร้านแล้ว');
+      return { ok: true };
     }
 
     function renderAdminSettings() {
@@ -3517,6 +3616,8 @@
         <div style="display:grid;gap:0.75rem;max-width:560px;">
           <label style="font-size:0.82rem;font-weight:600;">ชื่อร้าน
             <input class="admin-input" id="setShopName" value="${escapeHtml(c.shopName||'')}" style="width:100%;margin-top:0.25rem;"></label>
+          <label style="font-size:0.82rem;font-weight:600;">คำโปรยใต้ชื่อร้าน
+            <input class="admin-input" id="setShopSub" value="${escapeHtml(c.shopSub||'')}" placeholder="เช่น งานหัตถกรรมจักสานหวายบ้านบุทม" style="width:100%;margin-top:0.25rem;"></label>
           <label style="font-size:0.82rem;font-weight:600;">เบอร์แสดงผล
             <input class="admin-input" id="setPhoneDisplay" value="${escapeHtml(c.phoneDisplay||'')}" style="width:100%;margin-top:0.25rem;"></label>
           <label style="font-size:0.82rem;font-weight:600;">เบอร์โทร (รูปแบบ +66…)
@@ -3673,6 +3774,7 @@
         }
         const settingsPatch = {
           shopName: document.getElementById('setShopName').value.trim() || SHOP_CONFIG.shopName,
+          shopSub: document.getElementById('setShopSub')?.value.trim() || SHOP_CONFIG.shopSub || '',
           phoneDisplay: phoneDisplay || SHOP_CONFIG.phoneDisplay,
           phoneTel: phoneTel || SHOP_CONFIG.phoneTel,
           lineUrl: document.getElementById('setLine').value.trim() || SHOP_CONFIG.lineUrl,
@@ -3938,6 +4040,16 @@
       renderAdminDash();
     }
 
+    function jumpAdminTab(tab) {
+      const btn = document.querySelector(`.admin-tab[data-tab="${tab}"]`);
+      if (btn) btn.click();
+      else {
+        adminTab = tab;
+        document.querySelectorAll('.admin-tab').forEach((t) => t.classList.toggle('active', t.dataset.tab === tab));
+        renderAdminTab(tab);
+      }
+    }
+
     function renderAdminDash() {
       const cloudMode = isSupabaseReady();
       const statsBlocked = Boolean(adminOrdersError) && cloudMode;
@@ -3951,52 +4063,46 @@
             return o.statusIndex < 2;
           }).length;
       const orderCount = statsBlocked ? null : orders.length;
-      const withImages = products.filter(p => getProductImages(p).length > 0).length;
+      const activeProducts = products.filter((p) => (p.status || 'active') !== 'hidden').length;
       const storageLabel = cloudMode
         ? (adminOrdersError
           ? 'Supabase อ่านออเดอร์ไม่ได้'
-          : (adminOrdersSource === 'rpc' || adminOrdersSource === 'select'
-            ? 'Supabase (store_orders)'
-            : 'Supabase'))
-        : (dbReady ? 'IndexedDB พร้อม (โหมดท้องถิ่น)' : 'หน่วยความจำชั่วคราว');
+          : 'เชื่อมต่อ Supabase แล้ว')
+        : (dbReady ? 'โหมดท้องถิ่น (IndexedDB)' : 'หน่วยความจำชั่วคราว');
 
       const fmtStat = (v) => (v == null ? '—' : String(v));
       const fmtMoney = (v) => (v == null ? '—' : formatPrice(v));
 
       adminContent.innerHTML = `
         ${adminOrdersStatusBannerHtml()}
+        <div class="admin-dash-hero">
+          <h3>${escapeHtml(SHOP_CONFIG.shopName || 'ราชาหวายสุรินทร์')}</h3>
+          <p>${escapeHtml(SHOP_CONFIG.shopSub || 'จัดการหน้าร้าน · สินค้า · ออเดอร์')} · ${storageLabel}</p>
+        </div>
+
         <div class="admin-stats">
-          <div class="stat-card"><div class="num">${products.length}</div><div class="lbl">สินค้าทั้งหมด</div></div>
-          <div class="stat-card"><div class="num">${shopVideos.length}</div><div class="lbl">วิดีโอแนะนำ</div></div>
-          <div class="stat-card"><div class="num">${fmtStat(orderCount)}</div><div class="lbl">ออเดอร์ทั้งหมด</div></div>
+          <div class="stat-card"><div class="num">${activeProducts}</div><div class="lbl">สินค้าเผยแพร่</div></div>
+          <div class="stat-card"><div class="num">${shopVideos.length}</div><div class="lbl">วิดีโอ</div></div>
+          <div class="stat-card"><div class="num">${fmtStat(orderCount)}</div><div class="lbl">ออเดอร์</div></div>
           <div class="stat-card"><div class="num">${fmtStat(pending)}</div><div class="lbl">รอดำเนินการ</div></div>
           <div class="stat-card"><div class="num">${fmtMoney(totalSales)}</div><div class="lbl">ยอดรวม</div></div>
         </div>
 
-        <div class="admin-form-card">
-          <h3>💾 สำรองและกู้คืนข้อมูล 🔒</h3>
-          <p style="font-size:0.88rem;color:var(--text-soft);margin-bottom:0.9rem;line-height:1.5;">
-            ไฟล์สำรองถูก<strong>เข้ารหัสด้วยรหัสผ่าน</strong> (AES-256) ก่อนดาวน์โหลด<br>
-            เก็บสินค้า รูป ออเดอร์ ตะกร้า อย่างปลอดภัย · สถานะ: <strong>${storageLabel}</strong>
-            ${withImages ? ` · มีรูป ${withImages} รายการ` : ''}
-          </p>
-          <div class="admin-actions" style="flex-wrap:wrap;">
-            <button class="btn btn-primary btn-sm" id="backupExportBtn">⬇️ ดาวน์โหลดไฟล์เข้ารหัส</button>
-            <button class="btn btn-outline btn-sm" id="backupImportBtn">⬆️ นำเข้าไฟล์สำรอง</button>
-            <button class="btn btn-outline btn-sm" id="backupResetBtn" style="color:#c0392b;border-color:#e8b4b4;">🗑️ รีเซ็ตข้อมูล</button>
-          </div>
-          <input type="file" id="backupFileInput" accept=".json,application/json" style="display:none;" />
-          <div class="demo-hint" style="margin-top:0.9rem;">
-            🔒 ใช้ <strong>AES-GCM 256-bit</strong> + PBKDF2 · จำรหัสผ่านให้ดี หากลืมจะเปิดไฟล์ไม่ได้<br>
-            รองรับไฟล์เก่าที่ไม่ได้เข้ารหัส (จะถามก่อนนำเข้า)
-          </div>
+        <div class="admin-section-title"><span>ไปยังเมนูจัดการ</span></div>
+        <div class="admin-quick-nav">
+          <button type="button" class="admin-quick-nav__btn" data-jump="products"><span>สินค้า</span><small>เพิ่ม แก้ไข ปิดการขาย</small></button>
+          <button type="button" class="admin-quick-nav__btn" data-jump="orders"><span>ออเดอร์</span><small>รายละเอียด สถานะ สลิป</small></button>
+          <button type="button" class="admin-quick-nav__btn" data-jump="banners"><span>แบนเนอร์</span><small>ภาพปกและข้อความฮีโร่</small></button>
+          <button type="button" class="admin-quick-nav__btn" data-jump="content"><span>เนื้อหาหน้าแรก</span><small>ข้อความ รีวิว เรื่องราว</small></button>
+          <button type="button" class="admin-quick-nav__btn" data-jump="media"><span>รูปภาพและสื่อ</span><small>ภาพหน้าร้าน / รีวิว</small></button>
+          <button type="button" class="admin-quick-nav__btn" data-jump="settings"><span>ตั้งค่าร้าน</span><small>ติดต่อ โปร ชำระเงิน</small></button>
         </div>
 
         <div class="admin-section-title">ออเดอร์ล่าสุด</div>
         ${statsBlocked
           ? '<div class="empty-admin">ไม่สามารถแสดงออเดอร์ได้จนกว่าจะเชื่อมต่อ Supabase สำเร็จ<br><small>กด «ลองโหลดใหม่» ด้านบนหลังแก้ env / RLS</small></div>'
           : (orders.length === 0
-            ? '<div class="empty-admin">ยังไม่มีออเดอร์ในระบบ<br><small>เมื่อลูกค้าสั่งซื้อผ่าน store_create_order จะแสดงที่นี่ทันที</small></div>'
+            ? '<div class="empty-admin">ยังไม่มีออเดอร์ในระบบ<br><small>เมื่อลูกค้าสั่งซื้อ จะแสดงที่นี่</small></div>'
             : `
           <div class="admin-table-wrap">
             <table class="admin-table">
@@ -4004,11 +4110,11 @@
                 <tr><th>เลขที่</th><th>ลูกค้า</th><th>ยอด</th><th>สถานะ</th></tr>
               </thead>
               <tbody>
-                ${orders.slice(0, 8).map(o => {
+                ${orders.slice(0, 6).map((o) => {
                   const flow = o.method === 'cod' ? COD_FLOW : STATUS_FLOW;
                   const st = flow[o.statusIndex] || flow[0];
                   return `<tr>
-                    <td><strong>${o.id}</strong></td>
+                    <td><strong>${escapeHtml(o.id)}</strong></td>
                     <td>${escapeHtml(o.name)}<br><small>${escapeHtml(o.phoneDisplay || '')}</small></td>
                     <td>${formatPrice(o.total)}</td>
                     <td><span class="status-badge-tag ${st.badge}">${st.label}</span></td>
@@ -4017,23 +4123,39 @@
               </tbody>
             </table>
           </div>
+          <div class="admin-actions" style="margin-top:0.75rem;">
+            <button type="button" class="btn btn-outline btn-sm" data-jump="orders">ดูออเดอร์ทั้งหมด</button>
+          </div>
         `)}
-        <div class="demo-hint" style="margin-top:1.2rem;">
-          💡 แท็บ <strong>สินค้า</strong> = เพิ่ม/แก้ไขสินค้าและรูปภาพ · แท็บ <strong>ออเดอร์</strong> = ติดตามและอัปเดตสถานะ
-        </div>
+
+        <details class="admin-form-card" style="margin-top:1.2rem;">
+          <summary style="cursor:pointer;font-weight:700;color:var(--rattan-deep);">สำรองและกู้คืนข้อมูล</summary>
+          <p style="font-size:0.85rem;color:var(--text-soft);margin:0.7rem 0 0.9rem;line-height:1.5;">
+            ไฟล์สำรองเข้ารหัส AES-256 · ใช้เมื่อย้ายเครื่องหรือสำรองฉุกเฉิน
+          </p>
+          <div class="admin-actions" style="flex-wrap:wrap;">
+            <button class="btn btn-primary btn-sm" id="backupExportBtn">ดาวน์โหลดไฟล์เข้ารหัส</button>
+            <button class="btn btn-outline btn-sm" id="backupImportBtn">นำเข้าไฟล์สำรอง</button>
+            <button class="btn btn-outline btn-sm" id="backupResetBtn" style="color:#c0392b;border-color:#e8b4b4;">รีเซ็ตข้อมูลท้องถิ่น</button>
+          </div>
+          <input type="file" id="backupFileInput" accept=".json,application/json" style="display:none;" />
+        </details>
       `;
 
       bindAdminOrdersRetry();
-      document.getElementById('backupExportBtn').addEventListener('click', () => downloadBackup());
-      document.getElementById('backupImportBtn').addEventListener('click', () => {
-        document.getElementById('backupFileInput').click();
+      adminContent.querySelectorAll('[data-jump]').forEach((btn) => {
+        btn.addEventListener('click', () => jumpAdminTab(btn.getAttribute('data-jump')));
       });
-      document.getElementById('backupFileInput').addEventListener('change', (e) => {
+      document.getElementById('backupExportBtn')?.addEventListener('click', () => downloadBackup());
+      document.getElementById('backupImportBtn')?.addEventListener('click', () => {
+        document.getElementById('backupFileInput')?.click();
+      });
+      document.getElementById('backupFileInput')?.addEventListener('change', (e) => {
         const file = e.target.files && e.target.files[0];
         if (file) importBackupFile(file);
         e.target.value = '';
       });
-      document.getElementById('backupResetBtn').addEventListener('click', resetToDefault);
+      document.getElementById('backupResetBtn')?.addEventListener('click', resetToDefault);
     }
 
     function productThumb(p) {
@@ -4131,11 +4253,28 @@
             </div>
             <div class="admin-gallery-list" id="apGalleryList"></div>
           </div>
-          <div class="form-group">
-            <label>ป้ายสินค้า (เช่น ยอดนิยม, ใหม่)</label>
-            <input type="text" id="apBadge" value="${editP && editP.badge ? editP.badge : ''}" placeholder="ว่างไว้ถ้าไม่มี" />
+          <div class="form-row">
+            <div class="form-group">
+              <label>ป้ายสินค้า (เช่น ยอดนิยม, ใหม่)</label>
+              <input type="text" id="apBadge" value="${editP && editP.badge ? editP.badge : ''}" placeholder="ว่างไว้ถ้าไม่มี" />
+            </div>
+            <div class="form-group">
+              <label>สถานะเผยแพร่</label>
+              <select id="apStatus">
+                <option value="active" ${!editP || (editP.status || 'active') === 'active' ? 'selected' : ''}>เผยแพร่ (ลูกค้าเห็น)</option>
+                <option value="hidden" ${editP && editP.status === 'hidden' ? 'selected' : ''}>ปิดการขาย / ซ่อน</option>
+                <option value="draft" ${editP && editP.status === 'draft' ? 'selected' : ''}>แบบร่าง</option>
+              </select>
+            </div>
           </div>
-          <div class="admin-actions" style="margin-top:0.5rem;">
+          <div id="apPreview" class="admin-form-card" style="margin:0.5rem 0 0;padding:0.85rem;background:#fff;">
+            <div style="font-size:0.78rem;color:var(--text-soft);margin-bottom:0.35rem;">ตัวอย่างก่อนบันทึก</div>
+            <strong id="apPreviewName">${editP ? escapeHtml(editP.name) : 'ชื่อสินค้า'}</strong>
+            <div id="apPreviewMeta" style="font-size:0.85rem;margin-top:0.25rem;color:var(--text-soft);">
+              ${editP ? `${formatPrice(editP.price)} · สต็อก ${editP.stock != null ? editP.stock : '—'} · ${categoryMap[editP.cat] || editP.cat}` : 'กรอกชื่อและราคาแล้วดูตัวอย่างที่นี่'}
+            </div>
+          </div>
+          <div class="admin-actions" style="margin-top:0.75rem;">
             <button class="btn btn-primary btn-sm" id="apSaveBtn">${editP ? 'บันทึกการแก้ไข' : 'เพิ่มสินค้า'}</button>
             ${editP ? '<button class="btn btn-outline btn-sm" id="apCancelBtn">ยกเลิก</button>' : ''}
           </div>
@@ -4144,24 +4283,42 @@
         <div class="admin-section-title">
           <span>รายการสินค้า (${products.length})</span>
         </div>
-        <div class="admin-table-wrap">
+        <div class="admin-product-list">
+          ${products.map((p) => `
+            <article class="admin-product-card">
+              ${productThumb(p)}
+              <div class="admin-product-card__body">
+                <div class="admin-product-card__name">${escapeHtml(p.name)}</div>
+                <div class="admin-product-card__meta">
+                  ${formatPrice(p.price)} · สต็อก ${p.stock != null ? p.stock : '—'} · ${escapeHtml(categoryMap[p.cat] || p.cat || '')}
+                  · ${(p.status || 'active') === 'active' ? 'เผยแพร่' : ((p.status === 'hidden') ? 'ซ่อน' : 'แบบร่าง')}
+                </div>
+              </div>
+              <div class="admin-product-card__actions">
+                <button type="button" class="btn btn-outline btn-xs" onclick="adminEditProduct(${p.id})">แก้ไข</button>
+                <button type="button" class="btn btn-outline btn-xs" style="color:#c0392b;border-color:#e8b4b4;" onclick="adminDeleteProduct(${p.id})">ลบ</button>
+              </div>
+            </article>
+          `).join('') || '<div class="empty-admin">ยังไม่มีสินค้า</div>'}
+        </div>
+        <div class="admin-table-wrap admin-products-table-wrap">
           <table class="admin-table">
             <thead>
-              <tr><th>รูป</th><th>ชื่อ</th><th>ราคา</th><th>สต็อก</th><th>ขนาด</th><th>หมวด</th><th>จัดการ</th></tr>
+              <tr><th>รูป</th><th>ชื่อ</th><th>ราคา</th><th>สต็อก</th><th>สถานะ</th><th>หมวด</th><th>จัดการ</th></tr>
             </thead>
             <tbody>
-              ${products.map(p => `
+              ${products.map((p) => `
                 <tr>
                   <td>${productThumb(p)}</td>
-                  <td><strong>${p.name}</strong><br><small style="color:var(--text-soft)">${(p.desc || '').slice(0, 40)}${(p.desc || '').length > 40 ? '…' : ''}</small></td>
+                  <td class="admin-product-name"><strong>${escapeHtml(p.name)}</strong><br><small style="color:var(--text-soft)">${escapeHtml((p.desc || '').slice(0, 48))}${(p.desc || '').length > 48 ? '…' : ''}</small></td>
                   <td>${formatPrice(p.price)}</td>
                   <td>${p.stock != null ? p.stock : '—'}</td>
-                  <td style="font-size:0.78rem;">${p.size ? escapeHtml(p.size) : '—'}</td>
-                  <td>${categoryMap[p.cat] || p.cat}</td>
+                  <td>${(p.status || 'active') === 'active' ? 'เผยแพร่' : ((p.status === 'hidden') ? 'ซ่อน' : 'แบบร่าง')}</td>
+                  <td>${escapeHtml(categoryMap[p.cat] || p.cat || '')}</td>
                   <td>
                     <div class="admin-actions">
-                      <button class="btn btn-outline btn-xs" onclick="adminEditProduct(${p.id})">แก้ไข</button>
-                      <button class="btn btn-outline btn-xs" style="color:#c0392b;border-color:#e8b4b4;" onclick="adminDeleteProduct(${p.id})">ลบ</button>
+                      <button type="button" class="btn btn-outline btn-xs" onclick="adminEditProduct(${p.id})">แก้ไข</button>
+                      <button type="button" class="btn btn-outline btn-xs" style="color:#c0392b;border-color:#e8b4b4;" onclick="adminDeleteProduct(${p.id})">ลบ</button>
                     </div>
                   </td>
                 </tr>
@@ -4244,7 +4401,7 @@
         }
       });
 
-      document.getElementById('apSaveBtn').addEventListener('click', saveAdminProduct);
+      document.getElementById('apSaveBtn').addEventListener('click', () => { void saveAdminProduct(); });
       const cancelBtn = document.getElementById('apCancelBtn');
       if (cancelBtn) {
         cancelBtn.addEventListener('click', () => {
@@ -4252,6 +4409,25 @@
           renderAdminProducts();
         });
       }
+      const refreshPreview = () => {
+        const name = document.getElementById('apName')?.value.trim() || 'ชื่อสินค้า';
+        const price = parseFloat(document.getElementById('apPrice')?.value);
+        const stockRaw = document.getElementById('apStock')?.value;
+        const stock = stockRaw === '' || stockRaw == null ? '—' : Math.max(0, Math.floor(Number(stockRaw) || 0));
+        const cat = document.getElementById('apCat')?.value || 'basket';
+        const status = document.getElementById('apStatus')?.value || 'active';
+        const nameEl = document.getElementById('apPreviewName');
+        const metaEl = document.getElementById('apPreviewMeta');
+        if (nameEl) nameEl.textContent = name;
+        if (metaEl) {
+          metaEl.textContent = `${Number.isFinite(price) ? formatPrice(price) : '—'} · สต็อก ${stock} · ${categoryMap[cat] || cat} · ${status === 'active' ? 'เผยแพร่' : (status === 'hidden' ? 'ซ่อน' : 'แบบร่าง')}`;
+        }
+      };
+      ['apName', 'apPrice', 'apStock', 'apCat', 'apStatus'].forEach((id) => {
+        document.getElementById(id)?.addEventListener('input', refreshPreview);
+        document.getElementById(id)?.addEventListener('change', refreshPreview);
+      });
+      refreshPreview();
 
       // Multi file upload
       const fileInput = document.getElementById('apFile');
@@ -4432,7 +4608,7 @@
       });
     }
 
-    function saveAdminProduct() {
+    async function saveAdminProduct() {
       const name = document.getElementById('apName').value.trim();
       const price = parseFloat(document.getElementById('apPrice').value);
       const cat = document.getElementById('apCat').value;
@@ -4440,19 +4616,35 @@
       const desc = document.getElementById('apDesc').value.trim();
       const detail = document.getElementById('apDetail').value.trim();
       const badge = document.getElementById('apBadge').value.trim() || null;
+      const status = document.getElementById('apStatus')?.value || 'active';
       const stockRaw = document.getElementById('apStock')?.value;
       const stock = stockRaw === '' || stockRaw == null ? 0 : Math.max(0, Math.floor(Number(stockRaw) || 0));
       const size = (document.getElementById('apSize')?.value || '').trim();
       const images = (window._apImages || []).slice(0, MAX_PRODUCT_IMAGES);
       const image = images[0] || null;
 
-      if (!name || isNaN(price) || price < 0) {
-        showToast('กรุณากรอกชื่อและราคาให้ถูกต้อง');
+      if (!name) {
+        setAdminSaveStatus('error', 'กรุณากรอกชื่อสินค้า');
+        showToast('กรุณากรอกชื่อสินค้า');
+        document.getElementById('apName')?.focus();
+        return;
+      }
+      if (!Number.isFinite(price) || price < 0 || price > 1000000) {
+        setAdminSaveStatus('error', 'ราคาไม่ถูกต้อง (0–1,000,000 บาท)');
+        showToast('กรุณากรอกราคาให้ถูกต้อง');
+        document.getElementById('apPrice')?.focus();
+        return;
+      }
+      if (!Number.isFinite(stock) || stock < 0 || stock > 100000) {
+        setAdminSaveStatus('error', 'สต็อกไม่ถูกต้อง');
+        showToast('กรุณากรอกสต็อกเป็นจำนวนเต็มไม่ติดลบ');
+        document.getElementById('apStock')?.focus();
         return;
       }
 
+      setAdminSaveStatus('saving', 'กำลังบันทึกสินค้า…');
       if (editingProductId) {
-        const p = products.find(x => x.id === editingProductId);
+        const p = products.find((x) => x.id === editingProductId);
         if (p) {
           p.name = name;
           p.price = price;
@@ -4466,8 +4658,9 @@
           p.badge = badge;
           p.stock = stock;
           p.size = size;
+          p.status = status;
+          p.featured = badge === 'พิเศษ' || badge === 'ยอดนิยม';
         }
-        showToast('บันทึกสินค้าแล้ว ✓');
       } else {
         products.push({
           id: nextProductId++,
@@ -4483,18 +4676,22 @@
           badge,
           stock,
           size,
+          status,
+          featured: badge === 'พิเศษ' || badge === 'ยอดนิยม',
         });
-        showToast('เพิ่มสินค้าแล้ว ✓');
       }
       const syncedId = editingProductId || products[products.length - 1]?.id;
       editingProductId = null;
       window._apImages = [];
-      void saveProducts({
+      await saveProducts({
         syncRemote: true,
         productIds: syncedId != null ? [syncedId] : undefined,
       });
-      renderProducts(document.querySelector('.filter-btn.active')?.dataset.filter || 'all');
+      renderProducts(catalogFilter);
+      renderPopularCats();
       renderAdminProducts();
+      setAdminSaveStatus('ok', 'บันทึกสินค้าสำเร็จ ✓');
+      showToast('บันทึกสินค้าแล้ว ✓');
     }
 
     window.adminEditProduct = function(id) {
@@ -4657,7 +4854,7 @@
       }
     }
 
-    function saveAdminVideo() {
+    async function saveAdminVideo() {
       const rawTitle = document.getElementById('avTitle').value.trim();
       const videoUrl = document.getElementById('avUrl').value.trim();
       const productRaw = document.getElementById('avProductId').value;
@@ -4682,6 +4879,8 @@
         return;
       }
 
+      setAdminSaveStatus('saving', 'กำลังบันทึกวิดีโอ…');
+      let syncedId = editingVideoId;
       if (editingVideoId) {
         const video = shopVideos.find((v) => v.id === editingVideoId);
         if (video) {
@@ -4690,24 +4889,33 @@
           video.productId = productId;
           video.views = views;
           video.thumbnail = thumbnail;
+          video.isActive = true;
         }
-        showToast('บันทึกวิดีโอแล้ว ✓');
       } else {
-        shopVideos.push({
+        const created = {
           id: nextVideoId++,
           title,
           videoUrl,
           productId,
           views,
           thumbnail,
-        });
-        showToast('เพิ่มวิดีโอแล้ว ✓');
+          isActive: true,
+        };
+        shopVideos.push(created);
+        syncedId = created.id;
       }
 
       editingVideoId = null;
-      saveShopVideos();
+      const remote = await saveShopVideos({ syncRemote: true, videoIds: syncedId != null ? [syncedId] : undefined });
       renderShopVideos();
       renderAdminVideos();
+      if (remote && remote.ok === false) {
+        setAdminSaveStatus('error', 'บันทึกในเครื่องแล้ว แต่ซิงก์คลาวด์ไม่สำเร็จ');
+        showToast('บันทึกวิดีโอในเครื่องแล้ว แต่ซิงก์คลาวด์ไม่สำเร็จ');
+        return;
+      }
+      setAdminSaveStatus('ok', 'บันทึกวิดีโอสำเร็จ ✓');
+      showToast('บันทึกวิดีโอแล้ว ✓');
     }
 
     window.adminEditVideo = function(id) {
@@ -4716,16 +4924,274 @@
       adminContent.scrollTop = 0;
     };
 
-    window.adminDeleteVideo = function(id) {
+    window.adminDeleteVideo = async function(id) {
       if (!confirm('ลบวิดีโอนี้?')) return;
       const idx = shopVideos.findIndex((v) => v.id === id);
       if (idx >= 0) shopVideos.splice(idx, 1);
       if (editingVideoId === id) editingVideoId = null;
-      saveShopVideos();
+      if (isSupabaseReady() && adminLoggedIn && typeof RachaweiStoreApi.deleteVideoRemote === 'function') {
+        const remote = await RachaweiStoreApi.deleteVideoRemote(id);
+        if (!remote.ok) console.warn('ลบวิดีโอบน Supabase ไม่สำเร็จ', remote.error);
+      }
+      await saveShopVideos({ syncRemote: false });
       renderShopVideos();
       renderAdminVideos();
+      setAdminSaveStatus('ok', 'ลบวิดีโอแล้ว');
       showToast('ลบวิดีโอแล้ว');
     };
+
+    function renderAdminCategories() {
+      const tiles = getStoreCategoryTiles();
+      adminContent.innerHTML = `
+        <div class="admin-section-title"><span>หมวดหมู่บนหน้าร้าน</span></div>
+        <p style="font-size:0.88rem;color:var(--text-soft);margin:0 0 1rem;line-height:1.5;">
+          แก้ไขชื่อและอีโมจิของหมวดที่แสดงใน «หมวดยอดนิยม» — คีย์หมวดผูกกับสินค้าเดิม (ตะกร้า / เก้าอี้ / ของใช้ / ของขวัญ)
+          ไม่สร้างตารางใหม่ บันทึกใน <code>store_shop_settings.content</code>
+        </p>
+        <div class="admin-form-card" style="display:grid;gap:0.85rem;">
+          ${tiles.map((t, i) => `
+            <div class="form-row">
+              <div class="form-group">
+                <label>ชื่อหมวด (${escapeHtml(t.filter)})</label>
+                <input class="admin-input" id="catName_${i}" data-filter="${escapeAttr(t.filter)}" value="${escapeAttr(t.name)}" />
+              </div>
+              <div class="form-group">
+                <label>อีโมจิ</label>
+                <input class="admin-input" id="catEmoji_${i}" value="${escapeAttr(t.emoji)}" maxlength="8" />
+              </div>
+            </div>
+            <div style="font-size:0.8rem;color:var(--text-soft);margin-top:-0.45rem;">
+              สินค้าในหมวดนี้: ${products.filter((p) => isProductPublished(p) && matchesCatalog(p, t.filter, '')).length} รายการเผยแพร่
+            </div>
+          `).join('')}
+          <div class="admin-actions">
+            <button type="button" class="btn btn-primary btn-sm" id="catSaveBtn">บันทึกหมวดหมู่</button>
+          </div>
+        </div>
+      `;
+      document.getElementById('catSaveBtn')?.addEventListener('click', async () => {
+        const next = tiles.map((t, i) => ({
+          filter: t.filter,
+          name: document.getElementById(`catName_${i}`)?.value.trim() || t.name,
+          emoji: document.getElementById(`catEmoji_${i}`)?.value.trim() || t.emoji,
+        }));
+        const content = mergeStoreContent(SHOP_CONFIG.content || {});
+        content.home = content.home || {};
+        content.home.categories = next;
+        await saveShopSettings({ content });
+        renderAdminCategories();
+      });
+    }
+
+    function renderAdminBanners() {
+      const content = mergeStoreContent(SHOP_CONFIG.content || {});
+      window._cmsHeroDraft = (Array.isArray(SHOP_CONFIG.heroImages) ? SHOP_CONFIG.heroImages : []).filter(Boolean).slice();
+      adminContent.innerHTML = `
+        <div class="admin-section-title"><span>แบนเนอร์ / ภาพปกหน้าแรก</span></div>
+        <p style="font-size:0.88rem;color:var(--text-soft);margin:0 0 1rem;line-height:1.5;">
+          ข้อความฮีโร่และรูปสไลด์พื้นหลัง — ใช้ข้อมูลเดิมในตั้งค่าร้าน/เนื้อหา (hero_images + content.hero)
+        </p>
+        <div class="admin-form-card" style="display:grid;gap:0.75rem;max-width:560px;">
+          <label style="font-size:0.82rem;font-weight:600;">หัวข้อหลัก
+            <input class="admin-input" id="bnHeroTitle" value="${escapeAttr(content.hero?.title || '')}" style="margin-top:0.25rem;" /></label>
+          <label style="font-size:0.82rem;font-weight:600;">คำโปรย
+            <textarea class="admin-input" id="bnHeroDesc" rows="2" style="margin-top:0.25rem;">${escapeAttr(content.hero?.desc || '')}</textarea></label>
+          <label style="font-size:0.82rem;font-weight:600;">ข้อความปุ่ม
+            <input class="admin-input" id="bnHeroCta" value="${escapeAttr(content.hero?.cta || '')}" style="margin-top:0.25rem;" /></label>
+          <div class="admin-section-title" style="margin:0.2rem 0 0;">รูปสไลด์ (${(window._cmsHeroDraft || []).length}/10)</div>
+          <div id="bnHeroList" class="hero-admin-list"></div>
+          <label class="btn btn-outline btn-sm" style="justify-content:center;cursor:pointer;">อัปโหลดรูปสไลด์
+            <input type="file" id="bnHeroUpload" accept="image/*" multiple hidden /></label>
+          <div class="admin-actions">
+            <button type="button" class="btn btn-primary btn-sm" id="bnSaveBtn">บันทึกแบนเนอร์</button>
+          </div>
+        </div>
+      `;
+      const paint = () => {
+        const list = document.getElementById('bnHeroList');
+        if (!list) return;
+        const imgs = window._cmsHeroDraft || [];
+        list.innerHTML = imgs.length
+          ? imgs.map((src, idx) => `
+            <div class="hero-admin-item">
+              <img src="${src}" alt="">
+              <button type="button" class="btn btn-outline btn-xs" data-bn-remove="${idx}">ลบ</button>
+            </div>`).join('')
+          : '<div class="empty-admin">ยังไม่มีรูปสไลด์</div>';
+        list.querySelectorAll('[data-bn-remove]').forEach((btn) => {
+          btn.addEventListener('click', () => {
+            window._cmsHeroDraft.splice(Number(btn.getAttribute('data-bn-remove')), 1);
+            paint();
+          });
+        });
+      };
+      paint();
+      document.getElementById('bnHeroUpload')?.addEventListener('change', async (e) => {
+        const files = Array.from(e.target.files || []);
+        e.target.value = '';
+        for (const file of files) {
+          if ((window._cmsHeroDraft || []).length >= 10) {
+            showToast('ใส่ได้สูงสุด 10 รูป');
+            break;
+          }
+          try {
+            const dataUrl = await new Promise((resolve, reject) => {
+              const reader = new FileReader();
+              reader.onload = () => resolve(reader.result);
+              reader.onerror = reject;
+              reader.readAsDataURL(file);
+            });
+            const compressed = await compressImage(dataUrl, 1400, 0.78);
+            window._cmsHeroDraft.push(compressed);
+          } catch (_) {
+            showToast('อัปโหลดรูปไม่สำเร็จ');
+          }
+        }
+        paint();
+      });
+      document.getElementById('bnSaveBtn')?.addEventListener('click', async () => {
+        const contentNext = mergeStoreContent(SHOP_CONFIG.content || {});
+        contentNext.hero = {
+          ...(contentNext.hero || {}),
+          title: document.getElementById('bnHeroTitle')?.value.trim() || contentNext.hero.title,
+          desc: document.getElementById('bnHeroDesc')?.value.trim() || contentNext.hero.desc,
+          cta: document.getElementById('bnHeroCta')?.value.trim() || contentNext.hero.cta,
+        };
+        await saveShopSettings({
+          content: contentNext,
+          heroImages: (window._cmsHeroDraft || []).slice(0, 10),
+        });
+        if (typeof applyStoreContent === 'function') applyStoreContent();
+        refreshHeroSlides();
+        renderAdminBanners();
+      });
+    }
+
+    function renderAdminMedia() {
+      const photos = Array.isArray(SHOP_CONFIG.storefrontPhotos)
+        ? SHOP_CONFIG.storefrontPhotos.map((p) => ({ ...p }))
+        : [];
+      window._cmsStorefrontDraft = photos;
+      const reviews = mergeStoreContent(SHOP_CONFIG.content || {}).reviews?.items || [];
+      adminContent.innerHTML = `
+        <div class="admin-section-title"><span>รูปภาพและสื่อ</span></div>
+        <p style="font-size:0.88rem;color:var(--text-soft);margin:0 0 1rem;line-height:1.5;">
+          จัดการภาพหน้าร้าน (storefront_photos) และดูสรุปรูปรีวิว — อัปโหลดเป็นไฟล์ในเครื่อง/data URL ตามระบบเดิม ไม่สร้าง Storage ใหม่
+        </p>
+        <div class="admin-form-card">
+          <h3>ภาพหน้าร้าน (${photos.length})</h3>
+          <div id="mediaStorefrontList" class="admin-gallery-list" style="margin:0.6rem 0;"></div>
+          <label class="btn btn-outline btn-sm" style="justify-content:center;cursor:pointer;">เพิ่มรูปหน้าร้าน
+            <input type="file" id="mediaStorefrontUpload" accept="image/*" multiple hidden /></label>
+          <div class="admin-actions" style="margin-top:0.75rem;">
+            <button type="button" class="btn btn-primary btn-sm" id="mediaSaveBtn">บันทึกภาพหน้าร้าน</button>
+            <button type="button" class="btn btn-outline btn-sm" data-jump-content>แก้รูปรีวิวในเนื้อหา</button>
+          </div>
+        </div>
+        <div class="admin-section-title" style="margin-top:1.2rem;"><span>รูปรีวิว (${reviews.length})</span></div>
+        <div class="admin-product-list">
+          ${reviews.slice(0, 8).map((r) => `
+            <article class="admin-product-card">
+              <div class="admin-thumb">${r.img ? `<img src="${escapeAttr(r.img)}" alt="">` : '📷'}</div>
+              <div class="admin-product-card__body">
+                <div class="admin-product-card__name">${escapeHtml(r.name || 'ผู้รีวิว')}</div>
+                <div class="admin-product-card__meta">${escapeHtml((r.quote || '').slice(0, 80))}</div>
+              </div>
+            </article>
+          `).join('') || '<div class="empty-admin">ยังไม่มีรีวิว</div>'}
+        </div>
+      `;
+      const paint = () => {
+        const list = document.getElementById('mediaStorefrontList');
+        if (!list) return;
+        const items = window._cmsStorefrontDraft || [];
+        list.innerHTML = items.map((p, idx) => `
+          <div class="admin-gallery-item">
+            <img src="${escapeAttr(p.src || p.url || p)}" alt="">
+            <button type="button" data-media-rm="${idx}">ลบ</button>
+          </div>`).join('') || '<div class="empty-admin">ยังไม่มีภาพหน้าร้าน</div>';
+        list.querySelectorAll('[data-media-rm]').forEach((btn) => {
+          btn.addEventListener('click', () => {
+            window._cmsStorefrontDraft.splice(Number(btn.getAttribute('data-media-rm')), 1);
+            paint();
+          });
+        });
+      };
+      paint();
+      document.getElementById('mediaStorefrontUpload')?.addEventListener('change', async (e) => {
+        const files = Array.from(e.target.files || []);
+        e.target.value = '';
+        for (const file of files) {
+          try {
+            const dataUrl = await new Promise((resolve, reject) => {
+              const reader = new FileReader();
+              reader.onload = () => resolve(reader.result);
+              reader.onerror = reject;
+              reader.readAsDataURL(file);
+            });
+            const compressed = await compressImage(dataUrl, 1200, 0.8);
+            window._cmsStorefrontDraft.push({ src: compressed, alt: file.name || 'ภาพหน้าร้าน' });
+          } catch (_) {
+            showToast('อัปโหลดไม่สำเร็จ');
+          }
+        }
+        paint();
+      });
+      document.getElementById('mediaSaveBtn')?.addEventListener('click', async () => {
+        await saveShopSettings({ storefrontPhotos: (window._cmsStorefrontDraft || []).slice() });
+        if (typeof applyStoreContent === 'function') applyStoreContent();
+        renderAdminMedia();
+      });
+      adminContent.querySelector('[data-jump-content]')?.addEventListener('click', () => jumpAdminTab('content'));
+    }
+
+    function renderAdminCustomers() {
+      const map = new Map();
+      orders.forEach((o) => {
+        const phone = String(o.phone || o.phoneDisplay || '').replace(/\D/g, '') || String(o.phoneDisplay || o.name || o.id);
+        const prev = map.get(phone) || {
+          phone: o.phoneDisplay || o.phone || '—',
+          name: o.name || '—',
+          orders: 0,
+          total: 0,
+          lastAt: 0,
+          lastId: '',
+        };
+        prev.orders += 1;
+        prev.total += Number(o.total) || 0;
+        const created = Number(o.createdAt) || 0;
+        if (created >= prev.lastAt) {
+          prev.lastAt = created;
+          prev.lastId = o.id;
+          prev.name = o.name || prev.name;
+          prev.phone = o.phoneDisplay || o.phone || prev.phone;
+        }
+        map.set(phone, prev);
+      });
+      const rows = Array.from(map.values()).sort((a, b) => b.lastAt - a.lastAt);
+      adminContent.innerHTML = `
+        <div class="admin-section-title"><span>ลูกค้าจากออเดอร์ (${rows.length})</span></div>
+        <p style="font-size:0.88rem;color:var(--text-soft);margin:0 0 1rem;line-height:1.5;">
+          รายชื่อสรุปจาก <code>store_orders</code> ตามเบอร์โทร — ไม่มีตารางลูกค้าแยก และไม่สร้าง schema ใหม่
+        </p>
+        ${rows.length === 0
+          ? '<div class="empty-admin">ยังไม่มีข้อมูลลูกค้าจากออเดอร์</div>'
+          : `
+          <div class="admin-product-list" style="display:flex;">
+            ${rows.slice(0, 80).map((c) => `
+              <article class="admin-product-card" style="grid-template-columns:1fr;">
+                <div class="admin-product-card__body">
+                  <div class="admin-product-card__name">${escapeHtml(c.name)}</div>
+                  <div class="admin-product-card__meta">
+                    ${escapeHtml(c.phone)} · ${c.orders} ออเดอร์ · รวม ${formatPrice(c.total)}
+                    ${c.lastAt ? `<br>ล่าสุด ${formatDateTime(c.lastAt)} · ${escapeHtml(c.lastId)}` : ''}
+                  </div>
+                </div>
+              </article>
+            `).join('')}
+          </div>`}
+      `;
+    }
 
     function getFilteredAdminOrders() {
       const q = String(adminOrderQuery || '').trim().toLowerCase();
@@ -5684,8 +6150,18 @@
       if (!Array.isArray(products) || products.length === 0) {
         products = DEFAULT_PRODUCTS.map(p => ({ ...p }));
       }
+      if (isSupabaseReady() && typeof RachaweiStoreApi.fetchActiveVideos === 'function') {
+        try {
+          const vids = await RachaweiStoreApi.fetchActiveVideos();
+          if (vids.ok && Array.isArray(vids.videos) && vids.videos.length) {
+            shopVideos = vids.videos;
+          }
+        } catch (e) {
+          console.warn('โหลดวิดีโอจาก Supabase ไม่สำเร็จ — ใช้รายการท้องถิ่น', e);
+        }
+      }
       nextProductId = Math.max(...products.map(p => p.id), 0) + 1;
-      nextVideoId = Math.max(...shopVideos.map((v) => v.id), 0) + 1;
+      nextVideoId = Math.max(...shopVideos.map((v) => Number(v.id) || 0), 0) + 1;
       if (!ok && cart.length === 0) {
         const lsCart = loadCartFromLocalStorage();
         if (lsCart?.length) {

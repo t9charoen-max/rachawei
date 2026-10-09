@@ -958,14 +958,19 @@
 
       <!-- Main admin (hidden until login) -->
       <div id="adminMainView" style="display:none;flex-direction:column;flex:1;min-height:0;">
-        <div class="admin-tabs">
-          <button class="admin-tab active" data-tab="dash">📊 ภาพรวม</button>
-          <button class="admin-tab" data-tab="products">🧺 สินค้า</button>
-          <button class="admin-tab" data-tab="videos">🎬 ราชาหวาย VIDEO</button>
-          <button class="admin-tab" data-tab="content">✏️ หน้าบ้าน</button>
-          <button class="admin-tab" data-tab="orders">📦 ออเดอร์</button>
-          <button class="admin-tab" data-tab="settings">⚙️ ตั้งค่า</button>
+        <div class="admin-tabs" role="tablist" aria-label="เมนูหลังร้าน">
+          <button type="button" class="admin-tab active" data-tab="dash" role="tab">ภาพรวม</button>
+          <button type="button" class="admin-tab" data-tab="products" role="tab">สินค้า</button>
+          <button type="button" class="admin-tab" data-tab="categories" role="tab">หมวดหมู่</button>
+          <button type="button" class="admin-tab" data-tab="media" role="tab">รูปภาพและสื่อ</button>
+          <button type="button" class="admin-tab" data-tab="videos" role="tab">วิดีโอ</button>
+          <button type="button" class="admin-tab" data-tab="content" role="tab">เนื้อหาหน้าแรก</button>
+          <button type="button" class="admin-tab" data-tab="banners" role="tab">แบนเนอร์</button>
+          <button type="button" class="admin-tab" data-tab="orders" role="tab">ออเดอร์</button>
+          <button type="button" class="admin-tab" data-tab="customers" role="tab">ลูกค้า</button>
+          <button type="button" class="admin-tab" data-tab="settings" role="tab">ตั้งค่าร้าน</button>
         </div>
+        <div class="admin-save-status" id="adminSaveStatus" hidden aria-live="polite"></div>
         <div class="admin-body" id="adminContent">
           <!-- filled by JS -->
         </div>
