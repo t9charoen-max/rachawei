@@ -254,6 +254,11 @@
         SHOP_CONFIG.content = mergeStoreContent(SHOP_CONFIG.content);
       }
       migratePaymentFields();
+      // If hero DOM already exists (mid-session refresh), paint immediately.
+      // Cold boot still relies on initApp's post-loadPersisted applyShopConfig().
+      if (typeof applyShopConfig === 'function' && document.getElementById('heroStage')) {
+        applyShopConfig();
+      }
     }
 
     function mergeCatalogWithSaved(catalogList, savedList) {
@@ -630,6 +635,76 @@
       if (min <= 0 || discount <= 0) return 0;
       return getCartSubtotal() >= min ? discount : 0;
     }
+
+    const PROMO_CTA_TARGETS = [
+      { href: '#products', label: 'สินค้าแนะนำ (#products)' },
+      { href: '#home', label: 'หน้าแรก (#home)' },
+      { href: '#contact', label: 'ติดต่อร้าน (#contact)' },
+      { href: '#story', label: 'เรื่องราว (#story)' },
+      { href: '#media', label: 'สื่อ/วิดีโอ (#media)' },
+      { href: '#process', label: 'ขั้นตอนงาน (#process)' },
+      { href: '#care', label: 'วิธีดูแล (#care)' },
+    ];
+
+    function normalizePromoHref(raw) {
+      const href = String(raw || '').trim();
+      if (!href) return '#products';
+      if (PROMO_CTA_TARGETS.some((t) => t.href === href)) return href;
+      // Allow only safe in-store hash routes (no external URLs)
+      if (/^#[A-Za-z][\w-]*$/.test(href)) return href;
+      return '#products';
+    }
+
+    function getPromoBarConfig() {
+      const content = typeof mergeStoreContent === 'function'
+        ? mergeStoreContent(SHOP_CONFIG.content || {})
+        : (SHOP_CONFIG.content || {});
+      const pb = content.promoBar && typeof content.promoBar === 'object' ? content.promoBar : {};
+      return {
+        enabled: pb.enabled !== false,
+        emoji: pb.emoji != null && String(pb.emoji).trim() !== '' ? String(pb.emoji).trim() : '🎁',
+        text: String(pb.text || '').trim(),
+        ctaLabel: String(pb.ctaLabel || 'เลือกสินค้า').trim() || 'เลือกสินค้า',
+        ctaHref: normalizePromoHref(pb.ctaHref || '#products'),
+        bgColor: String(pb.bgColor || '').trim(),
+        textColor: String(pb.textColor || '').trim(),
+      };
+    }
+
+    function buildPromoBarText(pb) {
+      const cfg = pb || getPromoBarConfig();
+      if (cfg.text) return cfg.text;
+      const min = Number(SHOP_CONFIG.promoMin) || 0;
+      const disc = Number(SHOP_CONFIG.promoDiscount) || 0;
+      return `${cfg.emoji} สั่งครบ ${Number(min).toLocaleString('th-TH')} บาท ลดทันที ${Number(disc).toLocaleString('th-TH')} บาท`;
+    }
+
+    function navigatePromoCta(href) {
+      const target = normalizePromoHref(href);
+      if (target === '#products') {
+        showPage('home');
+        setTimeout(() => {
+          document.getElementById('products')?.scrollIntoView({ behavior: 'smooth' });
+        }, 50);
+        return;
+      }
+      if (target === '#contact') {
+        showPage('home');
+        setTimeout(() => {
+          document.getElementById('contact')?.scrollIntoView({ behavior: 'smooth' });
+        }, 50);
+        return;
+      }
+      const page = target.replace(/^#/, '');
+      if (PAGE_HASHES.includes(page)) {
+        showPage(page);
+        return;
+      }
+      showPage('home');
+    }
+    window.getPromoBarConfig = getPromoBarConfig;
+    window.buildPromoBarText = buildPromoBarText;
+    window.getPromoDiscount = getPromoDiscount;
 
     function getShippingFee() {
       const subtotal = getCartSubtotal() - getPromoDiscount();
@@ -3823,6 +3898,9 @@
             <label style="font-size:0.82rem;font-weight:600;">ส่วนลด (บาท)
               <input class="admin-input" type="number" id="setPromoDisc" value="${c.promoDiscount||0}" style="width:100%;margin-top:0.25rem;"></label>
           </div>
+          <p style="font-size:0.78rem;color:var(--text-soft);margin:0;line-height:1.45;">
+            ตัวเลขโปรใช้คำนวณ Checkout — แก้ข้อความ/เปิดปิดแถบโปรได้ที่แท็บ <strong>แบนเนอร์ → แถบโปรโมชัน</strong>
+          </p>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.6rem;">
             <label style="font-size:0.82rem;font-weight:600;">ค่าจัดส่ง (บาท)
               <input class="admin-input" type="number" id="setShippingFee" value="${c.shippingFee ?? 80}" min="0" step="10" style="width:100%;margin-top:0.25rem;"></label>
@@ -5289,10 +5367,69 @@
 
     function renderAdminBanners() {
       const content = mergeStoreContent(SHOP_CONFIG.content || {});
+      const pb = content.promoBar || {};
       window._cmsHeroDraft = (Array.isArray(SHOP_CONFIG.heroImages) ? SHOP_CONFIG.heroImages : []).filter(Boolean).slice();
+      const ctaOpts = PROMO_CTA_TARGETS.map((t) =>
+        `<option value="${escapeAttr(t.href)}" ${normalizePromoHref(pb.ctaHref || '#products') === t.href ? 'selected' : ''}>${escapeHtml(t.label)}</option>`
+      ).join('');
       adminContent.innerHTML = `
         ${adminCloudStatusBannerHtml()}
-        <div class="admin-section-title"><span>แบนเนอร์ / ภาพปกหน้าแรก</span></div>
+        <div class="admin-section-title"><span>แถบโปรโมชัน</span></div>
+        <p style="font-size:0.88rem;color:var(--text-soft);margin:0 0 1rem;line-height:1.5;">
+          แถบข้อความด้านบนหน้าร้าน — ใช้ <code>content.promoBar</code> + <code>promo_min</code>/<code>promo_discount</code>
+          ใน <code>store_shop_settings</code> ชุดเดียวกับ Checkout (ไม่สร้างตารางใหม่)
+        </p>
+        <div class="admin-form-card admin-promo-bar-card" style="display:grid;gap:0.75rem;max-width:560px;">
+          <label class="admin-check-row" style="display:flex;align-items:center;gap:0.55rem;font-size:0.9rem;font-weight:600;">
+            <input type="checkbox" id="pbEnabled" ${pb.enabled !== false ? 'checked' : ''} style="width:1.15rem;height:1.15rem;" />
+            แสดงแถบโปรโมชันบนหน้าร้าน
+          </label>
+          <div style="display:grid;grid-template-columns:5.5rem 1fr;gap:0.6rem;">
+            <label style="font-size:0.82rem;font-weight:600;">สัญลักษณ์
+              <input class="admin-input" id="pbEmoji" value="${escapeAttr(pb.emoji != null ? pb.emoji : '🎁')}" maxlength="8" style="margin-top:0.25rem;text-align:center;" /></label>
+            <label style="font-size:0.82rem;font-weight:600;">ข้อความแถบ (เว้นว่าง = สร้างอัตโนมัติจากยอดขั้นต่ำ/ส่วนลด)
+              <input class="admin-input" id="pbText" value="${escapeAttr(pb.text || '')}" placeholder="เช่น สั่งครบ 1,500 บาท ลดทันที 100 บาท" style="margin-top:0.25rem;" /></label>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.6rem;">
+            <label style="font-size:0.82rem;font-weight:600;">ยอดซื้อขั้นต่ำ (บาท)
+              <input class="admin-input" type="number" id="pbPromoMin" min="0" step="50" value="${Number(SHOP_CONFIG.promoMin) || 0}" style="margin-top:0.25rem;" /></label>
+            <label style="font-size:0.82rem;font-weight:600;">ส่วนลด (บาท)
+              <input class="admin-input" type="number" id="pbPromoDisc" min="0" step="10" value="${Number(SHOP_CONFIG.promoDiscount) || 0}" style="margin-top:0.25rem;" /></label>
+          </div>
+          <p style="font-size:0.78rem;color:#7a4a12;background:#fff8e8;border:1px solid rgba(180,120,40,0.35);border-radius:10px;padding:0.55rem 0.7rem;margin:0;line-height:1.45;">
+            ตัวเลขสองช่องนี้ใช้คำนวณส่วนลดตอน Checkout จริง — ห้ามตั้งข้อความโฆษณาให้ต่างจากยอดที่ลดจริง
+          </p>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.6rem;">
+            <label style="font-size:0.82rem;font-weight:600;">ข้อความปุ่ม
+              <input class="admin-input" id="pbCtaLabel" value="${escapeAttr(pb.ctaLabel || 'เลือกสินค้า')}" style="margin-top:0.25rem;" /></label>
+            <label style="font-size:0.82rem;font-weight:600;">ปลายทางปุ่ม (ในร้าน)
+              <select class="admin-input" id="pbCtaHref" style="margin-top:0.25rem;">${ctaOpts}</select></label>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.6rem;">
+            <label style="font-size:0.82rem;font-weight:600;">สีพื้นหลัง
+              <input class="admin-input" type="color" id="pbBgColor" value="${escapeAttr(pb.bgColor && /^#/.test(pb.bgColor) ? pb.bgColor : '#5c4033')}" style="margin-top:0.25rem;min-height:2.75rem;padding:0.2rem;" />
+              <span style="display:block;font-size:0.72rem;color:var(--text-soft);margin-top:0.2rem;">
+                <label style="font-weight:500;"><input type="checkbox" id="pbBgDefault" ${pb.bgColor ? '' : 'checked'} /> ใช้สีเริ่มต้นของธีม</label>
+              </span>
+            </label>
+            <label style="font-size:0.82rem;font-weight:600;">สีตัวอักษร
+              <input class="admin-input" type="color" id="pbTextColor" value="${escapeAttr(pb.textColor && /^#/.test(pb.textColor) ? pb.textColor : '#fff8ef')}" style="margin-top:0.25rem;min-height:2.75rem;padding:0.2rem;" />
+              <span style="display:block;font-size:0.72rem;color:var(--text-soft);margin-top:0.2rem;">
+                <label style="font-weight:500;"><input type="checkbox" id="pbTextDefault" ${pb.textColor ? '' : 'checked'} /> ใช้สีเริ่มต้นของธีม</label>
+              </span>
+            </label>
+          </div>
+          <div class="admin-promo-preview-wrap">
+            <div class="admin-section-title" style="margin:0.15rem 0 0.4rem;font-size:0.9rem;">ตัวอย่างแถบ</div>
+            <div class="admin-promo-preview" id="pbPreview" aria-live="polite"></div>
+          </div>
+          <div class="admin-actions" style="flex-wrap:wrap;gap:0.5rem;">
+            <button type="button" class="btn btn-primary" id="pbSaveBtn" style="min-height:2.75rem;">💾 บันทึกแถบโปรโมชัน</button>
+            <button type="button" class="btn btn-outline" id="pbPreviewRefresh" style="min-height:2.75rem;">รีเฟรชตัวอย่าง</button>
+          </div>
+        </div>
+
+        <div class="admin-section-title" style="margin-top:1.5rem;"><span>แบนเนอร์ / ภาพปกหน้าแรก</span></div>
         <p style="font-size:0.88rem;color:var(--text-soft);margin:0 0 1rem;line-height:1.5;">
           ข้อความฮีโร่และรูปสไลด์พื้นหลัง — ใช้ข้อมูลเดิมในตั้งค่าร้าน/เนื้อหา (hero_images + content.hero)
         </p>
@@ -5312,6 +5449,84 @@
           </div>
         </div>
       `;
+
+      function readPromoBarDraft() {
+        const useBgDefault = document.getElementById('pbBgDefault')?.checked;
+        const useTextDefault = document.getElementById('pbTextDefault')?.checked;
+        return {
+          enabled: Boolean(document.getElementById('pbEnabled')?.checked),
+          emoji: document.getElementById('pbEmoji')?.value.trim() || '🎁',
+          text: document.getElementById('pbText')?.value.trim() || '',
+          ctaLabel: document.getElementById('pbCtaLabel')?.value.trim() || 'เลือกสินค้า',
+          ctaHref: normalizePromoHref(document.getElementById('pbCtaHref')?.value || '#products'),
+          bgColor: useBgDefault ? '' : (document.getElementById('pbBgColor')?.value || ''),
+          textColor: useTextDefault ? '' : (document.getElementById('pbTextColor')?.value || ''),
+          promoMin: Math.max(0, Number(document.getElementById('pbPromoMin')?.value) || 0),
+          promoDiscount: Math.max(0, Number(document.getElementById('pbPromoDisc')?.value) || 0),
+        };
+      }
+
+      function paintPromoPreview() {
+        const preview = document.getElementById('pbPreview');
+        if (!preview) return;
+        const draft = readPromoBarDraft();
+        if (!draft.enabled) {
+          preview.innerHTML = '<div class="admin-promo-preview__off">แถบโปรโมชันถูกปิด — จะไม่แสดงบนหน้าร้าน</div>';
+          return;
+        }
+        const prevMin = SHOP_CONFIG.promoMin;
+        const prevDisc = SHOP_CONFIG.promoDiscount;
+        SHOP_CONFIG.promoMin = draft.promoMin;
+        SHOP_CONFIG.promoDiscount = draft.promoDiscount;
+        const text = buildPromoBarText(draft);
+        SHOP_CONFIG.promoMin = prevMin;
+        SHOP_CONFIG.promoDiscount = prevDisc;
+        const bg = draft.bgColor || '';
+        const fg = draft.textColor || '';
+        preview.innerHTML = `
+          <div class="admin-promo-preview__bar" style="${bg ? `background:${escapeAttr(bg)};` : ''}${fg ? `color:${escapeAttr(fg)};` : ''}">
+            <span class="admin-promo-preview__text">${escapeHtml(text)}</span>
+            <span class="admin-promo-preview__cta">${escapeHtml(draft.ctaLabel)}</span>
+          </div>
+          <p class="admin-promo-preview__meta">ปลายทาง: ${escapeHtml(draft.ctaHref)} · ลด ${draft.promoDiscount.toLocaleString('th-TH')} บาท เมื่อครบ ${draft.promoMin.toLocaleString('th-TH')}</p>
+        `;
+      }
+
+      ['pbEnabled', 'pbEmoji', 'pbText', 'pbPromoMin', 'pbPromoDisc', 'pbCtaLabel', 'pbCtaHref', 'pbBgColor', 'pbTextColor', 'pbBgDefault', 'pbTextDefault']
+        .forEach((id) => {
+          document.getElementById(id)?.addEventListener('input', paintPromoPreview);
+          document.getElementById(id)?.addEventListener('change', paintPromoPreview);
+        });
+      document.getElementById('pbPreviewRefresh')?.addEventListener('click', paintPromoPreview);
+      paintPromoPreview();
+
+      document.getElementById('pbSaveBtn')?.addEventListener('click', async () => {
+        const draft = readPromoBarDraft();
+        const contentNext = mergeStoreContent(SHOP_CONFIG.content || {});
+        contentNext.promoBar = {
+          enabled: draft.enabled,
+          emoji: draft.emoji,
+          text: draft.text,
+          ctaLabel: draft.ctaLabel,
+          ctaHref: draft.ctaHref,
+          bgColor: draft.bgColor,
+          textColor: draft.textColor,
+        };
+        const result = await saveShopSettings({
+          content: contentNext,
+          promoMin: draft.promoMin,
+          promoDiscount: draft.promoDiscount,
+        });
+        if (result?.ok) {
+          try {
+            sessionStorage.removeItem('rachawei_promo_dismissed');
+            localStorage.removeItem('rachawei_promo_dismissed');
+          } catch (_) { /* ignore */ }
+          applyPromoBar();
+          renderAdminBanners();
+        }
+      });
+
       const paint = () => {
         const list = document.getElementById('bnHeroList');
         if (!list) return;
@@ -5356,19 +5571,24 @@
       });
       document.getElementById('bnSaveBtn')?.addEventListener('click', async () => {
         const contentNext = mergeStoreContent(SHOP_CONFIG.content || {});
+        const titleInput = document.getElementById('bnHeroTitle')?.value ?? '';
+        const descInput = document.getElementById('bnHeroDesc')?.value ?? '';
+        const ctaInput = document.getElementById('bnHeroCta')?.value ?? '';
         contentNext.hero = {
           ...(contentNext.hero || {}),
-          title: document.getElementById('bnHeroTitle')?.value.trim() || contentNext.hero.title,
-          desc: document.getElementById('bnHeroDesc')?.value.trim() || contentNext.hero.desc,
-          cta: document.getElementById('bnHeroCta')?.value.trim() || contentNext.hero.cta,
+          title: titleInput.trim() || contentNext.hero?.title || '',
+          desc: descInput.trim() || contentNext.hero?.desc || '',
+          cta: ctaInput.trim() || contentNext.hero?.cta || '',
         };
-        await saveShopSettings({
+        const result = await saveShopSettings({
           content: contentNext,
           heroImages: (window._cmsHeroDraft || []).slice(0, 10),
         });
+        // Always re-hydrate storefront from SHOP_CONFIG (same source as public load)
+        applyShopConfig();
         if (typeof applyStoreContent === 'function') applyStoreContent();
         refreshHeroSlides();
-        renderAdminBanners();
+        if (result?.ok) renderAdminBanners();
       });
     }
 
@@ -6292,12 +6512,54 @@
     window.dismissPromo = dismissPromo;
 
     function showPromo() {
-      if (isPromoDismissed() || !promoBar) return;
+      if (!promoBar) return;
+      const pb = getPromoBarConfig();
+      if (!pb.enabled) {
+        promoBar.hidden = true;
+        if (typeof syncStickyNavOffset === 'function') syncStickyNavOffset();
+        return;
+      }
+      if (isPromoDismissed()) return;
       const install = document.getElementById('installBanner');
       if (install && !install.hidden) return;
       promoBar.hidden = false;
       if (typeof syncStickyNavOffset === 'function') syncStickyNavOffset();
     }
+
+    function applyPromoBar() {
+      const pb = getPromoBarConfig();
+      const bar = document.getElementById('promoBar');
+      const textEl = document.getElementById('promoBarText');
+      const linkEl = document.getElementById('promoBarShop');
+      if (!bar) return;
+      bar.dataset.adminEnabled = pb.enabled ? '1' : '0';
+      if (textEl) textEl.textContent = buildPromoBarText(pb);
+      if (linkEl) {
+        linkEl.textContent = pb.ctaLabel;
+        linkEl.setAttribute('href', pb.ctaHref);
+      }
+      if (pb.bgColor) {
+        bar.style.background = pb.bgColor;
+      } else {
+        bar.style.background = '';
+      }
+      if (pb.textColor) {
+        bar.style.color = pb.textColor;
+        if (linkEl) linkEl.style.color = pb.textColor;
+      } else {
+        bar.style.color = '';
+        if (linkEl) linkEl.style.color = '';
+      }
+      if (!pb.enabled) {
+        bar.hidden = true;
+      } else if (!isPromoDismissed()) {
+        showPromo();
+      } else {
+        bar.hidden = true;
+      }
+      if (typeof syncStickyNavOffset === 'function') syncStickyNavOffset();
+    }
+    window.applyPromoBar = applyPromoBar;
 
     let promoTimer = null;
     function schedulePromoAfterInstall(delayMs = 900) {
@@ -6307,7 +6569,12 @@
     window.schedulePromoAfterInstall = schedulePromoAfterInstall;
 
     document.getElementById('promoBarClose')?.addEventListener('click', () => dismissPromo(true));
-    document.getElementById('promoBarShop')?.addEventListener('click', () => dismissPromo(true));
+    document.getElementById('promoBarShop')?.addEventListener('click', (e) => {
+      e.preventDefault();
+      const href = document.getElementById('promoBarShop')?.getAttribute('href') || '#products';
+      dismissPromo(true);
+      navigatePromoCta(href);
+    });
 
 
     // ========== PAGE NAV ==========
@@ -6347,6 +6614,8 @@
       if (headerEl) new ResizeObserver(syncStickyNavOffset).observe(headerEl);
     }
     document.querySelectorAll('a[href="#products"]').forEach(a => {
+      // promoBarShop has its own CTA handler (destination configurable from Admin)
+      if (a.id === 'promoBarShop') return;
       a.addEventListener('click', (e) => {
         e.preventDefault();
         showPage('home');
@@ -6611,10 +6880,7 @@
       document.querySelectorAll('.promo-deal .value').forEach(el => {
         el.textContent = 'ลดทันที ' + c.promoDiscount + ' บาท';
       });
-      const promoBarText = document.getElementById('promoBarText');
-      if (promoBarText && c.promoMin && c.promoDiscount) {
-        promoBarText.textContent = `🎁 สั่งครบ ${c.promoMin.toLocaleString('th-TH')} บาท ลดทันที ${c.promoDiscount} บาท`;
-      }
+      applyPromoBar();
       renderStorefrontPhotos(c.storefrontPhotos);
       if (typeof refreshHeroSlides === 'function') refreshHeroSlides();
       if (typeof applyStoreContent === 'function') applyStoreContent();
@@ -6629,9 +6895,13 @@
           console.warn('Supabase init ไม่สำเร็จ — ใช้แคตตาล็อกท้องถิ่น', e);
         }
       }
+      // Paint once with build defaults, then again after IndexedDB/Supabase hydrate.
+      // Without the second pass, hero CMS text stays stuck on HTML defaults even when
+      // store_shop_settings.content.hero was saved correctly.
       applyShopConfig();
       const ok = await loadPersisted();
       migratePaymentFields();
+      applyShopConfig();
       if (!Array.isArray(products) || products.length === 0) {
         products = DEFAULT_PRODUCTS.map(p => ({ ...p }));
       }
