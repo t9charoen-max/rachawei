@@ -3842,6 +3842,11 @@
       padding: 0;
     }
     .admin-overlay.open { display: flex; }
+    /* While order detail is open: block taps/paint bleed from the admin shell */
+    .admin-overlay.admin-overlay--detail-open {
+      pointer-events: none;
+      visibility: hidden;
+    }
 
     .admin-panel {
       width: min(960px, 100%);
@@ -5459,11 +5464,12 @@
       width: min(520px, 100%);
       pointer-events: auto;
       -webkit-overflow-scrolling: touch;
-      background: #fffdf9;
-      opacity: 1;
+      background: #fffdf9 !important;
+      opacity: 1 !important;
       isolation: isolate;
       position: relative;
       z-index: 1;
+      box-shadow: 0 24px 64px rgba(0, 0, 0, 0.35);
     }
     .admin-order-detail-grid {
       display: grid;

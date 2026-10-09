@@ -5911,6 +5911,20 @@
     const adminOrderDetailActions = document.getElementById('adminOrderDetailActions');
     const adminOrderDetailTitle = document.getElementById('adminOrderDetailTitle');
 
+    function setAdminOrdersBackdropInert(inert) {
+      const overlay = document.getElementById('adminOverlay');
+      if (!overlay) return;
+      if (inert) {
+        overlay.classList.add('admin-overlay--detail-open');
+        overlay.setAttribute('aria-hidden', 'true');
+        try { overlay.inert = true; } catch (_) { /* older WebKit */ }
+      } else {
+        overlay.classList.remove('admin-overlay--detail-open');
+        overlay.removeAttribute('aria-hidden');
+        try { overlay.inert = false; } catch (_) { /* older WebKit */ }
+      }
+    }
+
     function closeAdminOrderDetail() {
       if (!adminOrderDetailModal) return;
       adminOrderDetailOpenId = null;
@@ -5921,6 +5935,7 @@
       if (adminOrderDetailBody) adminOrderDetailBody.innerHTML = '';
       if (adminOrderDetailActions) adminOrderDetailActions.innerHTML = '';
       if (adminOrderDetailTitle) adminOrderDetailTitle.textContent = 'รายละเอียดออเดอร์';
+      setAdminOrdersBackdropInert(false);
     }
 
     function renderAdminOrderDetailContent(o) {
@@ -6024,6 +6039,7 @@
       adminOrderDetailModal.hidden = false;
       adminOrderDetailModal.removeAttribute('hidden');
       adminOrderDetailModal.classList.add('open');
+      setAdminOrdersBackdropInert(true);
       try {
         document.getElementById('adminOrderDetailClose2')?.focus({ preventScroll: true });
       } catch (_) { /* ignore */ }
