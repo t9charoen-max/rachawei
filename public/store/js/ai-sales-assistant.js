@@ -78,11 +78,11 @@
       return {
         ok: true,
         geminiKeyConfigured: Boolean(data.geminiKeyConfigured),
-        // Do not claim Gemini answers will succeed — key/quota may still fail at ask time.
+        // Health only proves the Edge Function responds — never claim Gemini is ready.
         message: data.geminiKeyConfigured
-          ? 'เชื่อมต่อเซิร์ฟเวอร์ผู้ช่วยแล้ว · คำตอบอิงสินค้าจริงในร้าน'
+          ? 'เชื่อมต่อเซิร์ฟเวอร์ผู้ช่วยแล้ว · ยังไม่ยืนยันว่า Gemini พร้อม (ถ้าไม่พร้อมจะค้นหาจากสินค้าในร้าน)'
           : 'ฟังก์ชันพร้อม แต่ยังไม่ได้ตั้งค่า Gemini API Key — จะค้นหาสินค้าจากฐานข้อมูลแทน',
-        statusTone: data.geminiKeyConfigured ? 'ok' : 'warn',
+        statusTone: data.geminiKeyConfigured ? 'info' : 'warn',
       };
     } catch (e) {
       return {
@@ -328,7 +328,7 @@
         applyStatus(
           statusEl,
           health.message || 'เชื่อมต่อเซิร์ฟเวอร์ผู้ช่วยแล้ว',
-          health.statusTone || 'ok',
+          health.statusTone || 'info',
         );
       } else {
         applyStatus(statusEl, health.message || 'เชื่อมต่อผู้ช่วย AI ไม่สำเร็จ', 'error');
