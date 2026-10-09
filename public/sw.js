@@ -1,5 +1,5 @@
 /* Service worker ราชาหวายสุรินทร์ — ให้เปิดแบบแอปและโหลดซ้ำเร็ว */
-const CACHE_VERSION = 'rachawei-v1946-gamma-production';
+const CACHE_VERSION = 'rachawei-v1947-sellable-hardening';
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 
 self.addEventListener('install', (event) => {

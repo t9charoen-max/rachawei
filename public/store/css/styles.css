@@ -5173,6 +5173,46 @@
       color: #c0392b;
     }
 
+    .product-size {
+      font-size: 0.72rem;
+      color: var(--text-soft);
+      margin: 0 0 0.2rem;
+      line-height: 1.35;
+    }
+
+    .product-card-desc {
+      font-size: 0.72rem;
+      color: var(--text-soft);
+      margin: 0 0 0.35rem;
+      line-height: 1.4;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    .admin-order-filters {
+      display: grid;
+      grid-template-columns: 1.4fr 1fr 1fr;
+      gap: 0.5rem;
+      margin: 0 0 0.85rem;
+    }
+
+    @media (max-width: 720px) {
+      .admin-order-filters {
+        grid-template-columns: 1fr;
+      }
+
+      .shop-app .product-card-desc {
+        display: -webkit-box;
+      }
+
+      .btn-add-full {
+        min-height: 44px;
+        font-size: 0.9rem;
+      }
+    }
+
     .btn-add-full {
       width: 100%;
       justify-content: center;
