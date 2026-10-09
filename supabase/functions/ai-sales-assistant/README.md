@@ -17,8 +17,17 @@
 
 ## สถานะปัจจุบัน (ตรวจด้วย anon API)
 
-- `POST /functions/v1/ai-sales-assistant` → `404 NOT_FOUND` = **ยังไม่ได้ Deploy ฟังก์ชัน**
+- `GET/POST /functions/v1/ai-sales-assistant` → `404 NOT_FOUND` = **ยังไม่ได้ Deploy ฟังก์ชันบนโปรเจกต์นี้**
+- สาเหตุหลักของ 404: มีเฉพาะโค้ดใน GitHub PR — **ยังไม่มี function instance บน Supabase**
 - การตั้ง Secret `GEMINI_API_KEY` ใน Dashboard **ยังไม่พอ** จนกว่าจะ Deploy โค้ดฟังก์ชันขึ้นโปรเจกต์
+- Agent ใน Cursor **ไม่มี** `SUPABASE_ACCESS_TOKEN` จึง Deploy แทนไม่ได้ — ต้องรันจากเครื่องเจ้าของโปรเจกต์
+
+ตรวจหลัง Deploy:
+```bash
+npm run check:ai-assistant
+# หรือ
+node scripts/check-ai-assistant-edge.mjs https://jvgfudxdwdwfumdznymu.supabase.co
+```
 
 ## โมเดล (ลำดับลอง)
 
