@@ -4037,3 +4037,210 @@
   font-size: 0.64rem;
   color: rgba(232, 217, 200, 0.8);
 }
+
+/* ========== Landing intro (/) — minimal premium ========== */
+.landing-shell {
+  position: relative;
+  margin: 0 auto;
+  display: flex;
+  min-height: 100dvh;
+  max-width: 28rem;
+  flex-direction: column;
+  background: #140e0a;
+  color: #f6efe4;
+}
+
+.landing-header {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  padding: calc(0.7rem + env(safe-area-inset-top, 0px)) 1rem 0.65rem;
+  background: linear-gradient(180deg, rgba(12, 8, 5, 0.72) 0%, rgba(12, 8, 5, 0.28) 70%, transparent 100%);
+}
+
+.landing-header__brand {
+  min-width: 0;
+}
+
+.landing-header .brand-mark__logo--header {
+  width: 2.15rem;
+  height: 2.15rem;
+}
+
+.landing-header .brand-mark--header .brand-mark__primary {
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: #f3e6cf;
+}
+
+.landing-header .brand-mark--header .brand-mark__secondary {
+  font-size: 0.68rem;
+  font-weight: 500;
+  color: rgba(212, 168, 83, 0.92);
+}
+
+.landing-header .brand-mark--header .brand-mark__tagline {
+  display: none;
+}
+
+.landing-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+}
+
+.landing-status {
+  margin: auto;
+  padding: 2rem 1.25rem;
+  text-align: center;
+  font-size: 0.92rem;
+  color: rgba(246, 239, 228, 0.78);
+}
+
+.landing-status a {
+  color: #d4a853;
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+}
+
+.home-page--landing {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+}
+
+.landing-hero {
+  position: relative;
+  flex: 1;
+  display: flex;
+  min-height: 100dvh;
+  flex-direction: column;
+  justify-content: flex-end;
+  overflow: hidden;
+}
+
+.landing-hero__media {
+  position: absolute;
+  inset: 0;
+}
+
+.landing-hero__image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 35%;
+  transform: scale(1.02);
+  animation: landing-hero-in 1.1s ease both;
+}
+
+.landing-hero__shade {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(180deg, rgba(10, 7, 4, 0.45) 0%, rgba(10, 7, 4, 0.08) 28%, rgba(10, 7, 4, 0.2) 52%, rgba(10, 7, 4, 0.82) 78%, rgba(10, 7, 4, 0.94) 100%);
+  pointer-events: none;
+}
+
+.landing-hero__copy {
+  position: relative;
+  z-index: 2;
+  padding: 0 1.25rem calc(1.6rem + env(safe-area-inset-bottom, 0px));
+  max-width: 22rem;
+  animation: landing-copy-in 0.75s ease 0.15s both;
+}
+
+.landing-hero__eyebrow {
+  margin: 0 0 0.65rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(212, 168, 83, 0.95);
+}
+
+.landing-hero__title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(1.85rem, 7.2vw, 2.25rem);
+  font-weight: 600;
+  line-height: 1.22;
+  letter-spacing: 0.01em;
+  color: #f8f1e6;
+  text-wrap: balance;
+}
+
+.landing-hero__lede {
+  margin: 0.75rem 0 0;
+  max-width: 28ch;
+  font-size: 0.92rem;
+  font-weight: 400;
+  line-height: 1.55;
+  color: rgba(246, 239, 228, 0.82);
+}
+
+.landing-hero__cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 1.35rem;
+  min-height: 3rem;
+  padding: 0.85rem 1.55rem;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #d4a853 0%, #b8893a 100%);
+  color: #1a120c;
+  font-size: 0.98rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  text-decoration: none;
+  transition: filter 0.2s ease, transform 0.15s ease;
+}
+
+.landing-hero__cta:hover {
+  filter: brightness(1.05);
+}
+
+.landing-hero__cta:active {
+  transform: scale(0.98);
+}
+
+@keyframes landing-hero-in {
+  from {
+    opacity: 0.65;
+    transform: scale(1.06);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1.02);
+  }
+}
+
+@keyframes landing-copy-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (min-width: 480px) {
+  .landing-shell {
+    max-width: 28rem;
+    box-shadow: 0 0 0 1px rgba(212, 168, 83, 0.08);
+  }
+
+  .landing-hero__copy {
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+  }
+}
