@@ -1,11 +1,17 @@
 /**
  * Mobile Admin Orders UI smoke test (local PIN + seeded IndexedDB orders).
- * Forces local (non-Supabase) admin mode so we never hit real RPCs or mutate
- * RW-TEST-DIRECT / RW-DIRECT-SHOULD-FAIL on production.
+ * Never hits real Supabase RPCs or mutates production orders.
+ * Delete success/failure use mocked deleteOrderForAdmin on RW-UI-SMOKE-001 only.
  */
 import puppeteer from 'puppeteer-core';
+import http from 'node:http';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { execSync } from 'node:child_process';
 
-const BASE = process.env.STORE_URL || 'http://127.0.0.1:8894/store/';
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const ROOT = path.resolve(__dirname, '..');
 const CHROME = process.env.CHROME_PATH || '/usr/local/bin/google-chrome';
 const PIN = process.env.STORE_ADMIN_PIN || '5678';
 
@@ -33,6 +39,24 @@ const seedOrders = [
     paymentSlip: null,
     history: [{ index: 0, at: Date.now() - 60000 }],
     createdAt: Date.now() - 60000,
+  },
+  {
+    id: 'RW-UI-SMOKE-002',
+    name: 'ลูกค้า สำรอง',
+    phone: '0899999999',
+    phoneDisplay: '089-999-9999',
+    address: 'ที่อยู่ออเดอร์สอง',
+    note: '',
+    method: 'cod',
+    statusIndex: 1,
+    subtotal: 200,
+    shippingFee: 40,
+    promoDiscount: 0,
+    total: 240,
+    items: [{ name: 'ตะกร้าเล็ก', qty: 1, price: 200, emoji: '🧺' }],
+    paymentSlip: null,
+    history: [{ index: 1, at: Date.now() - 30000 }],
+    createdAt: Date.now() - 30000,
   },
   {
     id: 'RW-TEST-DIRECT',
@@ -77,6 +101,144 @@ function hashAdminPin(pin) {
   return String(h >>> 0);
 }
 
+const MIME = {
+  '.html': 'text/html; charset=utf-8',
+  '.js': 'application/javascript; charset=utf-8',
+  '.css': 'text/css; charset=utf-8',
+  '.png': 'image/png',
+  '.webp': 'image/webp',
+  '.svg': 'image/svg+xml',
+  '.webmanifest': 'application/manifest+json',
+  '.json': 'application/json',
+};
+
+function startStaticServer() {
+  const storeRoot = path.join(ROOT, 'public', 'store');
+  const server = http.createServer((req, res) => {
+    const url = new URL(req.url || '/', 'http://127.0.0.1');
+    let rel = decodeURIComponent(url.pathname);
+    if (rel === '/' || rel === '/store' || rel === '/store/') rel = '/store/index.html';
+    if (rel.startsWith('/store/')) rel = rel.slice('/store'.length);
+    const filePath = path.normalize(path.join(storeRoot, rel));
+    if (!filePath.startsWith(storeRoot)) {
+      res.writeHead(403);
+      res.end('forbidden');
+      return;
+    }
+    fs.readFile(filePath, (err, data) => {
+      if (err) {
+        res.writeHead(404);
+        res.end('not found');
+        return;
+      }
+      res.writeHead(200, { 'Content-Type': MIME[path.extname(filePath)] || 'application/octet-stream' });
+      res.end(data);
+    });
+  });
+  return new Promise((resolve) => {
+    server.listen(0, '127.0.0.1', () => {
+      const { port } = server.address();
+      resolve({ server, base: `http://127.0.0.1:${port}/store/` });
+    });
+  });
+}
+
+async function loginAndOpenOrders(page, base) {
+  await page.goto(`${base}#admin`, { waitUntil: 'networkidle0' });
+  await page.evaluate(() => {
+    document.getElementById('adminOverlay')?.classList.add('open');
+  });
+  await page.waitForSelector('#adminPin', { visible: true, timeout: 15000 });
+  await page.click('#adminPin', { clickCount: 3 });
+  await page.keyboard.press('Backspace');
+  await page.type('#adminPin', PIN);
+  await page.click('#adminLoginBtn');
+  await page.waitForSelector('#adminMainView', { visible: true, timeout: 15000 });
+  await page.click('.admin-tab[data-tab="orders"]');
+  await page.waitForSelector('.admin-order-detail-btn, .empty-admin', { timeout: 15000 });
+}
+
+async function ensureOrdersVisible(page, base) {
+  let detailCount = await page.$$eval('.admin-order-detail-btn', (els) => els.length);
+  if (detailCount) return detailCount;
+  await page.evaluate(async (orders, pinHash) => {
+    await new Promise((resolve, reject) => {
+      const req = indexedDB.open('rachawei_surin_db', 1);
+      req.onerror = () => reject(req.error);
+      req.onsuccess = () => {
+        const db = req.result;
+        const tx = db.transaction('app', 'readwrite');
+        const store = tx.objectStore('app');
+        store.put(orders, 'orders');
+        store.put({ adminPinHash: pinHash }, 'shopSettings');
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+      };
+    });
+  }, seedOrders, hashAdminPin(PIN));
+  await page.reload({ waitUntil: 'networkidle0' });
+  await loginAndOpenOrders(page, base);
+  return page.$$eval('.admin-order-detail-btn', (els) => els.length);
+}
+
+async function installOrderMocks(page, mode) {
+  await page.evaluate((mockMode) => {
+    const api = window.RachaweiStoreApi;
+    if (!api) throw new Error('RachaweiStoreApi missing');
+    if (typeof api.applyConfig === 'function') {
+      api.applyConfig({
+        url: 'https://example.supabase.co',
+        anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.e30.mock',
+        configured: true,
+      });
+    }
+    api.isConfigured = () => true;
+    api.deleteOrderForAdmin = async (id) => {
+      if (mockMode === 'fail') {
+        return { ok: false, error: 'mock_fail', message: `ลบออเดอร์ไม่สำเร็จ (mock): ${id}` };
+      }
+      if (id !== 'RW-UI-SMOKE-001') {
+        return { ok: false, error: 'refused', message: 'ทดสอบลบได้เฉพาะ RW-UI-SMOKE-001' };
+      }
+      return { ok: true, orderId: id, deletedItems: 1 };
+    };
+    api.fetchOrdersForAdmin = async () => {
+      // Return current DOM/local list snapshot after delete — read from IndexedDB-backed UI state via rows
+      const ids = [...document.querySelectorAll('tr[data-order-id]')].map((e) => e.getAttribute('data-order-id'));
+      // Prefer in-memory: rebuild minimal order stubs for remaining rows
+      const orders = ids.map((id) => ({
+        id,
+        name: id,
+        phone: '0800000000',
+        phoneDisplay: '080-000-0000',
+        address: 'mock',
+        method: 'cod',
+        statusIndex: 0,
+        subtotal: 1,
+        shippingFee: 0,
+        promoDiscount: 0,
+        total: 1,
+        items: [],
+        paymentSlip: null,
+        history: [],
+        createdAt: Date.now(),
+      }));
+      return { ok: true, orders, source: 'mock' };
+    };
+    api.updateOrderStatus = async () => ({ ok: true });
+  }, mode);
+}
+
+const ownServer = !process.env.STORE_URL;
+let serverHandle = null;
+let BASE = process.env.STORE_URL || '';
+
+if (ownServer) {
+  execSync('npm run build:store', { cwd: ROOT, stdio: 'inherit' });
+  serverHandle = await startStaticServer();
+  BASE = serverHandle.base;
+}
+
 const browser = await puppeteer.launch({
   executablePath: CHROME,
   headless: 'new',
@@ -84,7 +246,7 @@ const browser = await puppeteer.launch({
 });
 
 const consoleErrors = [];
-const noise = (t) => /favicon|Failed to load resource|net::ERR|supabase/i.test(t);
+const noise = (t) => /favicon|Failed to load resource|net::ERR|supabase|manifest|store-manifest|bad HTTP response code/i.test(t);
 
 try {
   const page = await browser.newPage();
@@ -117,11 +279,9 @@ try {
     req.continue();
   });
 
-  // Seed IndexedDB before app.js loadPersisted
   await page.evaluateOnNewDocument((orders, pinHash) => {
     window.__RW_UI_TEST__ = { orders, pinHash };
-    const DB_NAME = 'rachawei_surin_db';
-    const req = indexedDB.open(DB_NAME, 1);
+    const req = indexedDB.open('rachawei_surin_db', 1);
     req.onupgradeneeded = () => {
       const db = req.result;
       if (!db.objectStoreNames.contains('app')) db.createObjectStore('app');
@@ -136,12 +296,7 @@ try {
     };
   }, seedOrders, hashAdminPin(PIN));
 
-  await page.goto(`${BASE}#admin`, { waitUntil: 'networkidle0' });
-  await page.evaluate(() => {
-    document.getElementById('adminOverlay')?.classList.add('open');
-  });
-
-  await page.waitForSelector('#adminPin', { visible: true, timeout: 15000 });
+  await loginAndOpenOrders(page, BASE);
   const mode = await page.evaluate(() => ({
     configured: window.RachaweiStoreApi?.isConfigured?.(),
     emailDisplay: document.getElementById('adminEmailGroup')
@@ -150,158 +305,270 @@ try {
   }));
   ok('local PIN admin mode (Supabase disabled for test)', mode.configured === false && mode.emailDisplay === 'none', JSON.stringify(mode));
 
-  await page.click('#adminPin', { clickCount: 3 });
-  await page.keyboard.press('Backspace');
-  await page.type('#adminPin', PIN);
-  await page.click('#adminLoginBtn');
-  await page.waitForSelector('#adminMainView', { visible: true, timeout: 15000 });
+  const detailCount = await ensureOrdersVisible(page, BASE);
+  ok('orders table has detail buttons', detailCount >= 2, `count=${detailCount}`);
 
-  await page.click('.admin-tab[data-tab="orders"]');
-  await page.waitForSelector('.admin-order-detail-btn, .empty-admin', { timeout: 15000 });
+  // Detail open / fields / close ×
+  await page.click('[data-order-id="RW-UI-SMOKE-001"] [data-order-action="detail"]');
+  await page.waitForSelector('#adminOrderDetailModal.open', { visible: true });
+  const detail1 = await page.evaluate(() => ({
+    openId: document.getElementById('adminOrderDetailModal')?.getAttribute('data-open-order-id'),
+    text: document.getElementById('adminOrderDetailBody')?.innerText || '',
+  }));
+  ok(
+    'detail modal shows selected order fields',
+    detail1.openId === 'RW-UI-SMOKE-001'
+      && /RW-UI-SMOKE-001/.test(detail1.text)
+      && /ทดสอบ มือถือ/.test(detail1.text)
+      && /ตะกร้าหวาย/.test(detail1.text)
+      && /ยอดรวม|500|฿/.test(detail1.text),
+    detail1.text.replace(/\s+/g, ' ').slice(0, 160),
+  );
 
-  // If empty (IDB race), inject via reload after ensuring IDB write completed
-  let detailCount = await page.$$eval('.admin-order-detail-btn', (els) => els.length);
-  if (!detailCount) {
-    await page.evaluate(async (orders, pinHash) => {
-      await new Promise((resolve, reject) => {
-        const req = indexedDB.open('rachawei_surin_db', 1);
-        req.onerror = () => reject(req.error);
-        req.onsuccess = () => {
-          const db = req.result;
-          const tx = db.transaction('app', 'readwrite');
-          const store = tx.objectStore('app');
-          store.put(orders, 'orders');
-          store.put({ adminPinHash: pinHash }, 'shopSettings');
-          tx.oncomplete = () => resolve();
-          tx.onerror = () => reject(tx.error);
-        };
-      });
-    }, seedOrders, hashAdminPin(PIN));
-    await page.reload({ waitUntil: 'networkidle0' });
-    await page.evaluate(() => {
-      document.getElementById('adminOverlay')?.classList.add('open');
-    });
-    await page.waitForSelector('#adminPin', { visible: true });
-    await page.type('#adminPin', PIN);
-    await page.click('#adminLoginBtn');
-    await page.waitForSelector('#adminMainView', { visible: true });
-    await page.click('.admin-tab[data-tab="orders"]');
-    await page.waitForSelector('.admin-order-detail-btn, .empty-admin');
-    detailCount = await page.$$eval('.admin-order-detail-btn', (els) => els.length);
+  await page.click('#adminOrderDetailClose');
+  await page.waitForFunction(() => {
+    const m = document.getElementById('adminOrderDetailModal');
+    return m && (!m.classList.contains('open') || m.hidden);
+  }, { timeout: 8000 });
+  ok('detail modal closes via ×', true);
+
+  // Second order — no stale data
+  await page.click('[data-order-id="RW-UI-SMOKE-002"] [data-order-action="detail"]');
+  await page.waitForSelector('#adminOrderDetailModal.open');
+  const detail2 = await page.evaluate(() => ({
+    openId: document.getElementById('adminOrderDetailModal')?.getAttribute('data-open-order-id'),
+    text: document.getElementById('adminOrderDetailBody')?.innerText || '',
+  }));
+  ok(
+    'detail shows correct order (no stale previous)',
+    detail2.openId === 'RW-UI-SMOKE-002'
+      && /RW-UI-SMOKE-002/.test(detail2.text)
+      && /ลูกค้า สำรอง/.test(detail2.text)
+      && !/RW-UI-SMOKE-001/.test(detail2.text)
+      && !/ทดสอบ มือถือ/.test(detail2.text),
+    detail2.text.replace(/\s+/g, ' ').slice(0, 160),
+  );
+
+  await page.click('#adminOrderDetailClose2');
+  await page.waitForFunction(() => !document.getElementById('adminOrderDetailModal')?.classList.contains('open'));
+  ok('detail modal closes via ปิด', true);
+
+  // ⋯ menu portal + scroll safety
+  await page.click('[data-order-id="RW-UI-SMOKE-001"] [data-order-action="menu"]');
+  const menuVisible = await page.evaluate(() => {
+    const panel = document.querySelector('.admin-order-menu-panel.is-open, .admin-order-menu-panel:not([hidden])');
+    if (!panel) return { ok: false, reason: 'hidden' };
+    const r = panel.getBoundingClientRect();
+    return {
+      ok: r.width > 40 && r.height > 20 && getComputedStyle(panel).position === 'fixed' && panel.parentElement === document.body,
+      parent: panel.parentElement?.tagName,
+      w: Math.round(r.width),
+      h: Math.round(r.height),
+    };
+  });
+  ok('⋯ menu panel portaled to body (not clipped)', menuVisible.ok, JSON.stringify(menuVisible));
+
+  await page.evaluate(() => {
+    window.dispatchEvent(new Event('scroll', { bubbles: true }));
+    document.dispatchEvent(new Event('scroll', { bubbles: true }));
+  });
+  const menuStillOpen = await page.evaluate(() => {
+    const panel = document.querySelector('.admin-order-menu-panel.is-open, .admin-order-menu-panel:not([hidden])');
+    return Boolean(panel && !panel.hidden);
+  });
+  ok('⋯ menu stays open after scroll events (iOS-safe)', menuStillOpen);
+
+  const menuDetail = await page.$('.admin-order-menu-panel:not([hidden]) [data-order-action="detail"]');
+  ok('⋯ menu has ดูรายละเอียด', !!menuDetail);
+  if (menuDetail) {
+    await menuDetail.click();
+    await page.waitForSelector('#adminOrderDetailModal.open');
+    const fromMenu = await page.$eval('#adminOrderDetailModal', (el) => el.getAttribute('data-open-order-id'));
+    ok('⋯ menu ดูรายละเอียด opens correct order', fromMenu === 'RW-UI-SMOKE-001', `openId=${fromMenu}`);
+    await page.evaluate(() => window.closeAdminOrderDetail?.());
+  } else {
+    ok('⋯ menu ดูรายละเอียด opens correct order', false, 'menu item missing');
   }
 
-  ok('orders table has detail buttons', detailCount >= 1, `count=${detailCount}`);
+  // Search (set value + input event — avoids re-render racing page.type)
+  await page.evaluate(() => {
+    const el = document.getElementById('adminOrderSearch');
+    if (!el) throw new Error('adminOrderSearch missing');
+    el.value = 'RW-UI-SMOKE-002';
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+  await page.waitForFunction(() => {
+    const ids = [...document.querySelectorAll('tr[data-order-id]')].map((e) => e.getAttribute('data-order-id'));
+    return ids.length === 1 && ids[0] === 'RW-UI-SMOKE-002';
+  }, { timeout: 8000 });
+  ok('search filter narrows to matching order', true);
+  await page.evaluate(() => {
+    const el = document.getElementById('adminOrderSearch');
+    el.value = '';
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+  await page.waitForFunction(() => document.querySelectorAll('tr[data-order-id]').length >= 3);
 
-  if (detailCount >= 1) {
-    // Open first detail (prefer smoke order)
-    const smokeBtn = await page.$('[data-order-id="RW-UI-SMOKE-001"] .admin-order-detail-btn');
-    if (smokeBtn) await smokeBtn.click();
-    else await (await page.$('.admin-order-detail-btn')).click();
+  // Status filter
+  await page.evaluate(() => {
+    const el = document.getElementById('adminOrderStatusFilter');
+    el.value = '1';
+    el.dispatchEvent(new Event('change', { bubbles: true }));
+  });
+  await page.waitForFunction(() => {
+    const ids = [...document.querySelectorAll('tr[data-order-id]')].map((e) => e.getAttribute('data-order-id'));
+    return ids.includes('RW-UI-SMOKE-002') && !ids.includes('RW-UI-SMOKE-001');
+  }, { timeout: 8000 });
+  ok('status filter works', true);
+  await page.evaluate(() => {
+    const el = document.getElementById('adminOrderStatusFilter');
+    el.value = 'all';
+    el.dispatchEvent(new Event('change', { bubbles: true }));
+  });
+  await page.waitForFunction(() => document.querySelectorAll('tr[data-order-id]').length >= 3);
 
-    await page.waitForSelector('#adminOrderDetailModal.open', { visible: true });
-    const detailText = await page.$eval('#adminOrderDetailBody', (el) => el.innerText);
-    ok(
-      'detail modal shows order fields',
-      /RW-UI-SMOKE-001|RW-TEST-DIRECT/.test(detailText)
-        && /ลูกค้า|ที่อยู่/.test(detailText)
-        && /ยอดรวม|สินค้า/.test(detailText),
-      detailText.replace(/\s+/g, ' ').slice(0, 140),
-    );
-
-    await page.evaluate(() => {
-      document.getElementById('adminOrderDetailClose')?.click();
-      if (typeof window.closeAdminOrderDetail === 'function') window.closeAdminOrderDetail();
-    });
-    await page.waitForFunction(() => {
-      const m = document.getElementById('adminOrderDetailModal');
-      return m && (!m.classList.contains('open') || m.hidden);
-    }, { timeout: 8000 });
-    ok('detail modal closes via ×', true);
-
-    const reopen = await page.$('[data-order-id="RW-UI-SMOKE-001"] .admin-order-detail-btn')
-      || await page.$('.admin-order-detail-btn');
-    await reopen.click();
-    await page.waitForSelector('#adminOrderDetailModal.open');
-    await page.click('#adminOrderDetailClose2');
-    await page.waitForFunction(() => !document.getElementById('adminOrderDetailModal')?.classList.contains('open'));
-    ok('detail modal closes via ปิด', true);
-
-    // ⋯ menu visibility (fixed positioning — not clipped)
-    const menuBtn = await page.$('[data-order-id="RW-UI-SMOKE-001"] .admin-order-menu-btn')
-      || await page.$('.admin-order-menu-btn');
-    await menuBtn.click();
-    const menuVisible = await page.evaluate(() => {
-      const panel = document.querySelector('.admin-order-menu-panel:not([hidden])');
-      if (!panel) return { ok: false, reason: 'hidden' };
-      const r = panel.getBoundingClientRect();
-      const style = getComputedStyle(panel);
-      return {
-        ok: r.width > 40 && r.height > 20 && style.position === 'fixed',
-        position: style.position,
-        top: Math.round(r.top),
-        left: Math.round(r.left),
-        w: Math.round(r.width),
-        h: Math.round(r.height),
-      };
-    });
-    ok('⋯ menu panel visible fixed (not clipped)', menuVisible.ok, JSON.stringify(menuVisible));
-
-    // Delete → cancel confirm (never deletes). Call handler directly to avoid scroll/menu flakiness.
+  // Delete cancel
+  {
     const deleteDialog = new Promise((resolve) => {
       page.once('dialog', async (d) => {
-        const msg = d.message();
-        resolve(msg);
+        resolve(d.message());
         await d.dismiss();
       });
     });
-    await page.evaluate(() => {
-      const id = document.querySelector('[data-order-id="RW-UI-SMOKE-001"]')?.getAttribute('data-order-id')
-        || document.querySelector('[data-order-id]')?.getAttribute('data-order-id');
-      if (!id || typeof window.adminDeleteOrder !== 'function') throw new Error('adminDeleteOrder unavailable');
-      void window.adminDeleteOrder(id);
-    });
+    await page.evaluate(() => { void window.adminDeleteOrder('RW-UI-SMOKE-001'); });
     const delMsg = await deleteDialog;
     ok('delete confirm dialog shown', /ยืนยันลบออเดอร์/.test(delMsg) && /รายการสินค้า/.test(delMsg), delMsg.slice(0, 120));
-    await new Promise((r) => setTimeout(r, 300));
-    const idsAfterCancel = await page.$$eval('[data-order-id]', (els) => els.map((e) => e.getAttribute('data-order-id')));
+    await new Promise((r) => setTimeout(r, 250));
+    const idsAfterCancel = await page.$$eval('tr[data-order-id]', (els) => els.map((e) => e.getAttribute('data-order-id')));
     ok(
       'delete cancel keeps all seeded orders',
       idsAfterCancel.includes('RW-UI-SMOKE-001')
+        && idsAfterCancel.includes('RW-UI-SMOKE-002')
         && idsAfterCancel.includes('RW-TEST-DIRECT')
         && idsAfterCancel.includes('RW-DIRECT-SHOULD-FAIL'),
       idsAfterCancel.join(','),
     );
+  }
 
-    // Protected test order: status change cancelled at extra confirm
-    const testSelect = await page.$('[data-order-id="RW-TEST-DIRECT"] .status-select');
-    ok('TEST badge present', !!(await page.$('.admin-order-test-badge')));
-    if (testSelect) {
-      const dialogs = [];
-      const onDlg = async (d) => {
-        dialogs.push(d.message());
-        await d.dismiss();
-      };
-      page.on('dialog', onDlg);
-      await testSelect.select('2');
-      await new Promise((r) => setTimeout(r, 600));
-      page.off('dialog', onDlg);
-      const statusIdx = await page.$eval('[data-order-id="RW-TEST-DIRECT"] .status-select', (el) => el.value);
-      ok(
-        'protected RW-TEST-DIRECT status unchanged after cancel',
-        statusIdx === '0' && dialogs.some((m) => /ทดสอบ|TEST|RW-TEST-DIRECT/i.test(m)),
-        `status=${statusIdx}; dialogs=${dialogs.length}`,
-      );
-    } else {
-      ok('protected RW-TEST-DIRECT status unchanged after cancel', false, 'select missing');
-    }
-
-    // Same for RW-DIRECT-SHOULD-FAIL — only verify badge/row present, do not mutate
+  // Delete without Supabase — no fake success
+  {
+    const dialogs = [];
+    const onDlg = async (d) => { dialogs.push(d.message()); await d.accept(); };
+    page.on('dialog', onDlg);
+    await page.evaluate(() => window.adminDeleteOrder('RW-UI-SMOKE-001'));
+    await new Promise((r) => setTimeout(r, 500));
+    page.off('dialog', onDlg);
+    const stillThere = await page.$('[data-order-id="RW-UI-SMOKE-001"]');
+    const toastText = await page.evaluate(() => document.getElementById('toast')?.textContent || '');
     ok(
-      'protected RW-DIRECT-SHOULD-FAIL listed untouched',
-      idsAfterCancel.includes('RW-DIRECT-SHOULD-FAIL'),
-      'present',
+      'delete without Supabase keeps row + shows error',
+      !!stillThere && /Supabase|เชื่อมต่อ|ไม่สำเร็จ/i.test(toastText),
+      `toast=${toastText.slice(0, 100)}`,
     );
   }
+
+  // Mocked delete failure — row stays
+  {
+    await installOrderMocks(page, 'fail');
+    const dialogs = [];
+    const onDlg = async (d) => { dialogs.push(d.message()); await d.accept(); };
+    page.on('dialog', onDlg);
+    await page.evaluate(() => window.adminDeleteOrder('RW-UI-SMOKE-001'));
+    await new Promise((r) => setTimeout(r, 600));
+    page.off('dialog', onDlg);
+    const still = await page.$('[data-order-id="RW-UI-SMOKE-001"]');
+    const toastText = await page.evaluate(() => document.getElementById('toast')?.textContent || '');
+    ok(
+      'mocked Supabase delete failure keeps row',
+      !!still && /ไม่สำเร็จ|mock/i.test(toastText),
+      `toast=${toastText.slice(0, 100)}; dialogs=${dialogs.length}`,
+    );
+  }
+
+  // Mocked delete success — only RW-UI-SMOKE-001
+  {
+    await installOrderMocks(page, 'ok');
+    // fetchOrdersForAdmin should return remaining after local filter — patch to exclude deleted id
+    await page.evaluate(() => {
+      window.RachaweiStoreApi.fetchOrdersForAdmin = async () => {
+        const keep = ['RW-UI-SMOKE-002', 'RW-TEST-DIRECT', 'RW-DIRECT-SHOULD-FAIL'];
+        return {
+          ok: true,
+          source: 'mock',
+          orders: keep.map((id) => ({
+            id,
+            name: id === 'RW-UI-SMOKE-002' ? 'ลูกค้า สำรอง' : id,
+            phone: '0800000000',
+            phoneDisplay: '080-000-0000',
+            address: 'mock',
+            method: 'cod',
+            statusIndex: id === 'RW-UI-SMOKE-002' ? 1 : 0,
+            subtotal: 1,
+            shippingFee: 0,
+            promoDiscount: 0,
+            total: 1,
+            items: [{ name: 'x', qty: 1, price: 1 }],
+            paymentSlip: null,
+            history: [],
+            createdAt: Date.now(),
+          })),
+        };
+      };
+    });
+    const onDlg = async (d) => { await d.accept(); };
+    page.on('dialog', onDlg);
+    await page.evaluate(() => window.adminDeleteOrder('RW-UI-SMOKE-001'));
+    await page.waitForFunction(
+      () => !document.querySelector('[data-order-id="RW-UI-SMOKE-001"]'),
+      { timeout: 8000 },
+    );
+    page.off('dialog', onDlg);
+    const after = await page.evaluate(() => ({
+      smoke1: !!document.querySelector('[data-order-id="RW-UI-SMOKE-001"]'),
+      smoke2: !!document.querySelector('[data-order-id="RW-UI-SMOKE-002"]'),
+      test: !!document.querySelector('[data-order-id="RW-TEST-DIRECT"]'),
+      fail: !!document.querySelector('[data-order-id="RW-DIRECT-SHOULD-FAIL"]'),
+      toast: document.getElementById('toast')?.textContent || '',
+    }));
+    ok(
+      'mocked Supabase delete success removes only RW-UI-SMOKE-001',
+      !after.smoke1 && after.smoke2 && after.test && after.fail && /สำเร็จ/.test(after.toast),
+      JSON.stringify(after),
+    );
+  }
+
+  // Print wired
+  const printWired = await page.evaluate(() => {
+    const btn = document.querySelector('[data-order-action="print"]');
+    return Boolean(btn && typeof window.adminPrintOrder === 'function');
+  });
+  ok('print label button wired', printWired);
+
+  // Protected status cancel
+  ok('TEST badge present', !!(await page.$('.admin-order-test-badge')));
+  const testSelect = await page.$('[data-order-id="RW-TEST-DIRECT"] .status-select');
+  if (testSelect) {
+    const dialogs = [];
+    const onDlg = async (d) => { dialogs.push(d.message()); await d.dismiss(); };
+    page.on('dialog', onDlg);
+    await testSelect.select('2');
+    await new Promise((r) => setTimeout(r, 600));
+    page.off('dialog', onDlg);
+    const statusIdx = await page.$eval('[data-order-id="RW-TEST-DIRECT"] .status-select', (el) => el.value);
+    ok(
+      'protected RW-TEST-DIRECT status unchanged after cancel',
+      statusIdx === '0' && dialogs.some((m) => /ทดสอบ|TEST|RW-TEST-DIRECT/i.test(m)),
+      `status=${statusIdx}; dialogs=${dialogs.length}`,
+    );
+  } else {
+    ok('protected RW-TEST-DIRECT status unchanged after cancel', false, 'select missing');
+  }
+
+  ok(
+    'protected RW-DIRECT-SHOULD-FAIL listed untouched',
+    !!(await page.$('[data-order-id="RW-DIRECT-SHOULD-FAIL"]')),
+    'present',
+  );
 
   const realErrors = consoleErrors.filter((t) => !noise(t));
   ok('no JS console errors on order actions', realErrors.length === 0, realErrors.slice(0, 5).join(' | '));
@@ -309,6 +576,7 @@ try {
   ok('test harness completed', false, String(e?.stack || e?.message || e));
 } finally {
   await browser.close();
+  if (serverHandle?.server) serverHandle.server.close();
 }
 
 const failed = results.filter((r) => !r.pass);

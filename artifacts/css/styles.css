@@ -3832,8 +3832,9 @@
     .admin-overlay {
       position: fixed;
       inset: 0;
-      background: rgba(44, 36, 27, 0.55);
-      backdrop-filter: blur(4px);
+      background: rgba(44, 36, 27, 0.62);
+      /* No backdrop-filter: on iOS Safari it makes position:fixed descendants
+         (⋯ order menus) use the overlay as containing block and mis-place taps. */
       z-index: 500;
       display: none;
       align-items: stretch;
@@ -4198,7 +4199,8 @@
       z-index: 1;
     }
     .admin-order-menu-btn {
-      min-width: 2rem;
+      min-width: 2.75rem;
+      min-height: 2.75rem;
       font-weight: 700;
       letter-spacing: 0.05em;
       line-height: 1;
@@ -4206,17 +4208,24 @@
       z-index: 2;
       pointer-events: auto;
       touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
     }
     .admin-order-menu-panel {
       position: fixed;
-      z-index: 560;
-      min-width: 9.5rem;
+      z-index: 620;
+      min-width: 10rem;
       padding: 0.25rem;
       background: #fffdf9;
       border: 1px solid rgba(120, 90, 60, 0.28);
       border-radius: 10px;
       box-shadow: 0 8px 22px rgba(40, 28, 16, 0.12);
       pointer-events: auto;
+    }
+    .admin-order-menu-panel[hidden] {
+      display: none !important;
+    }
+    .admin-order-menu-panel.is-open {
+      display: block;
     }
     .admin-order-menu-item {
       display: block;
@@ -4226,10 +4235,13 @@
       background: transparent;
       color: var(--rattan-deep, #5c4030);
       font: inherit;
-      font-size: 0.82rem;
-      padding: 0.45rem 0.65rem;
+      font-size: 0.88rem;
+      min-height: 2.75rem;
+      padding: 0.65rem 0.75rem;
       border-radius: 8px;
       cursor: pointer;
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
     }
     .admin-order-menu-item:hover {
       background: rgba(196, 164, 132, 0.18);
@@ -5425,10 +5437,15 @@
       max-width: 100%;
     }
 
-    /* Order detail modal sits above admin overlay (z-index 500) */
+    /* Order detail modal sits above admin overlay (500) and ⋯ menus (620) */
     .admin-order-detail-overlay {
-      z-index: 550;
+      z-index: 640;
       display: none;
+      /* Avoid backdrop-filter here too — keeps fixed children/taps predictable on iOS */
+      backdrop-filter: none;
+      -webkit-backdrop-filter: none;
+      background: rgba(44, 36, 27, 0.58);
+      pointer-events: auto;
     }
     .admin-order-detail-overlay.open {
       display: flex;
@@ -5438,6 +5455,8 @@
     }
     .admin-order-detail-modal {
       max-width: 520px;
+      pointer-events: auto;
+      -webkit-overflow-scrolling: touch;
     }
     .admin-order-detail-grid {
       display: grid;
@@ -5507,11 +5526,35 @@
       vertical-align: middle;
     }
     .btn.admin-order-detail-btn,
-    .btn.admin-order-menu-btn {
+    .btn.admin-order-menu-btn,
+    .btn.admin-order-print-btn,
+    .btn.admin-order-delete-btn {
       touch-action: manipulation;
       pointer-events: auto;
       position: relative;
       z-index: 2;
+      -webkit-tap-highlight-color: transparent;
+      min-height: 2.75rem;
+    }
+    .btn.admin-order-detail-btn {
+      min-width: 6.5rem;
+    }
+    .admin-order-manage .status-select {
+      min-height: 2.75rem;
+      touch-action: manipulation;
+    }
+    .admin-orders-table td:last-child {
+      position: relative;
+      z-index: 2;
+      overflow: visible;
+    }
+    @media (max-width: 720px) {
+      .admin-orders-table {
+        min-width: 720px;
+      }
+      .admin-order-manage {
+        min-width: 8.5rem;
+      }
     }
 
     .admin-slip-actions {

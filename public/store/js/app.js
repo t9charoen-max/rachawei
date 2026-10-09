@@ -5544,6 +5544,7 @@
     }
 
     function renderAdminOrders() {
+      closeAllAdminOrderMenus();
       const cloudMode = isSupabaseReady();
       const blocked = Boolean(adminOrdersError) && cloudMode;
       const filtered = blocked ? [] : getFilteredAdminOrders();
@@ -5632,17 +5633,17 @@
                     <td><span class="status-badge-tag ${st.badge}">${st.label}</span></td>
                     <td>
                       <div class="admin-order-manage">
-                        <button type="button" class="btn btn-primary btn-xs admin-order-detail-btn" onclick="adminViewOrderDetail('${oid}')">ดูรายละเอียด</button>
-                        <select class="status-select" aria-label="เปลี่ยนสถานะออเดอร์ ${oid}" onchange="adminSetOrderStatus('${oid}', this.value)">
+                        <button type="button" class="btn btn-primary btn-xs admin-order-detail-btn" data-order-action="detail" data-order-id="${oid}">ดูรายละเอียด</button>
+                        <select class="status-select" aria-label="เปลี่ยนสถานะออเดอร์ ${oid}" data-order-action="status" data-order-id="${oid}">
                           ${opts}
                         </select>
                         <div class="admin-actions">
-                          <button type="button" class="btn btn-outline btn-xs" onclick="adminPrintOrder('${oid}')">🖨️ ใบปะหน้า</button>
+                          <button type="button" class="btn btn-outline btn-xs admin-order-print-btn" data-order-action="print" data-order-id="${oid}">🖨️ ใบปะหน้า</button>
                           <div class="admin-order-menu">
-                            <button type="button" class="btn btn-outline btn-xs admin-order-menu-btn" aria-label="เมนูออเดอร์" aria-haspopup="true" aria-expanded="false" onclick="adminToggleOrderMenu(event, '${oid}')">⋯</button>
-                            <div class="admin-order-menu-panel" id="adminOrderMenu-${oid}" hidden>
-                              <button type="button" class="admin-order-menu-item" onclick="adminViewOrderDetail('${oid}')">ดูรายละเอียด</button>
-                              <button type="button" class="admin-order-menu-item admin-order-menu-item--danger" onclick="adminDeleteOrder('${oid}')">ลบออเดอร์</button>
+                            <button type="button" class="btn btn-outline btn-xs admin-order-menu-btn" aria-label="เมนูออเดอร์" aria-haspopup="true" aria-expanded="false" data-order-action="menu" data-order-id="${oid}">⋯</button>
+                            <div class="admin-order-menu-panel" id="adminOrderMenu-${oid}" hidden data-order-menu-panel="${oid}">
+                              <button type="button" class="admin-order-menu-item" data-order-action="detail" data-order-id="${oid}">ดูรายละเอียด</button>
+                              <button type="button" class="admin-order-menu-item admin-order-menu-item--danger" data-order-action="delete" data-order-id="${oid}">ลบออเดอร์</button>
                             </div>
                           </div>
                         </div>
@@ -5739,12 +5740,25 @@
       showToast('ปฏิเสธสลิปแล้ว — รอลูกค้าแนบใหม่');
     };
 
+    let adminOrderDetailOpenId = null;
+    let adminDeleteBusy = false;
+    let adminOrderMenuPortalHome = null;
+
     function closeAllAdminOrderMenus() {
       document.querySelectorAll('.admin-order-menu-panel').forEach((panel) => {
         panel.hidden = true;
+        panel.classList.remove('is-open');
         panel.style.top = '';
         panel.style.left = '';
         panel.style.right = '';
+        // Return portaled panels to their original host so re-render stays consistent
+        const homeId = panel.getAttribute('data-menu-home');
+        if (homeId) {
+          const home = document.getElementById(homeId);
+          if (home && panel.parentElement !== home) home.appendChild(panel);
+        } else if (adminOrderMenuPortalHome && panel.parentElement === document.body) {
+          adminOrderMenuPortalHome.appendChild(panel);
+        }
       });
       document.querySelectorAll('.admin-order-menu-btn').forEach((btn) => {
         btn.setAttribute('aria-expanded', 'false');
@@ -5752,15 +5766,76 @@
       document.querySelectorAll('.admin-table-wrap--menu-open').forEach((wrap) => {
         wrap.classList.remove('admin-table-wrap--menu-open');
       });
+      adminOrderMenuPortalHome = null;
     }
 
     function bindAdminOrderMenus() {
       if (bindAdminOrderMenus._bound) return;
       bindAdminOrderMenus._bound = true;
+
+      // Event delegation — reliable on iOS Safari (avoids inline onclick + scroll races)
       document.addEventListener('click', (e) => {
-        if (e.target.closest('.admin-order-menu')) return;
+        const actionEl = e.target.closest('[data-order-action]');
+        if (actionEl) {
+          const action = actionEl.getAttribute('data-order-action');
+          const orderId = String(actionEl.getAttribute('data-order-id') || '').trim();
+          if (action === 'menu') {
+            e.preventDefault();
+            e.stopPropagation();
+            adminToggleOrderMenu(e, orderId, actionEl);
+            return;
+          }
+          if (action === 'detail') {
+            e.preventDefault();
+            e.stopPropagation();
+            adminViewOrderDetail(orderId);
+            return;
+          }
+          if (action === 'delete') {
+            e.preventDefault();
+            e.stopPropagation();
+            void adminDeleteOrder(orderId);
+            return;
+          }
+          if (action === 'print') {
+            e.preventDefault();
+            e.stopPropagation();
+            adminPrintOrder(orderId);
+            return;
+          }
+          if (action === 'close-detail') {
+            e.preventDefault();
+            e.stopPropagation();
+            closeAdminOrderDetail();
+            return;
+          }
+          if (action === 'save-status') {
+            e.preventDefault();
+            e.stopPropagation();
+            const sel = document.getElementById('adminOrderDetailStatus');
+            void adminSetOrderStatus(orderId, sel ? sel.value : '');
+            return;
+          }
+          if (action === 'view-slip') {
+            e.preventDefault();
+            e.stopPropagation();
+            adminViewSlip(orderId);
+            return;
+          }
+        }
+
+        // Outside click closes ⋯ menu (but not when tapping inside portaled panel)
+        if (e.target.closest('.admin-order-menu') || e.target.closest('.admin-order-menu-panel')) return;
         closeAllAdminOrderMenus();
-      });
+      }, false);
+
+      document.addEventListener('change', (e) => {
+        const el = e.target.closest('[data-order-action="status"]');
+        if (!el) return;
+        const orderId = String(el.getAttribute('data-order-id') || '').trim();
+        void adminSetOrderStatus(orderId, el.value);
+      }, false);
+
       document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {
           closeAllAdminOrderMenus();
@@ -5768,7 +5843,9 @@
         }
       });
       window.addEventListener('resize', () => closeAllAdminOrderMenus(), { passive: true });
-      window.addEventListener('scroll', () => closeAllAdminOrderMenus(), { passive: true, capture: true });
+      // Do NOT close menus on scroll/capture — iOS Safari fires scroll when the
+      // address bar moves or overflow rubber-bands, which closed the ⋯ menu
+      // before users could tap "ดูรายละเอียด" / "ลบออเดอร์".
     }
 
     function positionAdminOrderMenu(panel, btn) {
@@ -5782,6 +5859,7 @@
       if (left < 8) left = 8;
       if (left + panelWidth > vw - 8) left = Math.max(8, vw - panelWidth - 8);
       panel.hidden = false;
+      panel.classList.add('is-open');
       // Measure after unhiding
       const ph = panel.offsetHeight || 88;
       if (top + ph > vh - 8) {
@@ -5792,25 +5870,37 @@
       panel.style.right = 'auto';
     }
 
-    window.adminToggleOrderMenu = function(event, id) {
+    window.adminToggleOrderMenu = function(event, id, btnEl) {
       if (event) {
         event.preventDefault();
         event.stopPropagation();
       }
       const orderId = String(id || '').trim();
-      const panel = document.getElementById(`adminOrderMenu-${orderId}`);
-      const btn = event && event.currentTarget
-        ? event.currentTarget
-        : document.querySelector(`.admin-order-menu-btn[aria-expanded="true"]`);
+      const panel = document.getElementById(`adminOrderMenu-${orderId}`)
+        || document.querySelector(`[data-order-menu-panel="${CSS.escape ? CSS.escape(orderId) : orderId}"]`);
+      const btn = btnEl
+        || (event && event.currentTarget && event.currentTarget.getAttribute?.('data-order-action') === 'menu'
+          ? event.currentTarget
+          : null)
+        || document.querySelector(`.admin-order-menu-btn[data-order-id="${orderId}"]`);
       if (!panel) {
         showToast('เปิดเมนูออเดอร์ไม่สำเร็จ');
         return;
       }
-      const willOpen = panel.hidden;
+      const willOpen = panel.hidden || !panel.classList.contains('is-open');
       closeAllAdminOrderMenus();
       if (willOpen && btn) {
         const wrap = btn.closest('.admin-table-wrap');
         if (wrap) wrap.classList.add('admin-table-wrap--menu-open');
+        // Portal to <body> so position:fixed is not trapped by admin-overlay
+        // backdrop-filter (iOS Safari containing-block bug).
+        const home = panel.parentElement;
+        if (home && home !== document.body) {
+          if (!panel.id) panel.id = `adminOrderMenu-${orderId}`;
+          panel.setAttribute('data-menu-home', home.id || (home.id = `adminOrderMenuHome-${orderId}`));
+          adminOrderMenuPortalHome = home;
+          document.body.appendChild(panel);
+        }
         positionAdminOrderMenu(panel, btn);
         btn.setAttribute('aria-expanded', 'true');
       }
@@ -5823,10 +5913,14 @@
 
     function closeAdminOrderDetail() {
       if (!adminOrderDetailModal) return;
+      adminOrderDetailOpenId = null;
       adminOrderDetailModal.classList.remove('open');
       adminOrderDetailModal.hidden = true;
+      adminOrderDetailModal.setAttribute('hidden', '');
+      adminOrderDetailModal.removeAttribute('data-open-order-id');
       if (adminOrderDetailBody) adminOrderDetailBody.innerHTML = '';
       if (adminOrderDetailActions) adminOrderDetailActions.innerHTML = '';
+      if (adminOrderDetailTitle) adminOrderDetailTitle.textContent = 'รายละเอียดออเดอร์';
     }
 
     function renderAdminOrderDetailContent(o) {
@@ -5851,6 +5945,7 @@
       const slipLabel = o.paymentSlip
         ? (o.paymentSlip === '__remote__' ? 'มีสลิปบนคลาวด์' : 'มีสลิปแนบ')
         : (paymentNeedsSlip(o.method) ? 'รอสลิป' : '—');
+      const deleteDisabled = adminDeleteBusy ? 'disabled' : '';
 
       if (adminOrderDetailTitle) {
         adminOrderDetailTitle.innerHTML = `ออเดอร์ ${escapeHtml(o.id)}${testBadge}`;
@@ -5882,19 +5977,21 @@
         adminOrderDetailActions.innerHTML = `
           <div class="admin-order-status-row">
             <label class="visually-hidden" for="adminOrderDetailStatus">สถานะออเดอร์</label>
-            <select class="status-select" id="adminOrderDetailStatus" aria-label="เปลี่ยนสถานะออเดอร์" onchange="adminSetOrderStatus('${oid}', this.value)">
+            <select class="status-select" id="adminOrderDetailStatus" aria-label="เปลี่ยนสถานะออเดอร์" data-order-action="status" data-order-id="${oid}">
               ${opts}
             </select>
-            <button type="button" class="btn btn-primary btn-xs" id="adminOrderDetailSaveStatus" onclick="adminSetOrderStatus('${oid}', document.getElementById('adminOrderDetailStatus').value)">บันทึกสถานะ</button>
+            <button type="button" class="btn btn-primary btn-xs" id="adminOrderDetailSaveStatus" data-order-action="save-status" data-order-id="${oid}">บันทึกสถานะ</button>
           </div>
-          <button type="button" class="btn btn-outline" onclick="adminPrintOrder('${oid}')">🖨️ พิมพ์ใบปะหน้า</button>
+          <button type="button" class="btn btn-outline" data-order-action="print" data-order-id="${oid}">🖨️ พิมพ์ใบปะหน้า</button>
           ${o.paymentSlip && o.paymentSlip !== '__remote__'
-            ? `<button type="button" class="btn btn-outline" onclick="adminViewSlip('${oid}')">🧾 ดูสลิป</button>`
+            ? `<button type="button" class="btn btn-outline" data-order-action="view-slip" data-order-id="${oid}">🧾 ดูสลิป</button>`
             : ''}
-          <button type="button" class="btn btn-outline" style="color:#a93226;border-color:rgba(169,50,38,0.35);" onclick="adminDeleteOrder('${oid}')">ลบออเดอร์</button>
-          <button type="button" class="btn btn-outline" id="adminOrderDetailClose2">ปิด</button>
+          <button type="button" class="btn btn-outline admin-order-delete-btn" style="color:#a93226;border-color:rgba(169,50,38,0.35);" data-order-action="delete" data-order-id="${oid}" ${deleteDisabled}>${adminDeleteBusy ? 'กำลังลบ…' : 'ลบออเดอร์'}</button>
+          <button type="button" class="btn btn-outline" id="adminOrderDetailClose2" data-order-action="close-detail">ปิด</button>
         `;
-        document.getElementById('adminOrderDetailClose2')?.addEventListener('click', closeAdminOrderDetail);
+      }
+      if (adminOrderDetailModal) {
+        adminOrderDetailModal.setAttribute('data-open-order-id', o.id);
       }
     }
 
@@ -5910,13 +6007,29 @@
         showToast('เปิดหน้ารายละเอียดไม่สำเร็จ');
         return;
       }
+      // Clear stale content first so a previous order never flashes/sticks
+      if (adminOrderDetailBody) adminOrderDetailBody.innerHTML = '';
+      if (adminOrderDetailActions) adminOrderDetailActions.innerHTML = '';
+      if (adminOrderDetailTitle) adminOrderDetailTitle.textContent = 'กำลังโหลด…';
+      adminOrderDetailOpenId = orderId;
       renderAdminOrderDetailContent(o);
+      // Re-check — avoid showing wrong order if list changed mid-open
+      if (adminOrderDetailOpenId !== orderId) return;
       adminOrderDetailModal.hidden = false;
+      adminOrderDetailModal.removeAttribute('hidden');
       adminOrderDetailModal.classList.add('open');
+      try {
+        document.getElementById('adminOrderDetailClose2')?.focus({ preventScroll: true });
+      } catch (_) { /* ignore */ }
     };
 
-    document.getElementById('adminOrderDetailClose')?.addEventListener('click', closeAdminOrderDetail);
+    document.getElementById('adminOrderDetailClose')?.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      closeAdminOrderDetail();
+    });
     adminOrderDetailModal?.addEventListener('click', (e) => {
+      // Backdrop only — do not stopPropagation on the card (delegation needs bubble)
       if (e.target === adminOrderDetailModal) closeAdminOrderDetail();
     });
 
@@ -5925,6 +6038,15 @@
       return confirm(
         `รายการนี้เป็นออเดอร์ทดสอบ (${orderId})\n\nยืนยันที่จะ${actionLabel}จริงหรือไม่?\n\nห้ามลบ/แก้สถานะอัตโนมัติ — กดยกเลิกหากไม่แน่ใจ`,
       );
+    }
+
+    function refreshOpenAdminOrderDetail(orderId) {
+      if (!adminOrderDetailModal?.classList.contains('open')) return;
+      const openId = adminOrderDetailOpenId || adminOrderDetailModal.getAttribute('data-open-order-id');
+      if (orderId && openId && orderId !== openId) return;
+      const fresh = orders.find((x) => x.id === (orderId || openId));
+      if (fresh) renderAdminOrderDetailContent(fresh);
+      else closeAdminOrderDetail();
     }
 
     window.adminSetOrderStatus = async function(id, idxStr) {
@@ -5938,7 +6060,7 @@
       if (Number.isNaN(idx)) {
         showToast('สถานะไม่ถูกต้อง');
         renderAdminOrders();
-        if (adminOrderDetailModal?.classList.contains('open')) renderAdminOrderDetailContent(o);
+        refreshOpenAdminOrderDetail(orderId);
         return;
       }
       if (idx === o.statusIndex) {
@@ -5947,12 +6069,12 @@
       }
       if (!confirmProtectedTestOrderAction(orderId, 'เปลี่ยนสถานะ')) {
         renderAdminOrders();
-        if (adminOrderDetailModal?.classList.contains('open')) renderAdminOrderDetailContent(o);
+        refreshOpenAdminOrderDetail(orderId);
         return;
       }
       if (idx === ORDER_CANCELLED_INDEX && !confirm(`ยกเลิกออเดอร์ ${orderId}?\n\nระบบจะคืนสต็อกสินค้า (หลังรัน SQL 010) และไม่สามารถกู้คืนออเดอร์ได้`)) {
         renderAdminOrders();
-        if (adminOrderDetailModal?.classList.contains('open')) renderAdminOrderDetailContent(o);
+        refreshOpenAdminOrderDetail(orderId);
         return;
       }
 
@@ -5972,7 +6094,7 @@
           saveOrders();
           showToast(remote.message || remote.error || 'อัปเดตสถานะบนคลาวด์ไม่สำเร็จ');
           renderAdminOrders();
-          if (adminOrderDetailModal?.classList.contains('open')) renderAdminOrderDetailContent(o);
+          refreshOpenAdminOrderDetail(orderId);
           return;
         }
         if (idx === ORDER_CANCELLED_INDEX) {
@@ -5991,22 +6113,23 @@
         saveOrders();
         showToast('ต้องเข้าสู่ระบบแอดมินก่อนเปลี่ยนสถานะ');
         renderAdminOrders();
-        if (adminOrderDetailModal?.classList.contains('open')) renderAdminOrderDetailContent(o);
+        refreshOpenAdminOrderDetail(orderId);
         return;
       }
 
       showToast(idx === ORDER_CANCELLED_INDEX ? 'ยกเลิกออเดอร์และคืนสต็อกแล้ว ✓' : 'อัปเดตสถานะแล้ว ✓');
       renderAdminOrders();
-      const fresh = orders.find((x) => x.id === orderId);
-      if (adminOrderDetailModal?.classList.contains('open') && fresh) {
-        renderAdminOrderDetailContent(fresh);
-      }
+      refreshOpenAdminOrderDetail(orderId);
     };
 
     window.adminDeleteOrder = async function(id) {
       closeAllAdminOrderMenus();
       const orderId = String(id || '').trim();
       if (!orderId) return;
+      if (adminDeleteBusy) {
+        showToast('กำลังลบออเดอร์อยู่ กรุณารอสักครู่');
+        return;
+      }
       const o = orders.find((x) => x.id === orderId);
       if (!o) {
         showToast('ไม่พบออเดอร์นี้ในรายการ');
@@ -6026,28 +6149,57 @@
         return;
       }
       if (!isSupabaseReady() || typeof RachaweiStoreApi.deleteOrderForAdmin !== 'function') {
-        showToast('ลบออเดอร์ไม่สำเร็จ: ยังไม่ได้เชื่อมต่อ Supabase');
+        showToast('ลบออเดอร์ไม่สำเร็จ: ยังไม่ได้เชื่อมต่อ Supabase — ไม่ได้ลบรายการออกจากหน้าจอ');
         return;
       }
 
-      const remote = await RachaweiStoreApi.deleteOrderForAdmin(orderId);
-      if (!remote.ok) {
-        showToast(remote.message || remote.error || 'ลบออเดอร์ไม่สำเร็จ');
+      adminDeleteBusy = true;
+      document.querySelectorAll(`[data-order-action="delete"][data-order-id="${orderId}"]`).forEach((btn) => {
+        btn.disabled = true;
+        btn.textContent = 'กำลังลบ…';
+      });
+      showToast('กำลังลบออเดอร์…');
+
+      let remote;
+      try {
+        remote = await RachaweiStoreApi.deleteOrderForAdmin(orderId);
+      } catch (err) {
+        remote = { ok: false, error: err?.message || 'delete_failed', message: err?.message || 'ลบออเดอร์ไม่สำเร็จ' };
+      }
+
+      if (!remote || !remote.ok) {
+        adminDeleteBusy = false;
+        document.querySelectorAll(`[data-order-action="delete"][data-order-id="${orderId}"]`).forEach((btn) => {
+          btn.disabled = false;
+          btn.textContent = 'ลบออเดอร์';
+        });
+        // Keep the row on screen — never hide on failure
+        showToast(remote?.message || remote?.error || 'ลบออเดอร์ไม่สำเร็จ');
+        refreshOpenAdminOrderDetail(orderId);
         return;
       }
 
+      // Only remove locally after Supabase confirms delete
       orders = orders.filter((x) => x.id !== orderId);
       saveOrders();
       closeAdminOrderDetail();
-      await refreshAdminOrdersFromSupabase();
+      try {
+        await refreshAdminOrdersFromSupabase();
+      } catch (_) { /* local list already updated from ack */ }
+      adminDeleteBusy = false;
       renderAdminTab(adminTab);
-      showToast('ลบออเดอร์สำเร็จ');
+      showToast(`ลบออเดอร์ ${orderId} สำเร็จ`);
     };
 
     window.closeAdminOrderDetail = closeAdminOrderDetail;
 
     window.adminPrintOrder = function(id) {
-      const o = orders.find(x => x.id === id);
+      const orderId = String(id || '').trim();
+      const o = orders.find((x) => x.id === orderId);
+      if (!o) {
+        showToast('ไม่พบออเดอร์นี้ในรายการ');
+        return;
+      }
       printShippingLabel(o);
     };
 
