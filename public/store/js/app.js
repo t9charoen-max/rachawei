@@ -5566,19 +5566,24 @@
       });
       document.getElementById('bnSaveBtn')?.addEventListener('click', async () => {
         const contentNext = mergeStoreContent(SHOP_CONFIG.content || {});
+        const titleInput = document.getElementById('bnHeroTitle')?.value ?? '';
+        const descInput = document.getElementById('bnHeroDesc')?.value ?? '';
+        const ctaInput = document.getElementById('bnHeroCta')?.value ?? '';
         contentNext.hero = {
           ...(contentNext.hero || {}),
-          title: document.getElementById('bnHeroTitle')?.value.trim() || contentNext.hero.title,
-          desc: document.getElementById('bnHeroDesc')?.value.trim() || contentNext.hero.desc,
-          cta: document.getElementById('bnHeroCta')?.value.trim() || contentNext.hero.cta,
+          title: titleInput.trim() || contentNext.hero?.title || '',
+          desc: descInput.trim() || contentNext.hero?.desc || '',
+          cta: ctaInput.trim() || contentNext.hero?.cta || '',
         };
-        await saveShopSettings({
+        const result = await saveShopSettings({
           content: contentNext,
           heroImages: (window._cmsHeroDraft || []).slice(0, 10),
         });
+        // Always re-hydrate storefront from SHOP_CONFIG (same source as public load)
+        applyShopConfig();
         if (typeof applyStoreContent === 'function') applyStoreContent();
         refreshHeroSlides();
-        renderAdminBanners();
+        if (result?.ok) renderAdminBanners();
       });
     }
 
@@ -6885,9 +6890,13 @@
           console.warn('Supabase init ไม่สำเร็จ — ใช้แคตตาล็อกท้องถิ่น', e);
         }
       }
+      // Paint once with build defaults, then again after IndexedDB/Supabase hydrate.
+      // Without the second pass, hero CMS text stays stuck on HTML defaults even when
+      // store_shop_settings.content.hero was saved correctly.
       applyShopConfig();
       const ok = await loadPersisted();
       migratePaymentFields();
+      applyShopConfig();
       if (!Array.isArray(products) || products.length === 0) {
         products = DEFAULT_PRODUCTS.map(p => ({ ...p }));
       }
