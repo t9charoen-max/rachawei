@@ -1,3 +1,5 @@
+import { STORE_ADMIN_URL } from '../lib/storeUrl';
+
 /** คีย์ร่วม — หลังร้านจำเครื่องที่ปลดล็อกแล้ว (ไม่โชว์ให้ลูกค้า) */
 export const ADMIN_UNLOCK_KEY = 'rachawei-admin-unlocked';
 
@@ -29,10 +31,10 @@ export function shouldOpenAdminGate(): boolean {
   return wantsAdminUrl() || isAdminUnlocked();
 }
 
+/** Canonical invite — always /store/#admin (Supabase Auth gate lives there) */
 export function adminInviteUrl(): string {
-  if (typeof window === 'undefined') return 'https://rachawei-gamma.vercel.app/?admin=1';
-  const url = new URL(window.location.href);
-  url.searchParams.set('admin', '1');
-  url.hash = '';
-  return url.toString();
+  if (typeof window === 'undefined') {
+    return `https://rachawei-gamma.vercel.app${STORE_ADMIN_URL}`;
+  }
+  return `${window.location.origin}${STORE_ADMIN_URL}`;
 }
