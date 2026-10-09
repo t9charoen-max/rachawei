@@ -78,9 +78,11 @@
       return {
         ok: true,
         geminiKeyConfigured: Boolean(data.geminiKeyConfigured),
+        // Health only proves the Edge Function responds — never claim Gemini is ready.
         message: data.geminiKeyConfigured
-          ? 'พร้อมถามผู้ช่วย AI (สินค้าจากฐานข้อมูลจริง)'
+          ? 'เชื่อมต่อเซิร์ฟเวอร์ผู้ช่วยแล้ว · ยังไม่ยืนยันว่า Gemini พร้อม (ถ้าไม่พร้อมจะค้นหาจากสินค้าในร้าน)'
           : 'ฟังก์ชันพร้อม แต่ยังไม่ได้ตั้งค่า Gemini API Key — จะค้นหาสินค้าจากฐานข้อมูลแทน',
+        statusTone: data.geminiKeyConfigured ? 'info' : 'warn',
       };
     } catch (e) {
       return {
@@ -257,18 +259,40 @@
   }
 
   function statusForMode(mode, health, result) {
-    if (mode === 'gemini') return 'ตอบโดย Gemini · สินค้าจากฐานข้อมูลจริง';
+    if (mode === 'gemini') {
+      return { text: 'ตอบโดย Gemini · สินค้าจากฐานข้อมูลจริง', tone: 'ok' };
+    }
     if (mode === 'fallback') {
       if (result?.error === 'gemini_key_missing') {
-        return 'ยังไม่ได้ตั้งค่า Gemini API Key — แสดงสินค้าจากฐานข้อมูลแทน';
+        return {
+          text: 'ยังไม่ได้ตั้งค่า Gemini API Key — แสดงสินค้าจากฐานข้อมูลแทน',
+          tone: 'warn',
+        };
       }
       if (result?.error === 'gemini_quota') {
-        return 'โควตา Gemini เต็มชั่วคราว — แสดงสินค้าจากฐานข้อมูลแทน';
+        return {
+          text: 'โควตา Gemini เต็มชั่วคราว — แสดงสินค้าจากฐานข้อมูลแทน',
+          tone: 'warn',
+        };
       }
-      return 'ผู้ช่วย AI ใช้ไม่ได้ชั่วคราว — แสดงสินค้าจากฐานข้อมูลแทน';
+      return {
+        text: 'ผู้ช่วย AI ใช้ไม่ได้ชั่วคราว — แสดงสินค้าจากฐานข้อมูลแทน',
+        tone: 'warn',
+      };
     }
-    if (health && !health.ok) return health.message || 'โหมดค้นหาในเครื่อง';
-    return 'โหมดค้นหาในเครื่อง (ยังเรียก Edge Function ไม่ได้)';
+    if (health && !health.ok) {
+      return { text: health.message || 'โหมดค้นหาในเครื่อง', tone: 'error' };
+    }
+    return {
+      text: 'โหมดค้นหาในเครื่อง (ยังเรียก Edge Function ไม่ได้)',
+      tone: 'error',
+    };
+  }
+
+  function applyStatus(el, text, tone) {
+    if (!el) return;
+    el.textContent = text || '';
+    el.dataset.status = tone || 'info';
   }
 
   function initUi() {
@@ -298,10 +322,16 @@
     }
 
     async function refreshHealth() {
-      if (statusEl) statusEl.textContent = 'กำลังตรวจสอบการเชื่อมต่อ…';
+      applyStatus(statusEl, 'กำลังตรวจสอบการเชื่อมต่อ…', 'info');
       health = await probeHealth();
-      if (statusEl) {
-        statusEl.textContent = health.message || (health.ok ? 'พร้อมใช้งาน' : 'เชื่อมต่อไม่สำเร็จ');
+      if (health.ok) {
+        applyStatus(
+          statusEl,
+          health.message || 'เชื่อมต่อเซิร์ฟเวอร์ผู้ช่วยแล้ว',
+          health.statusTone || 'info',
+        );
+      } else {
+        applyStatus(statusEl, health.message || 'เชื่อมต่อผู้ช่วย AI ไม่สำเร็จ', 'error');
       }
       return health;
     }
@@ -342,7 +372,7 @@
       busy = true;
       const submitBtn = form.querySelector('button[type="submit"]');
       submitBtn?.setAttribute('disabled', 'true');
-      if (statusEl) statusEl.textContent = 'กำลังถามผู้ช่วย AI…';
+      applyStatus(statusEl, 'กำลังถามผู้ช่วย AI…', 'info');
       const loadingEl = appendMessage(logEl, 'bot', 'กำลังค้นหาคำตอบ…', [], {
         loading: true,
         id: 'aiChatLoading',
@@ -362,10 +392,20 @@
       let mode = 'local';
 
       if (result && result.ok && result.answer) {
-        // Real Edge Function response (gemini or server-side catalog fallback)
+        // Real Edge Function response only — never invent a "Gemini success" reply.
         answer = result.answer;
         products = Array.isArray(result.products) ? result.products : [];
         mode = result.mode === 'gemini' ? 'gemini' : 'fallback';
+        if (mode === 'fallback' && result.error && !/โควตา|Gemini|ฐานข้อมูล|ค้นหา/i.test(answer)) {
+          // Ensure failure reason is visible in the chat bubble, not only in the status line.
+          const prefix =
+            result.error === 'gemini_quota'
+              ? 'โควตาฟรีของ Gemini เต็มชั่วคราว — แสดงผลการค้นหาสินค้าในร้านแทน\n\n'
+              : result.error === 'gemini_key_missing'
+                ? 'ยังไม่ได้ตั้งค่า Gemini API Key — แสดงผลการค้นหาสินค้าในร้านแทน\n\n'
+                : 'เชื่อมต่อ Gemini ไม่สำเร็จ — แสดงผลการค้นหาสินค้าในร้านแทน\n\n';
+          answer = prefix + answer;
+        }
       } else {
         const productsLive =
           (typeof global.getStoreProductsForAi === 'function' && global.getStoreProductsForAi()) ||
@@ -379,6 +419,8 @@
           why = (result.message || 'ถามบ่อยเกินไป') + ' — ';
         } else if (result?.error === 'supabase_not_configured') {
           why = 'ยังเชื่อมต่อฐานข้อมูลไม่ได้ — ';
+        } else if (result?.message) {
+          why = String(result.message) + ' — ';
         }
         answer = why + local.answer;
         products = local.products;
@@ -391,7 +433,8 @@
       hist2.push({ role: 'bot', text: answer, products, mode });
       saveHistory(hist2);
 
-      if (statusEl) statusEl.textContent = statusForMode(mode, health, result);
+      const st = statusForMode(mode, health, result);
+      applyStatus(statusEl, st.text, st.tone);
       busy = false;
       submitBtn?.removeAttribute('disabled');
     });

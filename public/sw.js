@@ -1,5 +1,5 @@
 /* Service worker ราชาหวายสุรินทร์ — ให้เปิดแบบแอปและโหลดซ้ำเร็ว */
-const CACHE_VERSION = 'rachawei-v1950-ai-helper-fab';
+const CACHE_VERSION = 'rachawei-v1952-ai-helper-status';
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 
 self.addEventListener('install', (event) => {
