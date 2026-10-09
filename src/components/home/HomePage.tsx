@@ -1,15 +1,10 @@
 import { LandingHero } from './LandingHero';
 
-interface HomePageProps {
-  coverImage?: string;
-  coverImageAlt?: string;
-}
-
 /** Landing intro only — shopping lives at /store/. */
-export function HomePage({ coverImage, coverImageAlt }: HomePageProps) {
+export function HomePage() {
   return (
     <div className="home-page home-page--landing">
-      <LandingHero imageSrc={coverImage} imageAlt={coverImageAlt} />
+      <LandingHero />
     </div>
   );
 }
