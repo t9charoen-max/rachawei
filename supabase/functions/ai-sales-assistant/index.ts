@@ -1,27 +1,28 @@
 /**
  * Supabase Edge Function: ai-sales-assistant
- * - Reads active store_products from Supabase (anon / service role via env)
- * - Calls Gemini Free Tier (server-side only)
- * - Never exposes GEMINI_API_KEY to the browser
+ * - Reads active store_products from this Supabase project
+ * - Calls Gemini Free Tier using GEMINI_API_KEY from Edge Function secrets only
+ * - Never returns or logs the API key
  *
- * Secrets (Dashboard → Edge Functions → Secrets):
- *   GEMINI_API_KEY=...
+ * Required secret (Dashboard → Edge Functions → Secrets):
+ *   GEMINI_API_KEY
  * Optional:
  *   GEMINI_MODEL=gemini-2.5-flash-lite
  *
- * Auto-provided by Supabase runtime:
+ * Auto-injected by Supabase runtime (do not commit):
  *   SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY
  */
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.1';
 
-const CORS = {
+const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers':
     'authorization, x-client-info, apikey, content-type, x-rachawei-client',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS, GET',
+  'Access-Control-Max-Age': '86400',
 };
 
-/** Free-tier-friendly defaults (paid models must not be selected automatically) */
+/** Free-tier-friendly defaults — never auto-select paid-only models */
 const DEFAULT_MODELS = [
   'gemini-2.5-flash-lite',
   'gemini-2.5-flash',
@@ -48,11 +49,36 @@ type ProductRow = {
   status: string | null;
 };
 
-function json(data: unknown, status = 200) {
+type CatalogItem = {
+  id: string;
+  name: string;
+  description: string;
+  price: number;
+  stock: number | null;
+  size: string;
+  emoji: string;
+  badge: string;
+  category: string;
+  image: string;
+};
+
+function corsJson(data: unknown, status = 200) {
   return new Response(JSON.stringify(data), {
     status,
-    headers: { ...CORS, 'Content-Type': 'application/json; charset=utf-8' },
+    headers: {
+      ...CORS_HEADERS,
+      'Content-Type': 'application/json; charset=utf-8',
+      'Cache-Control': 'no-store',
+    },
   });
+}
+
+/** Strip anything that looks like a Google API key from error text */
+function safeErrorText(raw: unknown): string {
+  return String(raw || '')
+    .replace(/AIza[0-9A-Za-z_-]{10,}/g, '[redacted]')
+    .replace(/key=[^&\s]+/gi, 'key=[redacted]')
+    .slice(0, 240);
 }
 
 function clientIp(req: Request): string {
@@ -80,8 +106,7 @@ function sanitizeMessage(raw: unknown): string {
     .replace(/[\u0000-\u001f\u007f]/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
-  if (s.length > MAX_MESSAGE) return s.slice(0, MAX_MESSAGE);
-  return s;
+  return s.length > MAX_MESSAGE ? s.slice(0, MAX_MESSAGE) : s;
 }
 
 function resolveImage(file: unknown): string {
@@ -91,10 +116,9 @@ function resolveImage(file: unknown): string {
   return `/products/${s}`;
 }
 
-function compactProducts(rows: ProductRow[]) {
+function compactProducts(rows: ProductRow[]): CatalogItem[] {
   return rows.map((p) => {
     const imgs = Array.isArray(p.images) ? p.images : [];
-    const image = resolveImage(imgs[0]);
     return {
       id: String(p.id),
       name: p.name,
@@ -105,19 +129,18 @@ function compactProducts(rows: ProductRow[]) {
       emoji: p.emoji || '🧺',
       badge: p.badge || '',
       category: p.category || p.store_cat || '',
-      image,
+      image: resolveImage(imgs[0]),
     };
   });
 }
 
-function localMatch(query: string, products: ReturnType<typeof compactProducts>) {
+/** Search only within the provided catalog — never invent products */
+function localMatch(query: string, products: CatalogItem[]) {
   const q = query.toLowerCase();
-  const budget = (() => {
-    const m = q.match(/(?:งบ|ไม่เกิน|ภายใต้|ราคา)\s*(\d{2,6})/);
-    return m ? Number(m[1]) : null;
-  })();
+  const budgetMatch = q.match(/(?:งบ|ไม่เกิน|ภายใต้|ราคา)\s*(\d{2,6})/);
+  const budget = budgetMatch ? Number(budgetMatch[1]) : null;
 
-  let list = products.filter((p) => (p.stock == null || p.stock > 0));
+  let list = products.filter((p) => p.stock == null || p.stock > 0);
   if (budget != null && Number.isFinite(budget)) {
     list = list.filter((p) => p.price <= budget);
   }
@@ -132,7 +155,7 @@ function localMatch(query: string, products: ReturnType<typeof compactProducts>)
       }
       if (/ตะกร้า|basket/.test(q) && /ตะกร้า|basket/.test(hay)) score += 3;
       if (/เก้าอี้|เก้าอ|chair/.test(q) && /เก้าอี้|chair/.test(hay)) score += 3;
-      if (/ของขวัญ|gift|กระเช้า/.test(q) && /ขวัญ|gift|กระเช้า|badge/.test(hay + p.badge)) score += 2;
+      if (/ของขวัญ|gift|กระเช้า/.test(q) && /ขวัญ|gift|กระเช้า/.test(hay)) score += 2;
       return { p, score };
     })
     .filter((x) => x.score > 0 || budget != null)
@@ -146,7 +169,7 @@ function localMatch(query: string, products: ReturnType<typeof compactProducts>)
     return {
       answer:
         'ไม่พบสินค้าที่ตรงกับคำถามในคลังร้านขณะนี้ — ลองระบุงบประมาณหรือประเภท เช่น ตะกร้า เก้าอี้ ของขวัญ',
-      products: [] as ReturnType<typeof compactProducts>,
+      products: [] as CatalogItem[],
     };
   }
 
@@ -164,12 +187,23 @@ function localMatch(query: string, products: ReturnType<typeof compactProducts>)
   };
 }
 
-async function fetchProducts() {
-  const url = Deno.env.get('SUPABASE_URL') || '';
-  const key =
+function readGeminiApiKey(): string {
+  // Edge Function secrets only — never read from request body/headers
+  const key = String(Deno.env.get('GEMINI_API_KEY') || '').trim();
+  if (!key) return '';
+  // Reject obviously wrong / placeholder values
+  if (/your[_-]?api[_-]?key|changeme|xxx|placeholder/i.test(key)) return '';
+  return key;
+}
+
+async function fetchProducts(): Promise<CatalogItem[]> {
+  const url = String(Deno.env.get('SUPABASE_URL') || '').trim();
+  // Prefer anon for public catalog (least privilege). Service role only as fallback.
+  const key = String(
     Deno.env.get('SUPABASE_ANON_KEY') ||
-    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ||
-    '';
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ||
+      '',
+  ).trim();
   if (!url || !key) throw new Error('supabase_env_missing');
 
   const sb = createClient(url, key, {
@@ -188,7 +222,7 @@ async function fetchProducts() {
   return compactProducts((data || []) as ProductRow[]);
 }
 
-function buildPrompt(message: string, catalog: ReturnType<typeof compactProducts>) {
+function buildPrompt(message: string, catalog: CatalogItem[]) {
   const catalogJson = JSON.stringify(
     catalog.map((p) => ({
       id: p.id,
@@ -205,10 +239,10 @@ function buildPrompt(message: string, catalog: ReturnType<typeof compactProducts
   return `คุณเป็นผู้ช่วยขายของร้าน "ราชาหวายสุรินทร์" งานจักสานหวายบ้านบุทม จ.สุรินทร์
 กฎสำคัญ:
 1) ตอบภาษาไทย สุภาพ กระชับ
-2) แนะนำเฉพาะสินค้าใน CATALOG ด้านล่างเท่านั้น — ห้ามแต่งราคา สต็อก ส่วนลด ค่าจัดส่ง หรือสินค้าที่ไม่มี
+2) แนะนำเฉพาะสินค้าใน CATALOG ด้านล่างเท่านั้น — ห้ามแต่งราคา สต็อก ส่วนลด ค่าจัดส่ง หรือสินค้าที่ไม่มีใน CATALOG
 3) หากไม่มีข้อมูลใน CATALOG ให้บอกว่าไม่พบข้อมูลอย่างตรงไปตรงมา
-4) ห้ามสร้างออเดอร์ ห้ามยืนยันการชำระเงิน ห้ามขอรหัสผ่าน/เลขบัตร
-5) เมื่อแนะนำสินค้า ให้ใส่รหัสสินค้าในรูปแบบ [รหัส:ID] เช่น [รหัส:1]
+4) ห้ามสร้างออเดอร์ ห้ามยืนยันการชำระเงิน ห้ามขอรหัสผ่าน/เลขบัตร/API key
+5) เมื่อแนะนำสินค้า ให้ใส่รหัสสินค้าในรูปแบบ [รหัส:ID] เช่น [รหัส:1] โดย ID ต้องตรงกับ CATALOG เท่านั้น
 6) แนะนำได้สูงสุด 5 รายการ
 7) ถ้าลูกค้าถามเรื่องโปร/ค่าส่งที่ไม่อยู่ใน CATALOG ให้บอกให้ดูที่หน้าร้านหรือติดต่อร้าน
 
@@ -220,26 +254,29 @@ ${message}`;
 }
 
 async function callGemini(prompt: string): Promise<{ text: string; model: string }> {
-  const apiKey = Deno.env.get('GEMINI_API_KEY') || '';
+  const apiKey = readGeminiApiKey();
   if (!apiKey) {
     const err = new Error('gemini_key_missing');
     (err as Error & { code?: string }).code = 'gemini_key_missing';
     throw err;
   }
 
-  const preferred = (Deno.env.get('GEMINI_MODEL') || '').trim();
+  const preferred = String(Deno.env.get('GEMINI_MODEL') || '').trim();
   const models = preferred
     ? [preferred, ...DEFAULT_MODELS.filter((m) => m !== preferred)]
     : DEFAULT_MODELS;
 
   let lastErr = 'gemini_failed';
   for (const model of models) {
+    // Pass key via header (not query string) so it is less likely to appear in URL logs
     const endpoint =
-      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent` +
-      `?key=${encodeURIComponent(apiKey)}`;
+      `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`;
     const res = await fetch(endpoint, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'x-goog-api-key': apiKey,
+      },
       body: JSON.stringify({
         contents: [{ role: 'user', parts: [{ text: prompt }] }],
         generationConfig: {
@@ -250,9 +287,8 @@ async function callGemini(prompt: string): Promise<{ text: string; model: string
     });
     const body = await res.json().catch(() => ({}));
     if (!res.ok) {
-      const msg = String(body?.error?.message || res.status);
+      const msg = safeErrorText(body?.error?.message || res.status);
       lastErr = msg;
-      // Try next free model on 404/not found / quota for this model
       if (
         res.status === 404 ||
         /not found|unsupported|quota|rate limit|RESOURCE_EXHAUSTED/i.test(msg)
@@ -278,44 +314,54 @@ async function callGemini(prompt: string): Promise<{ text: string; model: string
     return { text, model };
   }
 
-  const err = new Error(lastErr);
+  const err = new Error(safeErrorText(lastErr));
   (err as Error & { code?: string }).code = /quota|rate|RESOURCE/i.test(lastErr)
     ? 'gemini_quota'
     : 'gemini_error';
   throw err;
 }
 
-function extractIds(answer: string, catalog: ReturnType<typeof compactProducts>) {
+/** Only return products that exist in catalog (never invent rows) */
+function extractIds(answer: string, catalog: CatalogItem[]): CatalogItem[] {
+  const byId = new Map(catalog.map((p) => [p.id, p]));
   const ids = new Set<string>();
   const re = /\[รหัส\s*:\s*([^\]]+)\]/gi;
   let m: RegExpExecArray | null;
   while ((m = re.exec(answer))) {
     ids.add(String(m[1]).trim());
   }
-  // Also match bare "รหัส 1" lightly
   const re2 = /รหัส\s*[:：]?\s*(\d{1,6})/gi;
   while ((m = re2.exec(answer))) {
     ids.add(String(m[1]).trim());
   }
-  const byId = new Map(catalog.map((p) => [p.id, p]));
-  const products = [...ids]
+  return [...ids]
     .map((id) => byId.get(id))
-    .filter(Boolean)
-    .slice(0, 5) as ReturnType<typeof compactProducts>;
-  return products;
+    .filter((p): p is CatalogItem => Boolean(p))
+    .slice(0, 5);
 }
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: CORS });
+    return new Response('ok', { headers: CORS_HEADERS });
   }
+
+  // Lightweight health (no secrets). Useful after deploy to confirm function is live.
+  if (req.method === 'GET') {
+    return corsJson({
+      ok: true,
+      function: 'ai-sales-assistant',
+      geminiKeyConfigured: Boolean(readGeminiApiKey()),
+      note: 'POST { "message": "..." } to ask. Key value is never returned.',
+    });
+  }
+
   if (req.method !== 'POST') {
-    return json({ ok: false, error: 'method_not_allowed' }, 405);
+    return corsJson({ ok: false, error: 'method_not_allowed' }, 405);
   }
 
   const ip = clientIp(req);
   if (!rateLimit(ip)) {
-    return json(
+    return corsJson(
       {
         ok: false,
         error: 'rate_limited',
@@ -329,24 +375,25 @@ Deno.serve(async (req) => {
   try {
     payload = await req.json();
   } catch {
-    return json({ ok: false, error: 'invalid_json', message: 'รูปแบบคำขอไม่ถูกต้อง' }, 400);
+    return corsJson({ ok: false, error: 'invalid_json', message: 'รูปแบบคำขอไม่ถูกต้อง' }, 400);
   }
 
+  // Ignore any client-supplied apiKey field — secrets come from Deno.env only
   const message = sanitizeMessage(payload.message);
   if (message.length < 2) {
-    return json({ ok: false, error: 'message_required', message: 'กรุณาพิมพ์คำถาม' }, 400);
+    return corsJson({ ok: false, error: 'message_required', message: 'กรุณาพิมพ์คำถาม' }, 400);
   }
 
-  let catalog: ReturnType<typeof compactProducts> = [];
+  let catalog: CatalogItem[] = [];
   try {
     catalog = await fetchProducts();
   } catch (e) {
-    return json(
+    return corsJson(
       {
         ok: false,
         error: 'catalog_unavailable',
         message: 'โหลดสินค้าจากฐานข้อมูลไม่สำเร็จ — ลองใหม่หรือค้นหาในหน้าร้าน',
-        detail: String((e as Error)?.message || e),
+        detail: safeErrorText((e as Error)?.message || e),
       },
       503,
     );
@@ -356,9 +403,10 @@ Deno.serve(async (req) => {
     const { text, model } = await callGemini(buildPrompt(message, catalog));
     let products = extractIds(text, catalog);
     if (!products.length) {
+      // Still only catalog rows — never fabricate
       products = localMatch(message, catalog).products;
     }
-    return json({
+    return corsJson({
       ok: true,
       mode: 'gemini',
       model,
@@ -370,17 +418,18 @@ Deno.serve(async (req) => {
     const fallback = localMatch(message, catalog);
     const userMsg =
       code === 'gemini_key_missing'
-        ? 'ยังไม่ได้ตั้งค่า Gemini API Key — แสดงผลการค้นหาสินค้าในร้านแทน'
+        ? 'ยังไม่ได้ตั้งค่า Gemini API Key บน Edge Function — แสดงผลการค้นหาสินค้าในร้านแทน'
         : code === 'gemini_quota'
           ? 'โควตาฟรีของ Gemini เต็มชั่วคราว — แสดงผลการค้นหาสินค้าในร้านแทน'
           : 'ผู้ช่วย AI ใช้ไม่ได้ชั่วคราว — แสดงผลการค้นหาสินค้าในร้านแทน';
 
-    return json({
+    return corsJson({
       ok: true,
       mode: 'fallback',
       answer: `${userMsg}\n\n${fallback.answer}`,
       products: fallback.products,
       error: code || 'gemini_unavailable',
+      // never include raw Gemini/API error text that might leak keys
     });
   }
 });
