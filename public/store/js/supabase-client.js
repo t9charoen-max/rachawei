@@ -66,6 +66,16 @@
     }
   }
 
+  /** Public anon config only — never service_role */
+  function getPublicConfig() {
+    if (!isConfigured()) return { url: '', anonKey: '', configured: false };
+    return {
+      url: String(cfg.url || ''),
+      anonKey: String(cfg.anonKey || ''),
+      configured: true,
+    };
+  }
+
   function applyConfig(next) {
     if (!next || typeof next !== 'object') return false;
     const url = String(next.url || '').trim();
@@ -916,6 +926,7 @@
   global.RachaweiStoreApi = {
     init,
     isConfigured,
+    getPublicConfig,
     getConfigStatus,
     getClient,
     fetchActiveProducts,

@@ -5019,6 +5019,22 @@
 
     // Expose for inline onclick
     window.addToCart = addToCart;
+    window.getStoreProductsForAi = function getStoreProductsForAi() {
+      return (products || []).map((p) => ({
+        id: p.id,
+        name: p.name,
+        price: p.price,
+        stock: p.stock,
+        size: p.size || '',
+        desc: p.desc || '',
+        detail: p.detail || '',
+        category: p.category || '',
+        badge: p.badge || '',
+        emoji: p.emoji || '🧺',
+        images: Array.isArray(p.images) ? p.images.slice() : [],
+        image: p.image || (Array.isArray(p.images) ? p.images[0] : '') || '',
+      }));
+    };
     window.saveShopSettings = saveShopSettings;
     window.saveProducts = saveProducts;
     window.renderProducts = renderProducts;

@@ -55,3 +55,7 @@ curl -X POST https://rachawei-gamma.vercel.app/api/store-admin-bootstrap \
 - `VITE_SUPABASE_ANON_KEY`
 
 ห้ามใส่ `service_role` ใน frontend
+
+## AI Sales Assistant
+
+ดู `supabase/functions/ai-sales-assistant/README.md` — Edge Function + Gemini Free Tier
