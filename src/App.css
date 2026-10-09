@@ -4316,3 +4316,26 @@
     box-shadow: 0 0 0 1px rgba(212, 168, 83, 0.1);
   }
 }
+
+/* Discreet owner-only entry in flow under CTA — never overlays เข้าสู่ร้านค้า */
+.landing-owner-entry {
+  margin: 0.7rem 0 0;
+  text-align: center;
+}
+
+.landing-owner-entry__link {
+  display: inline-block;
+  font-family: 'Noto Sans Thai', 'Sarabun', sans-serif;
+  font-size: 0.68rem;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  color: rgba(247, 240, 230, 0.42);
+  text-decoration: none;
+  padding: 0.25rem 0.55rem;
+}
+
+.landing-owner-entry__link:hover,
+.landing-owner-entry__link:focus-visible {
+  color: rgba(247, 240, 230, 0.78);
+  outline: none;
+}
