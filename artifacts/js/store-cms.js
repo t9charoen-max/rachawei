@@ -1105,7 +1105,7 @@
           SHOP_CONFIG.heroImages = heroImages;
           applyStoreContent();
           if (typeof showToast === 'function') {
-            showToast('บันทึกเนื้อหาในเครื่องแล้ว (ไม่มี saveShopSettings)');
+            showToast('บันทึกเนื้อหาไม่สำเร็จ — ไม่พบ saveShopSettings (ข้อมูลยังไม่เข้า Supabase)');
           }
         }
         if (typeof applyStoreContent === 'function') applyStoreContent();

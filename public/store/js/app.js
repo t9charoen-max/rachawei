@@ -468,11 +468,15 @@
     }
 
     async function saveProducts(options = {}) {
-      await persistAll();
-      // ซิงก์ขึ้นคลาวด์เฉพาะเมื่อ admin บันทึกโดยตั้งใจ (กันทับข้อมูลเดิมโดยไม่ตั้งใจ)
+      // ซิงก์ขึ้นคลาวด์เฉพาะเมื่อ admin บันทึกโดยตั้งใจ — persist IndexedDB หลัง ack เท่านั้น
       if (options.syncRemote) {
-        return syncProductsToSupabase(options.productIds);
+        const remote = await syncProductsToSupabase(options.productIds);
+        if (remote && remote.ok && !remote.skipped) {
+          await persistAll();
+        }
+        return remote;
       }
+      await persistAll();
       return { ok: true, localOnly: true };
     }
 
@@ -498,20 +502,29 @@
       </div>`;
     }
 
-    function describeCloudSaveResult(remote, entityLabel) {
+    /** Admin cloud writes: success only after Supabase ack — never treat IndexedDB as success */
+    function requireAdminCloudReady(entityLabel) {
       if (!isSupabaseReady()) {
         return {
           ok: false,
-          localOnly: true,
-          message: `บันทึก${entityLabel}ในเครื่องนี้แล้ว — ยังไม่เชื่อมต่อ Supabase จึงไม่ขึ้นฐานข้อมูล`,
+          reason: 'supabase_not_configured',
+          message: `บันทึก${entityLabel}ไม่สำเร็จ — ยังไม่เชื่อมต่อ Supabase ข้อมูลยังไม่เข้าฐานข้อมูล`,
         };
       }
       if (!adminLoggedIn) {
         return {
           ok: false,
-          localOnly: true,
-          message: `บันทึก${entityLabel}ในเครื่องนี้แล้ว — ยังไม่ได้ login แอดมิน จึงไม่ซิงก์ขึ้นฐานข้อมูล`,
+          reason: 'not_logged_in',
+          message: `บันทึก${entityLabel}ไม่สำเร็จ — กรุณาเข้าสู่ระบบแอดมิน (store_admins) ก่อน ข้อมูลยังไม่เข้าฐานข้อมูล`,
         };
+      }
+      return { ok: true };
+    }
+
+    function describeCloudSaveResult(remote, entityLabel) {
+      const gate = requireAdminCloudReady(entityLabel);
+      if (!gate.ok) {
+        return { ok: false, localOnly: true, message: gate.message, reason: gate.reason };
       }
       if (!remote || remote.skipped) {
         const why = remote?.reason === 'not_admin'
@@ -520,7 +533,8 @@
         return {
           ok: false,
           localOnly: true,
-          message: `บันทึก${entityLabel}ในเครื่องแล้ว แต่ซิงก์คลาวด์ไม่สำเร็จ (${why})`,
+          message: `บันทึก${entityLabel}ไม่สำเร็จ — Supabase ไม่รับข้อมูล (${why})`,
+          reason: remote?.reason || 'skipped',
         };
       }
       if (remote.ok === false) {
@@ -528,7 +542,8 @@
         return {
           ok: false,
           localOnly: true,
-          message: `บันทึก${entityLabel}ในเครื่องแล้ว แต่ซิงก์คลาวด์ไม่สำเร็จ: ${detail}`,
+          message: `บันทึก${entityLabel}ไม่สำเร็จ — ข้อผิดพลาดจาก Supabase: ${detail}`,
+          reason: remote.reason || 'remote_error',
         };
       }
       return {
@@ -539,8 +554,10 @@
     }
 
     async function saveShopVideos(options = {}) {
-      await persistAll();
-      if (options.syncRemote === false) return { ok: true, local: true, skipped: true, reason: 'sync_disabled' };
+      if (options.syncRemote === false) {
+        await persistAll();
+        return { ok: true, local: true, skipped: true, reason: 'sync_disabled' };
+      }
       if (!isSupabaseReady()) {
         return { ok: false, local: true, skipped: true, reason: 'supabase_not_configured' };
       }
@@ -563,7 +580,7 @@
           nextVideoId = Math.max(nextVideoId, Number(remote.id) + 1 || nextVideoId);
         }
       }
-      if (failed) return { ok: false, error: 'video_sync_partial' };
+      if (failed) return { ok: false, error: 'video_sync_partial', reason: 'upsert_failed' };
       await persistAll();
       return { ok: true };
     }
@@ -3541,12 +3558,39 @@
       }
 
       if (!hasAdminPinConfigured()) {
+        // Local PIN bootstrap only (no Supabase) — never claim cloud save success
         SHOP_CONFIG.adminPinHash = hashAdminPin(pin);
-        await saveShopSettings({});
+        if (dbReady) {
+          try {
+            await idbSet('shopSettings', {
+              shopName: SHOP_CONFIG.shopName,
+              shopSub: SHOP_CONFIG.shopSub,
+              phoneDisplay: SHOP_CONFIG.phoneDisplay,
+              phoneTel: SHOP_CONFIG.phoneTel,
+              lineUrl: SHOP_CONFIG.lineUrl,
+              facebookUrl: SHOP_CONFIG.facebookUrl,
+              addressHtml: SHOP_CONFIG.addressHtml,
+              mapUrl: SHOP_CONFIG.mapUrl,
+              adminPinHash: getAdminPinHash(),
+              promoMin: SHOP_CONFIG.promoMin,
+              promoDiscount: SHOP_CONFIG.promoDiscount,
+              shippingFee: SHOP_CONFIG.shippingFee,
+              freeShippingMin: SHOP_CONFIG.freeShippingMin,
+              bankName: SHOP_CONFIG.bankName,
+              bankAccountName: SHOP_CONFIG.bankAccountName,
+              promptPayNo: SHOP_CONFIG.promptPayNo,
+              bankAccountNo: SHOP_CONFIG.bankAccountNo,
+              bankNote: SHOP_CONFIG.bankNote,
+              heroImages: Array.isArray(SHOP_CONFIG.heroImages) ? SHOP_CONFIG.heroImages : [],
+              storefrontPhotos: Array.isArray(SHOP_CONFIG.storefrontPhotos) ? SHOP_CONFIG.storefrontPhotos : [],
+              content: SHOP_CONFIG.content || null,
+            });
+          } catch (e) { console.warn(e); }
+        }
         adminLoggedIn = true;
         if (errEl) errEl.classList.remove('show');
         showAdminMain();
-        showToast('ตั้งรหัสหลังร้านแล้ว ✓');
+        showToast('ตั้งรหัสหลังร้านแล้ว (โหมดท้องถิ่น) — การบันทึกข้อมูลร้านต้องเชื่อม Supabase');
         return;
       }
       if (verifyAdminPin(pin)) {
@@ -3632,14 +3676,48 @@
     }
 
     async function saveShopSettings(partial) {
-      setAdminSaveStatus('saving', 'กำลังบันทึก…');
+      setAdminSaveStatus('saving', 'กำลังบันทึกขึ้น Supabase…');
+      const gate = requireAdminCloudReady('การตั้งค่า/เนื้อหา');
+      if (!gate.ok) {
+        setAdminSaveStatus('error', gate.message);
+        showToast(gate.message);
+        return { ok: false, error: gate.reason, localOnly: true };
+      }
+
+      const prevSnapshot = {
+        shopName: SHOP_CONFIG.shopName,
+        shopSub: SHOP_CONFIG.shopSub,
+        phoneDisplay: SHOP_CONFIG.phoneDisplay,
+        phoneTel: SHOP_CONFIG.phoneTel,
+        lineUrl: SHOP_CONFIG.lineUrl,
+        facebookUrl: SHOP_CONFIG.facebookUrl,
+        addressHtml: SHOP_CONFIG.addressHtml,
+        mapUrl: SHOP_CONFIG.mapUrl,
+        adminPinHash: getAdminPinHash(),
+        promoMin: SHOP_CONFIG.promoMin,
+        promoDiscount: SHOP_CONFIG.promoDiscount,
+        shippingFee: SHOP_CONFIG.shippingFee,
+        freeShippingMin: SHOP_CONFIG.freeShippingMin,
+        bankName: SHOP_CONFIG.bankName,
+        bankAccountName: SHOP_CONFIG.bankAccountName,
+        promptPayNo: SHOP_CONFIG.promptPayNo,
+        bankAccountNo: SHOP_CONFIG.bankAccountNo,
+        bankNote: SHOP_CONFIG.bankNote,
+        heroImages: Array.isArray(SHOP_CONFIG.heroImages) ? SHOP_CONFIG.heroImages.slice() : [],
+        storefrontPhotos: Array.isArray(SHOP_CONFIG.storefrontPhotos)
+          ? SHOP_CONFIG.storefrontPhotos.map((p) => (p && typeof p === 'object' ? { ...p } : p))
+          : [],
+        content: SHOP_CONFIG.content
+          ? (typeof mergeStoreContent === 'function'
+            ? mergeStoreContent(SHOP_CONFIG.content)
+            : JSON.parse(JSON.stringify(SHOP_CONFIG.content)))
+          : null,
+      };
+
       Object.assign(SHOP_CONFIG, partial);
       if (partial && partial.content && typeof mergeStoreContent === 'function') {
         SHOP_CONFIG.content = mergeStoreContent(partial.content);
       }
-      applyShopConfig();
-      renderPopularCats();
-      refreshHeroSlides();
       const toSave = {
         shopName: SHOP_CONFIG.shopName,
         shopSub: SHOP_CONFIG.shopSub,
@@ -3663,24 +3741,29 @@
         storefrontPhotos: Array.isArray(SHOP_CONFIG.storefrontPhotos) ? SHOP_CONFIG.storefrontPhotos : [],
         content: SHOP_CONFIG.content || null
       };
+
+      const remote = await RachaweiStoreApi.saveShopSettingsRemote(toSave);
+      const outcome = describeCloudSaveResult(remote, 'การตั้งค่า/เนื้อหา');
+      if (!outcome.ok) {
+        Object.assign(SHOP_CONFIG, prevSnapshot);
+        if (prevSnapshot.content && typeof mergeStoreContent === 'function') {
+          SHOP_CONFIG.content = mergeStoreContent(prevSnapshot.content);
+        }
+        applyShopConfig();
+        renderPopularCats();
+        refreshHeroSlides();
+        setAdminSaveStatus('error', outcome.message);
+        showToast(outcome.message);
+        return { ok: false, error: remote?.error || remote?.reason || outcome.reason, localOnly: true };
+      }
+
+      applyShopConfig();
+      renderPopularCats();
+      refreshHeroSlides();
       if (dbReady) {
         try {
           await idbSet('shopSettings', toSave);
         } catch (e) { console.warn(e); }
-      }
-
-      let remote = { ok: true, skipped: !isSupabaseReady() || !adminLoggedIn, reason: !isSupabaseReady() ? 'supabase_not_configured' : (!adminLoggedIn ? 'not_logged_in' : null) };
-      if (isSupabaseReady() && adminLoggedIn) {
-        remote = await RachaweiStoreApi.saveShopSettingsRemote(toSave);
-        if (!remote.ok) {
-          console.warn('บันทึกตั้งค่าร้านขึ้น Supabase ไม่สำเร็จ', remote.error);
-        }
-      }
-      const outcome = describeCloudSaveResult(remote, 'การตั้งค่า/เนื้อหา');
-      if (!outcome.ok) {
-        setAdminSaveStatus('error', outcome.message);
-        showToast(outcome.message);
-        return { ok: false, error: remote.error || remote.reason, localOnly: true };
       }
       setAdminSaveStatus('ok', outcome.message);
       showToast(outcome.message);
@@ -3882,8 +3965,10 @@
           heroImages: (window._heroImagesDraft || []).slice(0, 10)
         };
         if (nextPin) settingsPatch.adminPinHash = hashAdminPin(nextPin);
-        saveShopSettings(settingsPatch);
-        refreshHeroSlides();
+        void (async () => {
+          await saveShopSettings(settingsPatch);
+          refreshHeroSlides();
+        })();
       };
 
       document.getElementById('btnExportProductsJson').onclick = () => {
@@ -4737,60 +4822,69 @@
         return;
       }
 
-      setAdminSaveStatus('saving', 'กำลังบันทึกสินค้า…');
-      if (editingProductId) {
-        const p = products.find((x) => x.id === editingProductId);
-        if (p) {
-          p.name = name;
-          p.price = price;
-          p.cat = cat;
-          p.category = categoryMap[cat];
-          p.emoji = emoji;
-          p.desc = desc;
-          p.detail = detail;
-          p.images = images;
-          p.image = image;
-          p.badge = badge;
-          p.stock = stock;
-          p.size = size;
-          p.status = status;
-          p.featured = badge === 'พิเศษ' || badge === 'ยอดนิยม';
-        }
-      } else {
-        products.push({
-          id: nextProductId++,
-          name,
-          price,
-          cat,
-          category: categoryMap[cat],
-          emoji,
-          desc,
-          detail,
-          images,
-          image,
-          badge,
-          stock,
-          size,
-          status,
-          featured: badge === 'พิเศษ' || badge === 'ยอดนิยม',
-        });
+      const gate = requireAdminCloudReady('สินค้า');
+      if (!gate.ok) {
+        setAdminSaveStatus('error', gate.message);
+        showToast(gate.message);
+        return;
       }
-      const syncedId = editingProductId || products[products.length - 1]?.id;
-      editingProductId = null;
-      window._apImages = [];
-      const remote = await saveProducts({
-        syncRemote: true,
-        productIds: syncedId != null ? [syncedId] : undefined,
-      });
-      renderProducts(catalogFilter);
-      renderPopularCats();
-      renderAdminProducts();
+
+      setAdminSaveStatus('saving', 'กำลังบันทึกสินค้าขึ้น Supabase…');
+      const prevSnapshot = JSON.parse(JSON.stringify(products));
+      const prevNextId = nextProductId;
+      const wasEditing = editingProductId;
+      const fields = {
+        name,
+        price,
+        cat,
+        category: categoryMap[cat],
+        emoji,
+        desc,
+        detail,
+        images,
+        image,
+        badge,
+        stock,
+        size,
+        status,
+        featured: badge === 'พิเศษ' || badge === 'ยอดนิยม',
+      };
+
+      let syncedId = wasEditing;
+      if (wasEditing) {
+        const p = products.find((x) => x.id === wasEditing);
+        if (!p) {
+          setAdminSaveStatus('error', 'ไม่พบสินค้าที่กำลังแก้ไข');
+          showToast('ไม่พบสินค้าที่กำลังแก้ไข');
+          return;
+        }
+        Object.assign(p, fields);
+      } else {
+        syncedId = nextProductId++;
+        products.push({ id: syncedId, ...fields });
+      }
+
+      const remote = await syncProductsToSupabase(syncedId != null ? [syncedId] : undefined);
       const outcome = describeCloudSaveResult(remote, 'สินค้า');
       if (!outcome.ok) {
+        products.length = 0;
+        prevSnapshot.forEach((p) => products.push(p));
+        nextProductId = prevNextId;
+        editingProductId = wasEditing;
+        renderProducts(catalogFilter);
+        renderPopularCats();
+        renderAdminProducts();
         setAdminSaveStatus('error', outcome.message);
         showToast(outcome.message);
         return;
       }
+
+      editingProductId = null;
+      window._apImages = [];
+      await persistAll();
+      renderProducts(catalogFilter);
+      renderPopularCats();
+      renderAdminProducts();
       setAdminSaveStatus('ok', outcome.message);
       showToast(outcome.message);
     }
@@ -4805,42 +4899,41 @@
       const p = products.find((x) => x.id === id);
       const label = p ? `${p.name} (${formatPrice(p.price)})` : String(id);
       if (!confirm(`ยืนยันลบสินค้า?\n\n${label}\n\nการลบจากคลาวด์จะทำให้ลูกค้าไม่เห็นสินค้านี้ — กดยกเลิกหากไม่แน่ใจ`)) return;
-      setAdminSaveStatus('saving', 'กำลังลบสินค้า…');
+
+      const gate = requireAdminCloudReady('สินค้า');
+      if (!gate.ok) {
+        const msg = gate.message.replace('บันทึก', 'ลบ');
+        setAdminSaveStatus('error', msg);
+        showToast(msg);
+        return;
+      }
+
+      setAdminSaveStatus('saving', 'กำลังลบสินค้าจาก Supabase…');
+      const remote = await RachaweiStoreApi.deleteProductRemote(id);
+      const outcome = describeCloudSaveResult(
+        remote?.ok ? remote : { ok: false, error: remote?.error || 'delete_failed' },
+        'สินค้า',
+      );
+      if (!outcome.ok) {
+        const msg = outcome.message.replace('บันทึก', 'ลบ');
+        setAdminSaveStatus('error', msg);
+        showToast(msg);
+        return;
+      }
+
       const idx = products.findIndex((x) => x.id === id);
       if (idx >= 0) products.splice(idx, 1);
       cart = cart.filter((c) => c.id !== id);
       shopVideos.forEach((v) => {
-        if (v.productId === id) v.productId = null;
+        if (Number(v.productId) === Number(id)) v.productId = null;
       });
-      let remoteOk = true;
-      let remoteErr = null;
-      if (isSupabaseReady() && adminLoggedIn) {
-        const remote = await RachaweiStoreApi.deleteProductRemote(id);
-        if (!remote.ok) {
-          remoteOk = false;
-          remoteErr = remote.error || 'delete_failed';
-          console.warn('ลบสินค้าบน Supabase ไม่สำเร็จ', remote.error);
-        }
-      } else if (isSupabaseReady() && !adminLoggedIn) {
-        remoteOk = false;
-        remoteErr = 'not_logged_in';
-      } else {
-        remoteOk = false;
-        remoteErr = 'supabase_not_configured';
-      }
-      await saveProducts(); // local cache
-      await saveShopVideos({ syncRemote: false });
+      await persistAll();
       saveCart();
       updateBadge();
       renderProducts(catalogFilter);
       renderAdminProducts();
-      if (!remoteOk) {
-        setAdminSaveStatus('error', `ลบในเครื่องแล้ว แต่คลาวด์อาจยังมีสินค้าอยู่ — ${remoteErr}`);
-        showToast(`ลบในเครื่องแล้ว แต่คลาวด์อาจยังมีสินค้าอยู่ (${remoteErr})`);
-        return;
-      }
       setAdminSaveStatus('ok', 'ลบสินค้าจาก Supabase แล้ว ✓');
-      showToast('ลบสินค้าแล้ว ✓');
+      showToast('ลบสินค้าจาก Supabase แล้ว ✓');
     };
 
     function resolveAdminVideoTitle(rawTitle, productId, videoUrl) {
@@ -5002,18 +5095,31 @@
         return;
       }
 
-      setAdminSaveStatus('saving', 'กำลังบันทึกวิดีโอ…');
-      let syncedId = editingVideoId;
-      if (editingVideoId) {
-        const video = shopVideos.find((v) => v.id === editingVideoId);
-        if (video) {
-          video.title = title;
-          video.videoUrl = videoUrl;
-          video.productId = productId;
-          video.views = views;
-          video.thumbnail = thumbnail;
-          video.isActive = true;
+      const gate = requireAdminCloudReady('วิดีโอ');
+      if (!gate.ok) {
+        setAdminSaveStatus('error', gate.message);
+        showAdminVideoFormError(gate.message);
+        return;
+      }
+
+      setAdminSaveStatus('saving', 'กำลังบันทึกวิดีโอขึ้น Supabase…');
+      const prevSnapshot = JSON.parse(JSON.stringify(shopVideos));
+      const prevNextId = nextVideoId;
+      const wasEditing = editingVideoId;
+      let syncedId = wasEditing;
+
+      if (wasEditing) {
+        const video = shopVideos.find((v) => v.id === wasEditing);
+        if (!video) {
+          showAdminVideoFormError('ไม่พบวิดีโอที่กำลังแก้ไข');
+          return;
         }
+        video.title = title;
+        video.videoUrl = videoUrl;
+        video.productId = productId;
+        video.views = views;
+        video.thumbnail = thumbnail;
+        video.isActive = true;
       } else {
         const created = {
           id: nextVideoId++,
@@ -5028,23 +5134,44 @@
         syncedId = created.id;
       }
 
-      editingVideoId = null;
-      const remote = await saveShopVideos({ syncRemote: true, videoIds: syncedId != null ? [syncedId] : undefined });
-      renderShopVideos();
-      renderAdminVideos();
-      const outcome = describeCloudSaveResult(
-        remote?.local === true && !isSupabaseReady()
-          ? { ok: false, skipped: true, reason: 'supabase_not_configured' }
-          : (remote?.local === true && !adminLoggedIn
-            ? { ok: false, skipped: true, reason: 'not_logged_in' }
-            : remote),
-        'วิดีโอ',
-      );
+      // Cloud-first: upsert without writing IndexedDB until Supabase ack
+      const ids = syncedId != null ? [String(syncedId)] : [];
+      let failed = 0;
+      let lastError = null;
+      let resolvedId = syncedId;
+      for (const id of ids) {
+        const video = shopVideos.find((v) => String(v.id) === String(id));
+        if (!video) continue;
+        const remoteUpsert = await RachaweiStoreApi.upsertVideo(video);
+        if (!remoteUpsert.ok) {
+          failed += 1;
+          lastError = remoteUpsert.error || 'upsert_failed';
+        } else if (remoteUpsert.id != null && String(remoteUpsert.id) !== String(video.id)) {
+          video.id = remoteUpsert.id;
+          resolvedId = remoteUpsert.id;
+          nextVideoId = Math.max(nextVideoId, Number(remoteUpsert.id) + 1 || nextVideoId);
+        }
+      }
+      const remote = failed
+        ? { ok: false, error: lastError || 'video_sync_failed', reason: 'upsert_failed' }
+        : { ok: true, id: resolvedId };
+      const outcome = describeCloudSaveResult(remote, 'วิดีโอ');
       if (!outcome.ok) {
+        shopVideos.length = 0;
+        prevSnapshot.forEach((v) => shopVideos.push(v));
+        nextVideoId = prevNextId;
+        editingVideoId = wasEditing;
+        renderShopVideos();
+        renderAdminVideos();
         setAdminSaveStatus('error', outcome.message);
         showToast(outcome.message);
         return;
       }
+
+      editingVideoId = null;
+      await persistAll();
+      renderShopVideos();
+      renderAdminVideos();
       setAdminSaveStatus('ok', outcome.message);
       showToast(outcome.message);
     }
@@ -5057,18 +5184,38 @@
 
     window.adminDeleteVideo = async function(id) {
       if (!confirm('ลบวิดีโอนี้?')) return;
+
+      const gate = requireAdminCloudReady('วิดีโอ');
+      if (!gate.ok) {
+        const msg = gate.message.replace('บันทึก', 'ลบ');
+        setAdminSaveStatus('error', msg);
+        showToast(msg);
+        return;
+      }
+
+      setAdminSaveStatus('saving', 'กำลังลบวิดีโอจาก Supabase…');
+      const remote = typeof RachaweiStoreApi.deleteVideoRemote === 'function'
+        ? await RachaweiStoreApi.deleteVideoRemote(id)
+        : { ok: false, error: 'api_missing' };
+      const outcome = describeCloudSaveResult(
+        remote?.ok ? remote : { ok: false, error: remote?.error || 'delete_failed' },
+        'วิดีโอ',
+      );
+      if (!outcome.ok) {
+        const msg = outcome.message.replace('บันทึก', 'ลบ');
+        setAdminSaveStatus('error', msg);
+        showToast(msg);
+        return;
+      }
+
       const idx = shopVideos.findIndex((v) => v.id === id);
       if (idx >= 0) shopVideos.splice(idx, 1);
       if (editingVideoId === id) editingVideoId = null;
-      if (isSupabaseReady() && adminLoggedIn && typeof RachaweiStoreApi.deleteVideoRemote === 'function') {
-        const remote = await RachaweiStoreApi.deleteVideoRemote(id);
-        if (!remote.ok) console.warn('ลบวิดีโอบน Supabase ไม่สำเร็จ', remote.error);
-      }
-      await saveShopVideos({ syncRemote: false });
+      await persistAll();
       renderShopVideos();
       renderAdminVideos();
-      setAdminSaveStatus('ok', 'ลบวิดีโอแล้ว');
-      showToast('ลบวิดีโอแล้ว');
+      setAdminSaveStatus('ok', 'ลบวิดีโอจาก Supabase แล้ว ✓');
+      showToast('ลบวิดีโอจาก Supabase แล้ว ✓');
     };
 
     function renderAdminCategories() {
