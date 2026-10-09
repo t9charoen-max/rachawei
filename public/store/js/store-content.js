@@ -9,6 +9,17 @@ const DEFAULT_STORE_CONTENT = {
     desc: 'สวย ทน ใช้งานได้จริง ส่งตรงจากผู้ผลิต',
     cta: 'ช้อปเลย →',
   },
+  /** Sticky promo strip above the store header — synced with promoMin/promoDiscount checkout rules */
+  promoBar: {
+    enabled: true,
+    emoji: '🎁',
+    /** Empty = auto text from emoji + promoMin + promoDiscount */
+    text: '',
+    ctaLabel: 'เลือกสินค้า',
+    ctaHref: '#products',
+    bgColor: '',
+    textColor: '',
+  },
   trust: [
     'ของแท้ 100% จากช่างพื้นบ้าน',
     'จัดส่งไวทั่วไทย',
