@@ -96,7 +96,16 @@ check(
 );
 check(
   'app.js has adminDeleteOrder',
-  app.ok && app.text.includes('adminDeleteOrder') && app.text.includes('ลบออเดอร์สำเร็จ'),
+  // Toast is `ลบออเดอร์ ${orderId} สำเร็จ` — do not require the exact glued string.
+  app.ok
+    && app.text.includes('adminDeleteOrder')
+    && app.text.includes('deleteOrderForAdmin')
+    && /ลบออเดอร์ \$\{orderId\} สำเร็จ|ลบออเดอร์.*สำเร็จ/.test(app.text),
+);
+check(
+  'app.js re-applies shop config after hydrate (banner CMS)',
+  app.ok
+    && /loadPersisted\(\);\s*migratePaymentFields\(\);\s*applyShopConfig\(\)/.test(app.text),
 );
 check(
   'app.js rejects owner@example.com style emails',

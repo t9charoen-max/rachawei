@@ -254,6 +254,11 @@
         SHOP_CONFIG.content = mergeStoreContent(SHOP_CONFIG.content);
       }
       migratePaymentFields();
+      // If hero DOM already exists (mid-session refresh), paint immediately.
+      // Cold boot still relies on initApp's post-loadPersisted applyShopConfig().
+      if (typeof applyShopConfig === 'function' && document.getElementById('heroStage')) {
+        applyShopConfig();
+      }
     }
 
     function mergeCatalogWithSaved(catalogList, savedList) {
