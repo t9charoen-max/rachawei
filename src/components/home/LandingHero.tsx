@@ -2,8 +2,7 @@ import { STORE_URL } from '../../lib/storeUrl';
 import { HOME_CONTENT } from '../../data/home';
 
 /**
- * Minimal full-bleed intro — one product image, one headline, one CTA to /store/.
- * Uses the curated basket photo only (no carousel / CMS cover swap).
+ * Premium craft intro — one basket photo, clear brand story, one CTA to /store/.
  */
 export function LandingHero() {
   const { hero } = HOME_CONTENT;
@@ -24,6 +23,7 @@ export function LandingHero() {
       </div>
 
       <div className="landing-hero__copy">
+        <p className="landing-hero__kicker">{hero.kicker}</p>
         <h1 className="landing-hero__title">{hero.headline}</h1>
         <p className="landing-hero__lede">{hero.subheadline}</p>
         <a className="landing-hero__cta" href={STORE_URL}>
