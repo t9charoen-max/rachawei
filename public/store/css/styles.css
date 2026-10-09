@@ -3987,8 +3987,13 @@
 
     .admin-table-wrap {
       overflow-x: auto;
+      overflow-y: visible;
       border-radius: 12px;
       border: 1px solid rgba(196,164,132,0.3);
+    }
+    /* Allow ⋯ menus to escape the scroll clip when open */
+    .admin-table-wrap.admin-table-wrap--menu-open {
+      overflow: visible;
     }
     .admin-table {
       width: 100%;
@@ -4039,27 +4044,37 @@
       font-size: 0.75rem;
       border-radius: 8px;
     }
+    .admin-order-manage {
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+      min-width: 7.5rem;
+    }
     .admin-order-menu {
       position: relative;
       display: inline-flex;
+      z-index: 1;
     }
     .admin-order-menu-btn {
       min-width: 2rem;
       font-weight: 700;
       letter-spacing: 0.05em;
       line-height: 1;
+      position: relative;
+      z-index: 2;
+      pointer-events: auto;
+      touch-action: manipulation;
     }
     .admin-order-menu-panel {
-      position: absolute;
-      right: 0;
-      top: calc(100% + 0.25rem);
-      z-index: 40;
+      position: fixed;
+      z-index: 560;
       min-width: 9.5rem;
       padding: 0.25rem;
       background: #fffdf9;
       border: 1px solid rgba(120, 90, 60, 0.28);
       border-radius: 10px;
       box-shadow: 0 8px 22px rgba(40, 28, 16, 0.12);
+      pointer-events: auto;
     }
     .admin-order-menu-item {
       display: block;
@@ -5266,6 +5281,95 @@
       background: rgba(255, 252, 247, 0.95);
       color: var(--text);
       max-width: 100%;
+    }
+
+    /* Order detail modal sits above admin overlay (z-index 500) */
+    .admin-order-detail-overlay {
+      z-index: 550;
+      display: none;
+    }
+    .admin-order-detail-overlay.open {
+      display: flex;
+    }
+    .admin-order-detail-overlay[hidden] {
+      display: none !important;
+    }
+    .admin-order-detail-modal {
+      max-width: 520px;
+    }
+    .admin-order-detail-grid {
+      display: grid;
+      gap: 0.75rem;
+      margin: 0.75rem 0 1rem;
+      font-size: 0.9rem;
+      line-height: 1.5;
+    }
+    .admin-order-detail-row {
+      display: grid;
+      grid-template-columns: 7.5rem 1fr;
+      gap: 0.5rem;
+      align-items: start;
+    }
+    .admin-order-detail-row dt {
+      margin: 0;
+      color: var(--text-soft);
+      font-size: 0.8rem;
+      font-weight: 600;
+    }
+    .admin-order-detail-row dd {
+      margin: 0;
+      color: var(--text);
+      word-break: break-word;
+    }
+    .admin-order-detail-items {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.84rem;
+      margin: 0.35rem 0 0.75rem;
+    }
+    .admin-order-detail-items th,
+    .admin-order-detail-items td {
+      text-align: left;
+      padding: 0.4rem 0.45rem;
+      border-bottom: 1px solid rgba(196,164,132,0.28);
+    }
+    .admin-order-detail-items th {
+      color: var(--rattan-deep);
+      font-size: 0.78rem;
+    }
+    .admin-order-detail-actions {
+      flex-direction: column;
+      gap: 0.55rem;
+    }
+    .admin-order-detail-actions .admin-order-status-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.45rem;
+      align-items: center;
+    }
+    .admin-order-detail-actions .status-select {
+      flex: 1 1 12rem;
+      min-height: 2.4rem;
+    }
+    .admin-order-test-badge {
+      display: inline-block;
+      margin-left: 0.35rem;
+      padding: 0.1rem 0.45rem;
+      border-radius: 6px;
+      font-size: 0.68rem;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      color: #7a4a12;
+      background: #fff3d6;
+      border: 1px solid rgba(180, 120, 40, 0.35);
+      vertical-align: middle;
+    }
+    .btn.admin-order-detail-btn,
+    .btn.admin-order-menu-btn {
+      touch-action: manipulation;
+      pointer-events: auto;
+      position: relative;
+      z-index: 2;
     }
 
     .admin-slip-actions {

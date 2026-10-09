@@ -2360,6 +2360,28 @@
         .replace(/\n/g, '<br>');
     }
 
+    /** Escape for HTML attribute / inline JS string contexts (no <br> rewrite). */
+    function escapeAttr(str) {
+      return String(str || '')
+        .replace(/&/g, '&amp;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+    }
+
+    /** Probe / seed order ids — never auto-mutate in tests; extra confirm in UI. */
+    const PROTECTED_TEST_ORDER_IDS = Object.freeze([
+      'RW-TEST-DIRECT',
+      'RW-DIRECT-SHOULD-FAIL',
+    ]);
+
+    function isProtectedTestOrder(id) {
+      const raw = String(id || '').trim().toUpperCase();
+      if (!raw) return false;
+      return PROTECTED_TEST_ORDER_IDS.some((p) => raw === p || raw.startsWith(`${p}-`) || raw.startsWith(`${p}_`));
+    }
+
     function printShippingLabel(order) {
       if (!order) {
         showToast('ไม่พบข้อมูลออเดอร์');
@@ -4794,8 +4816,12 @@
                     (o.promoDiscount > 0 ? `โปร −${formatPrice(o.promoDiscount)}` : null),
                     `ส่ง ${formatPrice(o.shippingFee || 0)}`,
                   ].filter(Boolean).join(' · ');
-                  return `<tr>
-                    <td><strong>${escapeHtml(o.id)}</strong><br><small>${formatDateTime(o.createdAt)}</small></td>
+                  const oid = escapeAttr(o.id);
+                  const testBadge = isProtectedTestOrder(o.id)
+                    ? '<span class="admin-order-test-badge" title="รายการทดสอบ — ห้ามลบ/แก้สถานะอัตโนมัติ">TEST</span>'
+                    : '';
+                  return `<tr data-order-id="${oid}">
+                    <td><strong>${escapeHtml(o.id)}</strong>${testBadge}<br><small>${formatDateTime(o.createdAt)}</small></td>
                     <td>
                       <strong>${escapeHtml(o.name || '')}</strong><br>
                       <small>${escapeHtml(o.phoneDisplay || '')}</small><br>
@@ -4807,27 +4833,29 @@
                     <td style="font-size:0.78rem;">
                       ${o.paymentSlip && o.paymentSlip !== '__remote__'
                         ? `<div class="admin-slip-actions">
-                            <button type="button" class="btn btn-outline btn-xs" onclick="adminViewSlip('${escapeHtml(o.id)}')">🧾 ดู</button>
-                            <button type="button" class="btn btn-primary btn-xs" onclick="adminConfirmPayment('${escapeHtml(o.id)}')">✓ ยืนยัน</button>
-                            <button type="button" class="btn btn-outline btn-xs" onclick="adminRejectSlip('${escapeHtml(o.id)}')">✕ ปฏิเสธ</button>
+                            <button type="button" class="btn btn-outline btn-xs" onclick="adminViewSlip('${oid}')">🧾 ดู</button>
+                            <button type="button" class="btn btn-primary btn-xs" onclick="adminConfirmPayment('${oid}')">✓ ยืนยัน</button>
+                            <button type="button" class="btn btn-outline btn-xs" onclick="adminRejectSlip('${oid}')">✕ ปฏิเสธ</button>
                           </div>`
                         : (o.paymentSlip === '__remote__'
                           ? `<span style="color:#2e7d32;">มีสลิป</span>
-                             <button type="button" class="btn btn-primary btn-xs" style="margin-top:0.25rem;" onclick="adminConfirmPayment('${escapeHtml(o.id)}')">✓ ยืนยัน</button>`
+                             <button type="button" class="btn btn-primary btn-xs" style="margin-top:0.25rem;" onclick="adminConfirmPayment('${oid}')">✓ ยืนยัน</button>`
                           : (paymentNeedsSlip(o.method) ? '<span style="color:var(--text-soft);">รอสลิป</span>' : '—'))}
                     </td>
                     <td><span class="status-badge-tag ${st.badge}">${st.label}</span></td>
                     <td>
                       <div class="admin-order-manage">
-                        <select class="status-select" onchange="adminSetOrderStatus('${escapeHtml(o.id)}', this.value)">
+                        <button type="button" class="btn btn-primary btn-xs admin-order-detail-btn" onclick="adminViewOrderDetail('${oid}')">ดูรายละเอียด</button>
+                        <select class="status-select" aria-label="เปลี่ยนสถานะออเดอร์ ${oid}" onchange="adminSetOrderStatus('${oid}', this.value)">
                           ${opts}
                         </select>
-                        <div class="admin-actions" style="margin-top:0.4rem;">
-                          <button class="btn btn-outline btn-xs" onclick="adminPrintOrder('${escapeHtml(o.id)}')">🖨️ ใบปะหน้า</button>
+                        <div class="admin-actions">
+                          <button type="button" class="btn btn-outline btn-xs" onclick="adminPrintOrder('${oid}')">🖨️ ใบปะหน้า</button>
                           <div class="admin-order-menu">
-                            <button type="button" class="btn btn-outline btn-xs admin-order-menu-btn" aria-label="เมนูออเดอร์" aria-haspopup="true" aria-expanded="false" onclick="adminToggleOrderMenu(event, '${escapeHtml(o.id)}')">⋯</button>
-                            <div class="admin-order-menu-panel" id="adminOrderMenu-${escapeHtml(o.id)}" hidden>
-                              <button type="button" class="admin-order-menu-item admin-order-menu-item--danger" onclick="adminDeleteOrder('${escapeHtml(o.id)}')">ลบออเดอร์</button>
+                            <button type="button" class="btn btn-outline btn-xs admin-order-menu-btn" aria-label="เมนูออเดอร์" aria-haspopup="true" aria-expanded="false" onclick="adminToggleOrderMenu(event, '${oid}')">⋯</button>
+                            <div class="admin-order-menu-panel" id="adminOrderMenu-${oid}" hidden>
+                              <button type="button" class="admin-order-menu-item" onclick="adminViewOrderDetail('${oid}')">ดูรายละเอียด</button>
+                              <button type="button" class="admin-order-menu-item admin-order-menu-item--danger" onclick="adminDeleteOrder('${oid}')">ลบออเดอร์</button>
                             </div>
                           </div>
                         </div>
@@ -4927,9 +4955,15 @@
     function closeAllAdminOrderMenus() {
       document.querySelectorAll('.admin-order-menu-panel').forEach((panel) => {
         panel.hidden = true;
+        panel.style.top = '';
+        panel.style.left = '';
+        panel.style.right = '';
       });
       document.querySelectorAll('.admin-order-menu-btn').forEach((btn) => {
         btn.setAttribute('aria-expanded', 'false');
+      });
+      document.querySelectorAll('.admin-table-wrap--menu-open').forEach((wrap) => {
+        wrap.classList.remove('admin-table-wrap--menu-open');
       });
     }
 
@@ -4941,41 +4975,217 @@
         closeAllAdminOrderMenus();
       });
       document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape') closeAllAdminOrderMenus();
+        if (e.key === 'Escape') {
+          closeAllAdminOrderMenus();
+          closeAdminOrderDetail();
+        }
       });
+      window.addEventListener('resize', () => closeAllAdminOrderMenus(), { passive: true });
+      window.addEventListener('scroll', () => closeAllAdminOrderMenus(), { passive: true, capture: true });
+    }
+
+    function positionAdminOrderMenu(panel, btn) {
+      const rect = btn.getBoundingClientRect();
+      const panelWidth = Math.max(152, panel.offsetWidth || 152);
+      const gap = 6;
+      let top = rect.bottom + gap;
+      let left = rect.right - panelWidth;
+      const vw = window.innerWidth || document.documentElement.clientWidth;
+      const vh = window.innerHeight || document.documentElement.clientHeight;
+      if (left < 8) left = 8;
+      if (left + panelWidth > vw - 8) left = Math.max(8, vw - panelWidth - 8);
+      panel.hidden = false;
+      // Measure after unhiding
+      const ph = panel.offsetHeight || 88;
+      if (top + ph > vh - 8) {
+        top = Math.max(8, rect.top - ph - gap);
+      }
+      panel.style.top = `${Math.round(top)}px`;
+      panel.style.left = `${Math.round(left)}px`;
+      panel.style.right = 'auto';
     }
 
     window.adminToggleOrderMenu = function(event, id) {
-      event.stopPropagation();
-      const panel = document.getElementById(`adminOrderMenu-${id}`);
-      const btn = event.currentTarget;
-      if (!panel || !btn) return;
+      if (event) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+      const orderId = String(id || '').trim();
+      const panel = document.getElementById(`adminOrderMenu-${orderId}`);
+      const btn = event && event.currentTarget
+        ? event.currentTarget
+        : document.querySelector(`.admin-order-menu-btn[aria-expanded="true"]`);
+      if (!panel) {
+        showToast('เปิดเมนูออเดอร์ไม่สำเร็จ');
+        return;
+      }
       const willOpen = panel.hidden;
       closeAllAdminOrderMenus();
-      if (willOpen) {
-        panel.hidden = false;
+      if (willOpen && btn) {
+        const wrap = btn.closest('.admin-table-wrap');
+        if (wrap) wrap.classList.add('admin-table-wrap--menu-open');
+        positionAdminOrderMenu(panel, btn);
         btn.setAttribute('aria-expanded', 'true');
       }
     };
 
-    window.adminSetOrderStatus = async function(id, idxStr) {
-      const o = orders.find(x => x.id === id);
-      if (!o) return;
-      const idx = parseInt(idxStr, 10);
-      if (idx === ORDER_CANCELLED_INDEX && !confirm(`ยกเลิกออเดอร์ ${id}?\n\nระบบจะคืนสต็อกสินค้า (หลังรัน SQL 010) และไม่สามารถกู้คืนออเดอร์ได้`)) {
-        renderAdminOrders();
+    const adminOrderDetailModal = document.getElementById('adminOrderDetailModal');
+    const adminOrderDetailBody = document.getElementById('adminOrderDetailBody');
+    const adminOrderDetailActions = document.getElementById('adminOrderDetailActions');
+    const adminOrderDetailTitle = document.getElementById('adminOrderDetailTitle');
+
+    function closeAdminOrderDetail() {
+      if (!adminOrderDetailModal) return;
+      adminOrderDetailModal.classList.remove('open');
+      adminOrderDetailModal.hidden = true;
+      if (adminOrderDetailBody) adminOrderDetailBody.innerHTML = '';
+      if (adminOrderDetailActions) adminOrderDetailActions.innerHTML = '';
+    }
+
+    function renderAdminOrderDetailContent(o) {
+      const flow = o.method === 'cod' ? COD_FLOW : STATUS_FLOW;
+      const st = flow[o.statusIndex] || flow[0];
+      const oid = escapeAttr(o.id);
+      const testBadge = isProtectedTestOrder(o.id)
+        ? '<span class="admin-order-test-badge">TEST</span>'
+        : '';
+      const itemRows = (o.items || []).map((i) => {
+        const line = (Number(i.price) || 0) * (Number(i.qty) || 0);
+        return `<tr>
+          <td>${i.emoji ? `${escapeHtml(i.emoji)} ` : ''}${escapeHtml(i.name || '—')}</td>
+          <td>${Number(i.qty) || 0}</td>
+          <td>${formatPrice(i.price || 0)}</td>
+          <td>${formatPrice(line)}</td>
+        </tr>`;
+      }).join('') || '<tr><td colspan="4">ไม่มีรายการสินค้า</td></tr>';
+      const opts = flow.map((s, i) =>
+        `<option value="${i}" ${i === o.statusIndex ? 'selected' : ''}>${s.label}</option>`
+      ).join('');
+      const slipLabel = o.paymentSlip
+        ? (o.paymentSlip === '__remote__' ? 'มีสลิปบนคลาวด์' : 'มีสลิปแนบ')
+        : (paymentNeedsSlip(o.method) ? 'รอสลิป' : '—');
+
+      if (adminOrderDetailTitle) {
+        adminOrderDetailTitle.innerHTML = `ออเดอร์ ${escapeHtml(o.id)}${testBadge}`;
+      }
+      if (adminOrderDetailBody) {
+        adminOrderDetailBody.innerHTML = `
+          <dl class="admin-order-detail-grid">
+            <div class="admin-order-detail-row"><dt>เลขออเดอร์</dt><dd><strong>${escapeHtml(o.id)}</strong>${testBadge}</dd></div>
+            <div class="admin-order-detail-row"><dt>วันเวลา</dt><dd>${formatDateTime(o.createdAt)}</dd></div>
+            <div class="admin-order-detail-row"><dt>ลูกค้า</dt><dd>${escapeHtml(o.name || '—')}<br><small>${escapeHtml(o.phoneDisplay || o.phone || '')}</small></dd></div>
+            <div class="admin-order-detail-row"><dt>ที่อยู่</dt><dd>${escapeHtml(o.address || '—')}</dd></div>
+            ${o.note ? `<div class="admin-order-detail-row"><dt>โน้ต</dt><dd>${escapeHtml(o.note)}</dd></div>` : ''}
+            <div class="admin-order-detail-row"><dt>ชำระเงิน</dt><dd>${methodLabel(o.method)} · สลิป: ${slipLabel}</dd></div>
+            <div class="admin-order-detail-row"><dt>สถานะ</dt><dd><span class="status-badge-tag ${st.badge}">${st.label}</span></dd></div>
+          </dl>
+          <table class="admin-order-detail-items">
+            <thead><tr><th>สินค้า</th><th>จำนวน</th><th>ราคา</th><th>รวม</th></tr></thead>
+            <tbody>${itemRows}</tbody>
+          </table>
+          <dl class="admin-order-detail-grid">
+            <div class="admin-order-detail-row"><dt>สินค้า</dt><dd>${formatPrice(o.subtotal || 0)}</dd></div>
+            ${(o.promoDiscount > 0) ? `<div class="admin-order-detail-row"><dt>โปรโมชัน</dt><dd>−${formatPrice(o.promoDiscount)}</dd></div>` : ''}
+            <div class="admin-order-detail-row"><dt>ค่าส่ง</dt><dd>${formatPrice(o.shippingFee || 0)}</dd></div>
+            <div class="admin-order-detail-row"><dt>ยอดรวม</dt><dd><strong>${formatPrice(o.total)}</strong></dd></div>
+          </dl>
+        `;
+      }
+      if (adminOrderDetailActions) {
+        adminOrderDetailActions.innerHTML = `
+          <div class="admin-order-status-row">
+            <label class="visually-hidden" for="adminOrderDetailStatus">สถานะออเดอร์</label>
+            <select class="status-select" id="adminOrderDetailStatus" aria-label="เปลี่ยนสถานะออเดอร์" onchange="adminSetOrderStatus('${oid}', this.value)">
+              ${opts}
+            </select>
+            <button type="button" class="btn btn-primary btn-xs" id="adminOrderDetailSaveStatus" onclick="adminSetOrderStatus('${oid}', document.getElementById('adminOrderDetailStatus').value)">บันทึกสถานะ</button>
+          </div>
+          <button type="button" class="btn btn-outline" onclick="adminPrintOrder('${oid}')">🖨️ พิมพ์ใบปะหน้า</button>
+          ${o.paymentSlip && o.paymentSlip !== '__remote__'
+            ? `<button type="button" class="btn btn-outline" onclick="adminViewSlip('${oid}')">🧾 ดูสลิป</button>`
+            : ''}
+          <button type="button" class="btn btn-outline" style="color:#a93226;border-color:rgba(169,50,38,0.35);" onclick="adminDeleteOrder('${oid}')">ลบออเดอร์</button>
+          <button type="button" class="btn btn-outline" id="adminOrderDetailClose2">ปิด</button>
+        `;
+        document.getElementById('adminOrderDetailClose2')?.addEventListener('click', closeAdminOrderDetail);
+      }
+    }
+
+    window.adminViewOrderDetail = function(id) {
+      closeAllAdminOrderMenus();
+      const orderId = String(id || '').trim();
+      const o = orders.find((x) => x.id === orderId);
+      if (!o) {
+        showToast('ไม่พบออเดอร์นี้ในรายการ');
         return;
       }
+      if (!adminOrderDetailModal) {
+        showToast('เปิดหน้ารายละเอียดไม่สำเร็จ');
+        return;
+      }
+      renderAdminOrderDetailContent(o);
+      adminOrderDetailModal.hidden = false;
+      adminOrderDetailModal.classList.add('open');
+    };
+
+    document.getElementById('adminOrderDetailClose')?.addEventListener('click', closeAdminOrderDetail);
+    adminOrderDetailModal?.addEventListener('click', (e) => {
+      if (e.target === adminOrderDetailModal) closeAdminOrderDetail();
+    });
+
+    function confirmProtectedTestOrderAction(orderId, actionLabel) {
+      if (!isProtectedTestOrder(orderId)) return true;
+      return confirm(
+        `รายการนี้เป็นออเดอร์ทดสอบ (${orderId})\n\nยืนยันที่จะ${actionLabel}จริงหรือไม่?\n\nห้ามลบ/แก้สถานะอัตโนมัติ — กดยกเลิกหากไม่แน่ใจ`,
+      );
+    }
+
+    window.adminSetOrderStatus = async function(id, idxStr) {
+      const orderId = String(id || '').trim();
+      const o = orders.find((x) => x.id === orderId);
+      if (!o) {
+        showToast('ไม่พบออเดอร์นี้ในรายการ');
+        return;
+      }
+      const idx = parseInt(idxStr, 10);
+      if (Number.isNaN(idx)) {
+        showToast('สถานะไม่ถูกต้อง');
+        renderAdminOrders();
+        if (adminOrderDetailModal?.classList.contains('open')) renderAdminOrderDetailContent(o);
+        return;
+      }
+      if (idx === o.statusIndex) {
+        showToast('สถานะนี้ถูกเลือกอยู่แล้ว');
+        return;
+      }
+      if (!confirmProtectedTestOrderAction(orderId, 'เปลี่ยนสถานะ')) {
+        renderAdminOrders();
+        if (adminOrderDetailModal?.classList.contains('open')) renderAdminOrderDetailContent(o);
+        return;
+      }
+      if (idx === ORDER_CANCELLED_INDEX && !confirm(`ยกเลิกออเดอร์ ${orderId}?\n\nระบบจะคืนสต็อกสินค้า (หลังรัน SQL 010) และไม่สามารถกู้คืนออเดอร์ได้`)) {
+        renderAdminOrders();
+        if (adminOrderDetailModal?.classList.contains('open')) renderAdminOrderDetailContent(o);
+        return;
+      }
+
+      const prevIndex = o.statusIndex;
+      const prevHistory = Array.isArray(o.history) ? o.history.slice() : [];
       o.statusIndex = idx;
-      if (!o.history.find(h => h.index === idx)) {
+      if (!o.history.find((h) => h.index === idx)) {
         o.history.push({ index: idx, at: Date.now() });
       }
       saveOrders();
+
       if (isSupabaseReady() && adminLoggedIn) {
-        const remote = await RachaweiStoreApi.updateOrderStatus(id, o.statusIndex, o.history);
+        const remote = await RachaweiStoreApi.updateOrderStatus(orderId, o.statusIndex, o.history);
         if (!remote.ok) {
-          showToast('อัปเดตสถานะบนคลาวด์ไม่สำเร็จ');
+          o.statusIndex = prevIndex;
+          o.history = prevHistory;
+          saveOrders();
+          showToast(remote.message || remote.error || 'อัปเดตสถานะบนคลาวด์ไม่สำเร็จ');
           renderAdminOrders();
+          if (adminOrderDetailModal?.classList.contains('open')) renderAdminOrderDetailContent(o);
           return;
         }
         if (idx === ORDER_CANCELLED_INDEX) {
@@ -4987,9 +5197,23 @@
             }
           } catch (_) { /* ignore */ }
         }
+        await refreshAdminOrdersFromSupabase();
+      } else if (isSupabaseReady() && !adminLoggedIn) {
+        o.statusIndex = prevIndex;
+        o.history = prevHistory;
+        saveOrders();
+        showToast('ต้องเข้าสู่ระบบแอดมินก่อนเปลี่ยนสถานะ');
+        renderAdminOrders();
+        if (adminOrderDetailModal?.classList.contains('open')) renderAdminOrderDetailContent(o);
+        return;
       }
+
       showToast(idx === ORDER_CANCELLED_INDEX ? 'ยกเลิกออเดอร์และคืนสต็อกแล้ว ✓' : 'อัปเดตสถานะแล้ว ✓');
       renderAdminOrders();
+      const fresh = orders.find((x) => x.id === orderId);
+      if (adminOrderDetailModal?.classList.contains('open') && fresh) {
+        renderAdminOrderDetailContent(fresh);
+      }
     };
 
     window.adminDeleteOrder = async function(id) {
@@ -5001,10 +5225,14 @@
         showToast('ไม่พบออเดอร์นี้ในรายการ');
         return;
       }
+
+      const itemCount = Array.isArray(o.items) ? o.items.length : 0;
+      const hasSlip = Boolean(o.paymentSlip);
       const confirmed = confirm(
-        `ยืนยันลบออเดอร์?\n\nเลขที่: ${orderId}\n\nการลบจะลบรายการสินค้าในออเดอร์นี้ด้วย และไม่สามารถกู้คืนได้`,
+        `ยืนยันลบออเดอร์?\n\nเลขที่: ${orderId}\nลูกค้า: ${o.name || '—'}\nรายการสินค้า: ${itemCount} รายการ\nสลิป/ชำระเงิน: ${hasSlip ? 'มีข้อมูลแนบ' : 'ไม่มี'}\n\nการลบจะลบรายการสินค้าในออเดอร์นี้ด้วย และไม่สามารถกู้คืนได้`,
       );
       if (!confirmed) return;
+      if (!confirmProtectedTestOrderAction(orderId, 'ลบ')) return;
 
       if (!adminLoggedIn) {
         showToast('ต้องเข้าสู่ระบบแอดมินก่อนลบออเดอร์');
@@ -5023,10 +5251,13 @@
 
       orders = orders.filter((x) => x.id !== orderId);
       saveOrders();
+      closeAdminOrderDetail();
       await refreshAdminOrdersFromSupabase();
       renderAdminTab(adminTab);
       showToast('ลบออเดอร์สำเร็จ');
     };
+
+    window.closeAdminOrderDetail = closeAdminOrderDetail;
 
     window.adminPrintOrder = function(id) {
       const o = orders.find(x => x.id === id);

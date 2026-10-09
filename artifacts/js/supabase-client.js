@@ -516,13 +516,62 @@
     };
   }
 
+  function mapUpdateOrderStatusError(error) {
+    const raw = String(error?.message || error || '');
+    const lower = raw.toLowerCase();
+    if (/not_admin|42501|permission denied|jwt/i.test(raw) || lower.includes('not_admin')) {
+      return 'ไม่มีสิทธิ์เปลี่ยนสถานะ — ต้องเข้าสู่ระบบด้วยบัญชีแอดมินใน store_admins';
+    }
+    if (/order_not_found/i.test(raw)) {
+      return 'ไม่พบออเดอร์นี้ในระบบ';
+    }
+    if (/missing_order_id/i.test(raw)) {
+      return 'เลขออเดอร์ไม่ถูกต้อง';
+    }
+    if (/invalid_history/i.test(raw)) {
+      return 'ประวัติสถานะไม่ถูกต้อง';
+    }
+    if (/store_admin_set_order_status|pgrst202|404|could not find the function/i.test(raw)) {
+      return 'ยังไม่มีฟังก์ชันอัปเดตสถานะบนเซิร์ฟเวอร์ — ต้องรัน SQL 010';
+    }
+    if (/supabase_not_configured|not configured/i.test(raw)) {
+      return 'ยังไม่ได้เชื่อมต่อ Supabase — ตรวจการตั้งค่าแล้วลองใหม่';
+    }
+    if (/no_session|not authenticated|session/i.test(raw)) {
+      return 'ยังไม่ได้เข้าสู่ระบบแอดมิน — กรุณา login ก่อนเปลี่ยนสถานะ';
+    }
+    return raw ? `อัปเดตสถานะไม่สำเร็จ: ${raw}` : 'อัปเดตสถานะไม่สำเร็จ';
+  }
+
   async function updateOrderStatus(orderId, statusIndex, history) {
     const sb = getClient();
-    if (!sb) return { ok: false, error: 'supabase_not_configured' };
+    if (!sb) {
+      return {
+        ok: false,
+        error: 'supabase_not_configured',
+        message: mapUpdateOrderStatusError('supabase_not_configured'),
+      };
+    }
+
+    const session = await getSession();
+    if (!session) {
+      return {
+        ok: false,
+        error: 'no_session',
+        message: mapUpdateOrderStatusError('no_session'),
+      };
+    }
 
     const id = String(orderId || '').trim();
     const idx = Number(statusIndex) || 0;
     const hist = history || [];
+    if (!id) {
+      return {
+        ok: false,
+        error: 'missing_order_id',
+        message: mapUpdateOrderStatusError('missing_order_id'),
+      };
+    }
 
     try {
       const { data, error } = await sb.rpc('store_admin_set_order_status', {
@@ -532,7 +581,12 @@
       });
       if (!error) return { ok: Boolean(data), source: 'rpc' };
       if (!/pgrst202|could not find the function/i.test(String(error.message || ''))) {
-        return { ok: false, error: error.message, source: 'rpc' };
+        return {
+          ok: false,
+          error: error.message,
+          message: mapUpdateOrderStatusError(error),
+          source: 'rpc',
+        };
       }
     } catch (e) {
       /* fall through to direct update for older DB */
@@ -545,7 +599,14 @@
         history: hist,
       })
       .eq('id', id);
-    if (error) return { ok: false, error: error.message, source: 'select' };
+    if (error) {
+      return {
+        ok: false,
+        error: error.message,
+        message: mapUpdateOrderStatusError(error),
+        source: 'select',
+      };
+    }
     return { ok: true, source: 'select' };
   }
 
