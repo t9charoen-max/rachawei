@@ -3086,17 +3086,28 @@
       return parseProductImportRows(rows);
     }
 
-    function applyProductImport(items, mode) {
-      if (!items.length) return { added: 0, updated: 0 };
+    async function applyProductImport(items, mode) {
+      if (!items.length) return { added: 0, updated: 0, ok: false, error: 'empty' };
+
+      const gate = requireAdminCloudReady('สินค้า');
+      if (!gate.ok) {
+        return { added: 0, updated: 0, ok: false, error: gate.reason, message: gate.message };
+      }
+
+      const prevSnapshot = JSON.parse(JSON.stringify(products));
+      const prevNextId = nextProductId;
+      const prevCart = cart.slice();
 
       if (mode === 'replace') {
         products.length = 0;
       }
 
       let added = 0;
+      const newIds = [];
       items.forEach((item) => {
+        const id = nextProductId++;
         products.push({
-          id: nextProductId++,
+          id,
           name: item.name,
           price: item.price,
           cat: item.cat,
@@ -3108,17 +3119,32 @@
           images: item.images,
           image: item.image,
         });
+        newIds.push(id);
         added++;
       });
 
       nextProductId = Math.max(...products.map((p) => p.id), 0) + 1;
       const validIds = new Set(products.map((p) => p.id));
       cart = cart.filter((c) => validIds.has(c.id));
-      saveProducts({ syncRemote: true });
+
+      const remote = await syncProductsToSupabase(mode === 'replace' ? undefined : newIds);
+      const outcome = describeCloudSaveResult(remote, 'สินค้า');
+      if (!outcome.ok) {
+        products.length = 0;
+        prevSnapshot.forEach((p) => products.push(p));
+        nextProductId = prevNextId;
+        cart = prevCart;
+        saveCart();
+        updateBadge();
+        renderProducts(document.querySelector('.filter-btn.active')?.dataset.filter || 'all');
+        return { added: 0, updated: 0, ok: false, error: remote?.reason || 'remote_error', message: outcome.message };
+      }
+
+      await persistAll();
       saveCart();
       updateBadge();
       renderProducts(document.querySelector('.filter-btn.active')?.dataset.filter || 'all');
-      return { added, updated: 0 };
+      return { added, updated: 0, ok: true, message: outcome.message };
     }
 
     const adminOverlay = document.getElementById('adminOverlay');
@@ -4566,15 +4592,25 @@
           });
 
           document.getElementById('apConfirmImportBtn').addEventListener('click', () => {
-            const mode = document.querySelector('input[name="apImportMode"]:checked')?.value || 'append';
-            if (mode === 'replace' && !confirm(`แทนที่สินค้าทั้งหมด (${products.length} รายการ) ด้วย ${items.length} รายการจากไฟล์?`)) {
-              return;
-            }
-            const result = applyProductImport(items, mode);
-            importPreview.hidden = true;
-            importPreview.innerHTML = '';
-            showToast(`นำเข้า ${result.added} รายการแล้ว ✓`);
-            renderAdminProducts();
+            void (async () => {
+              const mode = document.querySelector('input[name="apImportMode"]:checked')?.value || 'append';
+              if (mode === 'replace' && !confirm(`แทนที่สินค้าทั้งหมด (${products.length} รายการ) ด้วย ${items.length} รายการจากไฟล์?`)) {
+                return;
+              }
+              setAdminSaveStatus('saving', 'กำลังนำเข้าสินค้าขึ้น Supabase…');
+              const result = await applyProductImport(items, mode);
+              importPreview.hidden = true;
+              importPreview.innerHTML = '';
+              if (!result.ok) {
+                setAdminSaveStatus('error', result.message || 'นำเข้าไม่สำเร็จ');
+                showToast(result.message || 'นำเข้าสินค้าไม่สำเร็จ — ข้อมูลยังไม่เข้า Supabase');
+                renderAdminProducts();
+                return;
+              }
+              setAdminSaveStatus('ok', result.message || `นำเข้า ${result.added} รายการขึ้น Supabase แล้ว ✓`);
+              showToast(result.message || `นำเข้า ${result.added} รายการขึ้น Supabase แล้ว ✓`);
+              renderAdminProducts();
+            })();
           });
         } catch (err) {
           importPreview.innerHTML = `<div class="admin-import-preview__empty"><strong>อ่านไฟล์ไม่สำเร็จ</strong><br>${err.message || err}</div>`;
