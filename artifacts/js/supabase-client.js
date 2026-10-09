@@ -509,15 +509,53 @@
   async function updateOrderStatus(orderId, statusIndex, history) {
     const sb = getClient();
     if (!sb) return { ok: false, error: 'supabase_not_configured' };
+
+    const id = String(orderId || '').trim();
+    const idx = Number(statusIndex) || 0;
+    const hist = history || [];
+
+    try {
+      const { data, error } = await sb.rpc('store_admin_set_order_status', {
+        p_order_id: id,
+        p_status_index: idx,
+        p_history: hist,
+      });
+      if (!error) return { ok: Boolean(data), source: 'rpc' };
+      if (!/pgrst202|could not find the function/i.test(String(error.message || ''))) {
+        return { ok: false, error: error.message, source: 'rpc' };
+      }
+    } catch (e) {
+      /* fall through to direct update for older DB */
+    }
+
     const { error } = await sb
       .from('store_orders')
       .update({
-        status_index: statusIndex,
-        history: history || [],
+        status_index: idx,
+        history: hist,
       })
-      .eq('id', orderId);
-    if (error) return { ok: false, error: error.message };
-    return { ok: true };
+      .eq('id', id);
+    if (error) return { ok: false, error: error.message, source: 'select' };
+    return { ok: true, source: 'select' };
+  }
+
+  async function rejectPaymentSlipForAdmin(orderId) {
+    const sb = getClient();
+    if (!sb) return { ok: false, error: 'supabase_not_configured' };
+    const session = await getSession();
+    if (!session) return { ok: false, error: 'no_session' };
+
+    const { data, error } = await sb.rpc('store_admin_reject_payment_slip', {
+      p_order_id: String(orderId || '').trim(),
+    });
+    if (error) {
+      const raw = String(error.message || '');
+      if (/pgrst202|could not find the function/i.test(raw)) {
+        return { ok: false, error: raw, message: 'ยังไม่มีฟังก์ชันปฏิเสธสลิป — รัน SQL 010' };
+      }
+      return { ok: false, error: raw, message: raw };
+    }
+    return { ok: Boolean(data) };
   }
 
   function mapDeleteOrderError(error) {
@@ -888,6 +926,7 @@
     fetchOrdersForAdmin,
     fetchOrdersViaServiceProxy,
     updateOrderStatus,
+    rejectPaymentSlipForAdmin,
     deleteOrderForAdmin,
     upsertProduct,
     deleteProductRemote,

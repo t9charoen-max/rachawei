@@ -71,6 +71,16 @@ check(
   client.ok && client.text.includes('deleteOrderForAdmin'),
 );
 check(
+  'supabase-client has attachPaymentSlipRemote + lookupOrdersRemote',
+  client.ok &&
+    client.text.includes('attachPaymentSlipRemote') &&
+    client.text.includes('lookupOrdersRemote'),
+);
+check(
+  'supabase-client has rejectPaymentSlipForAdmin',
+  client.ok && client.text.includes('rejectPaymentSlipForAdmin'),
+);
+check(
   'supabase-client recognizes rachawei-gamma production host',
   client.ok && client.text.includes('rachawei-gamma.vercel.app'),
 );
@@ -119,7 +129,7 @@ if (failed.length) {
   console.log('Next steps (manual):');
   console.log('1) Vercel project rachawei → set VITE_SUPABASE_URL + VITE_SUPABASE_ANON_KEY (different values)');
   console.log('2) Redeploy rachawei');
-  console.log('3) Supabase SQL Editor → run supabase/store/006_admin_auth_grants_bootstrap.sql');
+  console.log('3) Supabase SQL Editor → run 006, then 009 + 010 for hardened orders/stock');
   console.log('4) Create Auth user (real email) + login at /store/#admin (or store_link_admin_by_email)');
   console.log('5) Re-run: node scripts/check-store-production.mjs');
   process.exit(1);

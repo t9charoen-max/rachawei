@@ -87,6 +87,15 @@
       <input id="productSearch" type="search" placeholder="ค้นหาสินค้า เช่น ตะกร้า, กระเป๋า..." autocomplete="off" />
       <button type="submit" class="shop-search__btn">🔍 ค้นหา</button>
     </div>
+    <label class="shop-sort" for="productSort">
+      <span class="visually-hidden">เรียงสินค้า</span>
+      <select id="productSort" aria-label="เรียงสินค้า">
+        <option value="default">เรียง: แนะนำ</option>
+        <option value="price-asc">ราคา: ต่ำ → สูง</option>
+        <option value="price-desc">ราคา: สูง → ต่ำ</option>
+        <option value="name">ชื่อ A–Z</option>
+      </select>
+    </label>
   </form>
 
   <nav class="main-nav" id="mainNav" aria-label="เมนูเนื้อหา">

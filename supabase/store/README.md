@@ -16,11 +16,9 @@
 5. **Shop settings public view:** รัน `008_fix_shop_settings_public_view.sql` (ถ้า anon อ่าน settings ไม่ได้)
    - ตั้ง `store_shop_settings_public` เป็น `security_invoker=false`
    - ให้ anon อ่านผ่าน view ได้ โดยไม่เปิด base table
-6. **Hardening ขายจริง:** รัน `009_harden_store_create_order.sql`
-   - คำนวณราคา/โปร/ค่าส่งจาก DB + ตัดสต็อกใน `store_create_order`
-   - `store_attach_payment_slip` (แนบสลิปหลังสั่ง โดยยืนยันเบอร์)
-   - `store_lookup_orders` (ตรวจสถานะด้วยเลขออเดอร์/เบอร์)
-   - ปิด anon INSERT ตรงเข้า `store_orders` / `store_order_items` (ใช้ RPC เท่านั้น)
+6. **Hardening ขายจริง:** รัน `009_harden_store_create_order.sql` แล้วตามด้วย `010_order_stock_restore_and_admin_ops.sql`
+   - 009: คำนวณราคา/โปร/ค่าส่งจาก DB + ตัดสต็อก, แนบสลิป, lookup, ปิด anon INSERT
+   - 010: คืนสต็อกเมื่อลบ/ยกเลิกออเดอร์, ป้องกันกดสั่งซ้ำ 120 วินาที, RPC ยืนยัน/ปฏิเสธสลิปและเปลี่ยนสถานะแอดมิน
 
 > ไฟล์ `005_store_admin_list_orders.sql` ถูกแทนที่ด้วยส่วนใน `006` แล้ว — รัน 006 พอ  
 > Production หลัก: `https://rachawei-gamma.vercel.app`
