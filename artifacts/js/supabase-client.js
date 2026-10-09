@@ -1085,6 +1085,7 @@
   global.RachaweiStoreApi = {
     init,
     isConfigured,
+    applyConfig,
     getPublicConfig,
     getConfigStatus,
     getClient,
