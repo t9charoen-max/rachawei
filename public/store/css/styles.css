@@ -267,6 +267,34 @@
       border-color: var(--rattan);
     }
 
+    .store-back {
+      flex: 0 0 auto;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 40px;
+      padding: 0.35rem 0.55rem;
+      border-radius: 999px;
+      border: 1px solid rgba(90, 60, 30, 0.18);
+      background: rgba(255, 250, 244, 0.9);
+      color: var(--rattan-deep);
+      font-size: 0.78rem;
+      font-weight: 700;
+      text-decoration: none;
+      white-space: nowrap;
+      line-height: 1;
+    }
+    .store-back:hover,
+    .store-back:focus-visible {
+      border-color: rgba(90, 60, 30, 0.35);
+      background: #fff;
+    }
+    [data-theme="dark"] .store-back {
+      background: rgba(42, 36, 28, 0.85);
+      border-color: rgba(212, 184, 150, 0.28);
+      color: var(--gold);
+    }
+
     .logo {
       display: flex;
       align-items: center;
@@ -4420,6 +4448,17 @@
       display: flex;
       align-items: center;
       gap: 0.45rem;
+    }
+
+    .shop-app .store-back {
+      font-size: 0.7rem;
+      padding: 0.32rem 0.45rem;
+      min-height: 36px;
+    }
+
+    .shop-app .logo {
+      flex: 1 1 auto;
+      min-width: 0;
     }
 
     .shop-app .header-actions {

@@ -5146,6 +5146,7 @@
         if (el) el.scrollIntoView({ behavior: 'smooth' });
       });
     });
+    // Logo stays inside /store/ (SPA home). "← เปิดตัว" navigates to landing `/`.
     const logoEl = document.querySelector('header .logo');
     if (logoEl) {
       logoEl.addEventListener('click', (e) => {

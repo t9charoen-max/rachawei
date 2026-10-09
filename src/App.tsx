@@ -1,7 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { SHOP_INFO, type Product } from './data/products';
+import { useCallback, useEffect, useState } from 'react';
+import { SHOP_INFO } from './data/products';
 import {
-  loadProducts,
   loadSiteSettings,
   resolveSiteImage,
   type SiteSettings,
@@ -13,20 +12,19 @@ import { AboutPage } from './components/about/AboutPage';
 import { HomePage } from './components/home/HomePage';
 import { BrandMark } from './components/BrandMark';
 import { InstallAppBanner } from './components/InstallAppBanner';
-import { goToStore, STORE_URL } from './lib/storeUrl';
+import { STORE_URL } from './lib/storeUrl';
 
 type Tab = 'home' | 'about' | 'contact';
 
+/** Intro site nav only — shopping lives at /store/ */
 const CUSTOMER_NAV = [
   { id: 'home' as const, icon: '🏠', label: 'หน้าแรก' },
-  { id: 'shop' as const, icon: '🛍️', label: 'สั่งซื้อ', href: STORE_URL },
   { id: 'about' as const, icon: '📖', label: 'เกี่ยวกับ' },
   { id: 'contact' as const, icon: '📞', label: 'ติดต่อ' },
 ];
 
 export function App() {
   const [tab, setTab] = useState<Tab>('home');
-  const [products, setProducts] = useState<Product[]>([]);
   const [site, setSite] = useState<SiteSettings | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
@@ -37,22 +35,21 @@ export function App() {
     }
   }, []);
 
-  const refreshCatalog = useCallback(async () => {
+  const refreshSite = useCallback(async () => {
     try {
-      const [nextProducts, nextSite] = await Promise.all([loadProducts(), loadSiteSettings()]);
-      setProducts(nextProducts);
+      const nextSite = await loadSiteSettings();
       setSite(nextSite);
       setLoadError('');
     } catch {
-      setLoadError('โหลดรายการสินค้าไม่สำเร็จ');
+      setLoadError('โหลดข้อมูลร้านไม่สำเร็จ');
     } finally {
       setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    void refreshCatalog();
-  }, [refreshCatalog]);
+    void refreshSite();
+  }, [refreshSite]);
 
   const coverImages = site?.heroCovers.map(resolveSiteImage);
   const coverImageAlt = site?.heroCoverAlt;
@@ -65,8 +62,6 @@ export function App() {
   const aboutStory = site?.story || SHOP_INFO.story;
 
   const goTo = (next: Tab) => setTab(next);
-
-  const featuredProducts = useMemo(() => products.slice(0, 12), [products]);
 
   return (
     <div className="relative mx-auto flex min-h-dvh max-w-lg flex-col bg-earth-950">
@@ -89,17 +84,9 @@ export function App() {
             />
           </button>
           <a
-            href={STORE_URL}
-            className="header-call-btn"
-            aria-label="เปิดร้านค้าสั่งซื้อ"
-            title="สั่งซื้อ / ตะกร้า"
-          >
-            🛒
-          </a>
-          <a
             href={`tel:${shopPhone.replace(/-/g, '')}`}
             className="header-call-btn"
-            aria-label="โทรสั่งซื้อ"
+            aria-label="โทรติดต่อร้าน"
           >
             📞
           </a>
@@ -111,16 +98,16 @@ export function App() {
         {loadError && (
           <p className="contact-note">
             {loadError}{' '}
-            <a href={STORE_URL} className="underline">เปิดร้านค้าที่ {STORE_URL}</a>
+            <a href={STORE_URL} className="underline">
+              เข้าสู่ร้านค้า
+            </a>
           </p>
         )}
 
         {tab === 'home' && !loading && (
           <HomePage
-            products={featuredProducts}
             coverImages={coverImages}
             coverImageAlt={coverImageAlt}
-            onViewProducts={() => goToStore()}
             onContact={() => goTo('contact')}
           />
         )}
@@ -138,19 +125,10 @@ export function App() {
 
         {tab === 'contact' && (
           <section className="screen contact-screen py-4">
-            <h2 className="section-title">ติดต่อสั่งซื้อ</h2>
+            <h2 className="section-title">ติดต่อร้าน</h2>
             <p className="contact-note contact-note--top">
-              สั่งซื้อ ชำระเงิน และติดตามออเดอร์ทำได้ที่ร้านค้าหลัก — ตะกร้าและแนบสลิปครบในเว็บ
+              ข้อมูลร้านสำหรับติดต่อเยี่ยมชม — สั่งซื้อสินค้าทำที่ร้านค้าออนไลน์
             </p>
-            <div className="order-actions order-actions--stack order-actions--lg">
-              <a href={STORE_URL} className="order-actions__btn order-actions__btn--order">
-                เปิดร้านค้าสั่งซื้อ
-              </a>
-              <a href={`tel:${shopPhone.replace(/-/g, '')}`} className="order-actions__btn order-actions__btn--call">
-                <span aria-hidden>📞</span>
-                โทร
-              </a>
-            </div>
             <div className="contact-card">
               <div className="contact-row">
                 <span className="contact-row__icon">📍</span>
@@ -163,7 +141,9 @@ export function App() {
                 <span className="contact-row__icon">📞</span>
                 <div>
                   <strong>โทรศัพท์</strong>
-                  <p>{shopPhone}</p>
+                  <p>
+                    <a href={`tel:${shopPhone.replace(/-/g, '')}`}>{shopPhone}</a>
+                  </p>
                 </div>
               </div>
               <div className="contact-row">
@@ -174,7 +154,6 @@ export function App() {
                 </div>
               </div>
             </div>
-            <p className="contact-note">หน้านี้เป็นข้อมูลร้าน — การสั่งซื้อทำที่ <a href={STORE_URL} className="underline">{STORE_URL}</a></p>
             <ShopMap />
             <ErrorBoundary
               fallback={
@@ -190,26 +169,14 @@ export function App() {
       </main>
 
       <nav className="sticky bottom-0 z-20 mx-3 mb-3 rounded-2xl border border-gold-400/10 bg-earth-900/90 p-1 shadow-2xl shadow-black/40 backdrop-blur-xl">
-        <div className="grid grid-cols-4">
-          {CUSTOMER_NAV.map(({ id, icon, label, href }) => {
-            const active = !href && tab === id;
-            if (href) {
-              return (
-                <a
-                  key={id}
-                  href={href}
-                  className="flex flex-col items-center gap-0.5 rounded-xl py-2 text-[0.62rem] font-medium text-cream-300/50 transition-all duration-200 hover:text-cream-200/80"
-                >
-                  <span className="text-lg">{icon}</span>
-                  <span>{label}</span>
-                </a>
-              );
-            }
+        <div className="grid grid-cols-3">
+          {CUSTOMER_NAV.map(({ id, icon, label }) => {
+            const active = tab === id;
             return (
               <button
                 key={id}
                 type="button"
-                onClick={() => goTo(id as Tab)}
+                onClick={() => goTo(id)}
                 className={`flex flex-col items-center gap-0.5 rounded-xl py-2 text-[0.62rem] font-medium transition-all duration-200 ${
                   active
                     ? 'bg-gold-500/15 text-gold-400'

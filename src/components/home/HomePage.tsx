@@ -1,13 +1,10 @@
 import { useCallback, useState } from 'react';
-import type { Product } from '../../data/products';
 import {
   HOME_SECTIONS,
   type HomeSectionId,
   type HomeSectionItem,
 } from '../../data/homeSections';
 import { HeroSection } from './HeroSection';
-import { PromoSection } from './PromoSection';
-import { FeaturedProducts } from './FeaturedProducts';
 import { OurStorySection } from './OurStorySection';
 import { WeavingStorySection } from './WeavingStorySection';
 import { UsageSection } from './UsageSection';
@@ -15,12 +12,9 @@ import { CommunitySection } from './CommunitySection';
 import { RattanTypesSection } from './RattanTypesSection';
 import { HomeQuickNav } from './HomeQuickNav';
 import { HomeSectionPanel } from './HomeSectionPanel';
-import { StoreEntryCard } from './StoreEntryCard';
 
 interface HomePageProps {
-  onViewProducts: () => void;
   onContact: () => void;
-  products: Product[];
   coverImages?: string[];
   coverImageAlt?: string;
 }
@@ -30,16 +24,15 @@ const COLLAPSIBLE_SECTIONS = HOME_SECTIONS.filter(
     section,
   ): section is HomeSectionItem & {
     id: 'story' | 'weaving' | 'rattan' | 'usage' | 'community';
-  } => section.id !== 'products' && section.id !== 'contact' && section.id !== 'promo',
+  } =>
+    section.id === 'story' ||
+    section.id === 'weaving' ||
+    section.id === 'rattan' ||
+    section.id === 'usage' ||
+    section.id === 'community',
 );
 
-export function HomePage({
-  onViewProducts,
-  onContact,
-  products,
-  coverImages,
-  coverImageAlt,
-}: HomePageProps) {
+export function HomePage({ onContact, coverImages, coverImageAlt }: HomePageProps) {
   const [openSection, setOpenSection] = useState<HomeSectionId | null>(null);
   const [activeId, setActiveId] = useState<HomeSectionId | null>(null);
 
@@ -55,18 +48,6 @@ export function HomePage({
 
       if (id === 'contact') {
         onContact();
-        return;
-      }
-
-      if (id === 'promo') {
-        setOpenSection(null);
-        scrollToId('home-promo');
-        return;
-      }
-
-      if (id === 'products') {
-        setOpenSection(null);
-        scrollToId('home-products');
         return;
       }
 
@@ -86,22 +67,9 @@ export function HomePage({
 
   return (
     <div className="home-page">
-      <HeroSection
-        onViewProducts={onViewProducts}
-        onContact={onContact}
-        coverImages={coverImages}
-        coverImageAlt={coverImageAlt}
-      />
+      <HeroSection coverImages={coverImages} coverImageAlt={coverImageAlt} />
 
       <HomeQuickNav activeId={activeId} onSelect={handleNavSelect} />
-
-      <StoreEntryCard />
-
-      <PromoSection products={products} />
-
-      <div id="home-products" className="home-page__products">
-        <FeaturedProducts products={products} />
-      </div>
 
       <div className="home-page__panels">
         {COLLAPSIBLE_SECTIONS.map((section) => (
@@ -115,7 +83,7 @@ export function HomePage({
             {section.id === 'story' && <OurStorySection />}
             {section.id === 'weaving' && <WeavingStorySection />}
             {section.id === 'rattan' && <RattanTypesSection />}
-            {section.id === 'usage' && <UsageSection onViewProducts={onViewProducts} />}
+            {section.id === 'usage' && <UsageSection />}
             {section.id === 'community' && <CommunitySection />}
           </HomeSectionPanel>
         ))}
