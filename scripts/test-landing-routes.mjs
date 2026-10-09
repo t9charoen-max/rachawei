@@ -7,7 +7,6 @@ import { readFileSync, existsSync, statSync } from 'node:fs';
 import { join, extname } from 'node:path';
 
 const ROOT = join(process.cwd(), 'dist');
-const PORT = 8898;
 const CHROME = process.env.CHROME_PATH || '/usr/local/bin/google-chrome';
 const MIME = {
   '.html': 'text/html; charset=utf-8',
@@ -27,17 +26,24 @@ function ok(name, pass, detail = '') {
   console.log(`${pass ? 'PASS' : 'FAIL'}  ${name}${detail ? ' — ' + detail : ''}`);
 }
 
+async function waitAdminOverlayOpen(page, timeout = 25000) {
+  await page.waitForFunction(
+    () => {
+      const el = document.getElementById('adminOverlay');
+      return !!(el && el.classList.contains('open'));
+    },
+    { timeout },
+  );
+}
+
 const server = createServer((req, res) => {
   const urlPath = decodeURIComponent((req.url || '/').split('?')[0]);
   let filePath = join(ROOT, urlPath === '/' ? 'index.html' : urlPath);
   if (urlPath.endsWith('/')) filePath = join(filePath, 'index.html');
-  // SPA fallback for clean paths
   if (!existsSync(filePath) || !statSync(filePath).isFile()) {
-    if (urlPath.startsWith('/store')) {
-      filePath = join(ROOT, 'store/index.html');
-    } else {
-      filePath = join(ROOT, 'index.html');
-    }
+    filePath = urlPath.startsWith('/store')
+      ? join(ROOT, 'store/index.html')
+      : join(ROOT, 'index.html');
   }
   if (!existsSync(filePath)) {
     res.writeHead(404);
@@ -48,7 +54,8 @@ const server = createServer((req, res) => {
   res.end(readFileSync(filePath));
 });
 
-await new Promise((r) => server.listen(PORT, '127.0.0.1', r));
+await new Promise((r) => server.listen(0, '127.0.0.1', r));
+const PORT = server.address().port;
 const BASE = `http://127.0.0.1:${PORT}`;
 
 const browser = await puppeteer.launch({
@@ -58,10 +65,9 @@ const browser = await puppeteer.launch({
 });
 
 try {
-  // Desktop landing
   const desk = await browser.newPage();
   await desk.setViewport({ width: 1280, height: 800 });
-  await desk.goto(`${BASE}/`, { waitUntil: 'networkidle0' });
+  await desk.goto(`${BASE}/`, { waitUntil: 'domcontentloaded' });
   await desk.waitForSelector('a.landing-hero__cta');
 
   const cta = await desk.$eval('a.landing-hero__cta', (a) => ({
@@ -74,15 +80,40 @@ try {
   const owner = await desk.$eval('a.landing-owner-entry__link', (a) => a.getAttribute('href'));
   ok('landing has discreet owner admin link', owner === '/store/#admin' || owner?.endsWith('/store/#admin'), owner);
 
-  // Click CTA → store
+  const noOverlap = await desk.evaluate(() => {
+    const ctaEl = document.querySelector('a.landing-hero__cta');
+    const ownerEl = document.querySelector('a.landing-owner-entry__link');
+    if (!ctaEl || !ownerEl) return { ok: false, reason: 'missing' };
+    const a = ctaEl.getBoundingClientRect();
+    const b = ownerEl.getBoundingClientRect();
+    const overlap = !(a.bottom <= b.top || b.bottom <= a.top || a.right <= b.left || b.right <= a.left);
+    return { ok: !overlap, ctaBottom: a.bottom, ownerTop: b.top };
+  });
+  ok('owner link does not overlap CTA', noOverlap.ok, JSON.stringify(noOverlap));
+
   await Promise.all([
-    desk.waitForNavigation({ waitUntil: 'networkidle0' }),
+    desk.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 20000 }),
     desk.click('a.landing-hero__cta'),
   ]);
+  await desk.waitForSelector('#productGrid .product-card', { timeout: 20000 });
   const afterCta = desk.url();
+  const storeShape = await desk.evaluate(() => ({
+    path: location.pathname,
+    hash: location.hash,
+    hasLandingHero: !!document.querySelector('.landing-hero'),
+    productCards: document.querySelectorAll('#productGrid .product-card').length,
+    storeBack: !!document.getElementById('storeBackHome'),
+  }));
   ok('CTA navigates to storefront', /\/store\/?/.test(afterCta) && !afterCta.includes('#admin'), afterCta);
+  ok(
+    'store is shop page not duplicate landing',
+    !storeShape.hasLandingHero && storeShape.productCards >= 1 && storeShape.path.includes('/store'),
+    JSON.stringify(storeShape),
+  );
+  await new Promise((r) => setTimeout(r, 800));
+  const stayed = new URL(desk.url());
+  ok('no bounce back to landing', stayed.pathname.includes('/store') && stayed.pathname !== '/', desk.url());
 
-  // Customer chrome must not show admin menu button
   const adminBtn = await desk.evaluate(() => {
     const btn = document.getElementById('adminOpenBtn');
     if (!btn) return { missing: true };
@@ -91,54 +122,132 @@ try {
       hiddenAttr: btn.hasAttribute('hidden'),
       display: style.display,
       ariaHidden: btn.getAttribute('aria-hidden'),
+      inTabbar: !!document.querySelector('#shopTabbar [data-tab="admin"], #shopTabbar .admin-link'),
     };
   });
   ok(
     'store hides adminOpenBtn from customers',
-    adminBtn.missing || adminBtn.hiddenAttr || adminBtn.display === 'none',
+    (adminBtn.missing || adminBtn.hiddenAttr || adminBtn.display === 'none') && !adminBtn.inTabbar,
     JSON.stringify(adminBtn),
   );
 
-  // /?admin=1 → /store/#admin
-  await desk.goto(`${BASE}/?admin=1`, { waitUntil: 'networkidle0' });
+  await desk.goto(`${BASE}/?admin=1`, { waitUntil: 'domcontentloaded' });
   await desk.waitForFunction(() => location.pathname.includes('/store') && location.hash === '#admin', {
-    timeout: 8000,
-  }).catch(() => null);
+    timeout: 10000,
+  });
   ok(
     'landing ?admin=1 redirects to /store/#admin',
     desk.url().includes('/store/') && desk.url().includes('#admin'),
     desk.url(),
   );
 
-  // Mobile viewport
+  // Fresh mobile page — avoid leftover store state
   const mob = await browser.newPage();
   await mob.setViewport({ width: 390, height: 844, deviceScaleFactor: 2 });
-  await mob.goto(`${BASE}/`, { waitUntil: 'networkidle0' });
+  await mob.goto(`${BASE}/`, { waitUntil: 'domcontentloaded' });
   const mobCta = await mob.$eval('a.landing-hero__cta', (a) => a.getAttribute('href'));
   ok('mobile landing CTA → /store/', mobCta === '/store/' || mobCta?.endsWith('/store/'), mobCta);
+
   await Promise.all([
-    mob.waitForNavigation({ waitUntil: 'networkidle0' }),
+    mob.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 20000 }),
     mob.click('a.landing-hero__cta'),
   ]);
-  ok('mobile CTA opens store', /\/store\/?/.test(mob.url()), mob.url());
-
-  // Direct store admin hash opens login (not customer menu)
-  await mob.goto(`${BASE}/store/#admin`, { waitUntil: 'networkidle0' });
-  await mob.waitForSelector('#adminOverlay.open, #adminLoginView', { timeout: 10000 }).catch(() => null);
-  const adminUi = await mob.evaluate(() => ({
-    overlayOpen: document.getElementById('adminOverlay')?.classList.contains('open'),
-    hasEmail: !!document.getElementById('adminEmail'),
-    loginVisible: (() => {
-      const el = document.getElementById('adminLoginView');
-      if (!el) return false;
-      return getComputedStyle(el).display !== 'none';
-    })(),
+  await mob.waitForSelector('#productGrid .product-card', { timeout: 20000 });
+  const mobAfter = await mob.evaluate(() => ({
+    url: location.href,
+    hasLandingHero: !!document.querySelector('.landing-hero'),
+    products: document.querySelectorAll('#productGrid .product-card').length,
   }));
   ok(
+    'mobile CTA opens store without duplicate landing',
+    /\/store\/?/.test(mobAfter.url) && !mobAfter.hasLandingHero && mobAfter.products >= 1,
+    JSON.stringify(mobAfter),
+  );
+
+  // Owner entry from landing → admin login gate
+  await mob.goto(`${BASE}/`, { waitUntil: 'domcontentloaded' });
+  await Promise.all([
+    mob.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 20000 }),
+    mob.click('a.landing-owner-entry__link'),
+  ]);
+  await waitAdminOverlayOpen(mob);
+  const fromOwnerLink = await mob.evaluate(() => {
+    const login = document.getElementById('adminLoginView');
+    const main = document.getElementById('adminMainView');
+    const loginRect = login?.getBoundingClientRect();
+    return {
+      url: location.href,
+      overlayOpen: document.getElementById('adminOverlay')?.classList.contains('open'),
+      hasEmail: !!document.getElementById('adminEmail'),
+      loginVisible: !!(
+        login &&
+        getComputedStyle(login).display !== 'none' &&
+        loginRect &&
+        loginRect.width > 0 &&
+        loginRect.height > 0
+      ),
+      mainHidden: !main || getComputedStyle(main).display === 'none',
+    };
+  });
+  ok(
+    'mobile owner link opens /store/#admin login gate',
+    fromOwnerLink.url.includes('/store/') &&
+      fromOwnerLink.url.includes('#admin') &&
+      fromOwnerLink.overlayOpen &&
+      fromOwnerLink.hasEmail &&
+      fromOwnerLink.loginVisible &&
+      fromOwnerLink.mainHidden,
+    JSON.stringify(fromOwnerLink),
+  );
+
+  const unauthWrite = await mob.evaluate(async () => {
+    if (typeof window.saveShopSettings !== 'function') return { skipped: true };
+    const before = window.SHOP_CONFIG?.shopName;
+    const result = await window.saveShopSettings({ shopName: '__UNAUTH_PROBE__' });
+    return {
+      ok: result?.ok,
+      error: result?.error || result?.reason,
+      nameUnchanged: window.SHOP_CONFIG?.shopName === before,
+    };
+  });
+  ok(
+    'unauthenticated admin cannot save settings',
+    unauthWrite.skipped || (unauthWrite.ok === false && unauthWrite.nameUnchanged),
+    JSON.stringify(unauthWrite),
+  );
+
+  // Fresh page for direct hash entry
+  const mob2 = await browser.newPage();
+  await mob2.setViewport({ width: 390, height: 844, deviceScaleFactor: 2 });
+  await mob2.goto(`${BASE}/store/#admin`, { waitUntil: 'domcontentloaded' });
+  await waitAdminOverlayOpen(mob2);
+  const adminUi = await mob2.evaluate(() => {
+    const login = document.getElementById('adminLoginView');
+    const loginRect = login?.getBoundingClientRect();
+    return {
+      overlayOpen: document.getElementById('adminOverlay')?.classList.contains('open'),
+      hasEmail: !!document.getElementById('adminEmail'),
+      loginVisible: !!(
+        login &&
+        getComputedStyle(login).display !== 'none' &&
+        loginRect &&
+        loginRect.width > 0 &&
+        loginRect.height > 0
+      ),
+      tabbarAdmin: !!document.querySelector('#shopTabbar [data-tab="admin"]'),
+    };
+  });
+  ok(
     'mobile /store/#admin shows Supabase admin login',
-    adminUi.overlayOpen && adminUi.hasEmail && adminUi.loginVisible,
+    adminUi.overlayOpen && adminUi.hasEmail && adminUi.loginVisible && !adminUi.tabbarAdmin,
     JSON.stringify(adminUi),
   );
+
+  // wasadu contamination check on served HTML/JS
+  const landingHtml = await mob2.goto(`${BASE}/`).then(() => mob2.content());
+  const storeHtml = await mob2.goto(`${BASE}/store/`).then(() => mob2.content());
+  const dirty = /wasadu|ราชาวัสดุ/i.test(landingHtml + storeHtml);
+  ok('no wasadu / ราชาวัสดุ strings in landing or store HTML', !dirty);
 } catch (err) {
   ok('test runner', false, String(err && err.stack || err));
 } finally {

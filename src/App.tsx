@@ -28,13 +28,6 @@ export function App() {
       <main className="landing-main">
         <HomePage />
       </main>
-
-      {/* Discreet owner entry — not a customer nav item; Auth + store_admins gate at /store/#admin */}
-      <footer className="landing-owner-entry">
-        <a className="landing-owner-entry__link" href={STORE_ADMIN_URL}>
-          เข้าสู่ระบบเจ้าของร้าน
-        </a>
-      </footer>
     </div>
   );
 }
