@@ -435,31 +435,154 @@
     }
 
     async function syncProductsToSupabase(productIds) {
-      if (!isSupabaseReady() || !adminLoggedIn) return;
+      if (!isSupabaseReady()) {
+        return { ok: false, skipped: true, reason: 'supabase_not_configured', failed: 0 };
+      }
+      if (!adminLoggedIn) {
+        return { ok: false, skipped: true, reason: 'not_logged_in', failed: 0 };
+      }
       const okAdmin = await RachaweiStoreApi.isAdminUser();
       if (!okAdmin) {
-        console.warn('ข้ามซิงก์สินค้า — ไม่ใช่ admin');
-        return;
+        return { ok: false, skipped: true, reason: 'not_admin', failed: 0 };
       }
       const targets = Array.isArray(productIds) && productIds.length
         ? products.filter((p) => productIds.map(Number).includes(Number(p.id)))
         : products;
+      let failed = 0;
+      const errors = [];
       for (const p of targets) {
         const result = await RachaweiStoreApi.upsertProduct(p);
-        if (!result.ok) console.warn('sync product failed', p.id, result.error);
+        if (!result.ok) {
+          failed += 1;
+          errors.push(`${p.id}: ${result.error || 'upsert_failed'}`);
+          console.warn('sync product failed', p.id, result.error);
+        }
       }
+      return {
+        ok: failed === 0,
+        failed,
+        synced: targets.length - failed,
+        errors,
+        reason: failed ? 'upsert_failed' : null,
+      };
     }
 
     async function saveProducts(options = {}) {
-      await persistAll();
-      // ซิงก์ขึ้นคลาวด์เฉพาะเมื่อ admin บันทึกโดยตั้งใจ (กันทับข้อมูลเดิมโดยไม่ตั้งใจ)
+      // ซิงก์ขึ้นคลาวด์เฉพาะเมื่อ admin บันทึกโดยตั้งใจ — persist IndexedDB หลัง ack เท่านั้น
       if (options.syncRemote) {
-        await syncProductsToSupabase(options.productIds);
+        const remote = await syncProductsToSupabase(options.productIds);
+        if (remote && remote.ok && !remote.skipped) {
+          await persistAll();
+        }
+        return remote;
       }
+      await persistAll();
+      return { ok: true, localOnly: true };
     }
 
-    function saveShopVideos() {
-      return persistAll();
+    /** Persistent cloud/local truth banner — never imply IndexedDB == Supabase */
+    function adminCloudStatusBannerHtml() {
+      const configured = isSupabaseReady();
+      if (!configured) {
+        return `<div class="admin-sync-banner admin-sync-banner--error" role="alert">
+          <strong>ยังไม่เชื่อมต่อ Supabase</strong><br>
+          การบันทึกตอนนี้เก็บเฉพาะในเบราว์เซอร์เครื่องนี้ (IndexedDB) — <em>ไม่ใช่ฐานข้อมูลคลาวด์</em>
+          และลูกค้าบนเครื่องอื่นจะไม่เห็นการเปลี่ยนแปลง<br>
+          ตรวจ <code>VITE_SUPABASE_URL</code> / <code>VITE_SUPABASE_ANON_KEY</code> บน Vercel แล้ว Redeploy
+        </div>`;
+      }
+      if (!adminLoggedIn) {
+        return `<div class="admin-sync-banner admin-sync-banner--error" role="alert">
+          <strong>ยังไม่ได้เข้าสู่ระบบแอดมิน</strong><br>
+          Supabase พร้อมแล้ว แต่ยังไม่ได้ login — การแก้ไขจะไม่ถูกบันทึกขึ้นฐานข้อมูลจนกว่าจะเข้าสู่ระบบด้วยบัญชีใน store_admins
+        </div>`;
+      }
+      return `<div class="admin-sync-banner admin-sync-banner--ok">
+        เชื่อมต่อ Supabase แล้ว · การบันทึกจากแอดมินจะซิงก์ขึ้นคลาวด์ (RLS + store_is_admin)
+      </div>`;
+    }
+
+    /** Admin cloud writes: success only after Supabase ack — never treat IndexedDB as success */
+    function requireAdminCloudReady(entityLabel) {
+      if (!isSupabaseReady()) {
+        return {
+          ok: false,
+          reason: 'supabase_not_configured',
+          message: `บันทึก${entityLabel}ไม่สำเร็จ — ยังไม่เชื่อมต่อ Supabase ข้อมูลยังไม่เข้าฐานข้อมูล`,
+        };
+      }
+      if (!adminLoggedIn) {
+        return {
+          ok: false,
+          reason: 'not_logged_in',
+          message: `บันทึก${entityLabel}ไม่สำเร็จ — กรุณาเข้าสู่ระบบแอดมิน (store_admins) ก่อน ข้อมูลยังไม่เข้าฐานข้อมูล`,
+        };
+      }
+      return { ok: true };
+    }
+
+    function describeCloudSaveResult(remote, entityLabel) {
+      const gate = requireAdminCloudReady(entityLabel);
+      if (!gate.ok) {
+        return { ok: false, localOnly: true, message: gate.message, reason: gate.reason };
+      }
+      if (!remote || remote.skipped) {
+        const why = remote?.reason === 'not_admin'
+          ? 'บัญชีนี้ไม่มีสิทธิ์ store_admins'
+          : (remote?.reason || 'ข้ามการซิงก์คลาวด์');
+        return {
+          ok: false,
+          localOnly: true,
+          message: `บันทึก${entityLabel}ไม่สำเร็จ — Supabase ไม่รับข้อมูล (${why})`,
+          reason: remote?.reason || 'skipped',
+        };
+      }
+      if (remote.ok === false) {
+        const detail = remote.error || remote.errors?.[0] || remote.reason || 'unknown';
+        return {
+          ok: false,
+          localOnly: true,
+          message: `บันทึก${entityLabel}ไม่สำเร็จ — ข้อผิดพลาดจาก Supabase: ${detail}`,
+          reason: remote.reason || 'remote_error',
+        };
+      }
+      return {
+        ok: true,
+        localOnly: false,
+        message: `บันทึก${entityLabel}ขึ้น Supabase สำเร็จ ✓`,
+      };
+    }
+
+    async function saveShopVideos(options = {}) {
+      if (options.syncRemote === false) {
+        await persistAll();
+        return { ok: true, local: true, skipped: true, reason: 'sync_disabled' };
+      }
+      if (!isSupabaseReady()) {
+        return { ok: false, local: true, skipped: true, reason: 'supabase_not_configured' };
+      }
+      if (!adminLoggedIn || typeof RachaweiStoreApi?.upsertVideo !== 'function') {
+        return { ok: false, local: true, skipped: true, reason: adminLoggedIn ? 'api_missing' : 'not_logged_in' };
+      }
+      const ids = options.videoIds
+        ? options.videoIds.map(String)
+        : shopVideos.map((v) => String(v.id));
+      let failed = 0;
+      for (const id of ids) {
+        const video = shopVideos.find((v) => String(v.id) === String(id));
+        if (!video) continue;
+        const remote = await RachaweiStoreApi.upsertVideo(video);
+        if (!remote.ok) {
+          failed += 1;
+          console.warn('sync video failed', id, remote.error);
+        } else if (remote.id != null && String(remote.id) !== String(video.id)) {
+          video.id = remote.id;
+          nextVideoId = Math.max(nextVideoId, Number(remote.id) + 1 || nextVideoId);
+        }
+      }
+      if (failed) return { ok: false, error: 'video_sync_partial', reason: 'upsert_failed' };
+      await persistAll();
+      return { ok: true };
     }
 
     function saveOrders() {
@@ -690,18 +813,18 @@
       return true;
     }
 
+    function isProductPublished(p) {
+      const st = String(p?.status || 'active');
+      return st === 'active';
+    }
+
     function renderPopularCats() {
       const el = document.getElementById('popularCatGrid');
       if (!el) return;
-      const groups = [
-        { filter: 'basket', name: 'ตะกร้าหวาย', emoji: '🧺' },
-        { filter: 'chair', name: 'เก้าอี้หวาย', emoji: '🪑' },
-        { filter: 'home', name: 'ของใช้ในบ้าน', emoji: '🏡' },
-        { filter: 'gift', name: 'ของขวัญ/ของฝาก', emoji: '🎁' },
-      ];
+      const groups = getStoreCategoryTiles();
       el.innerHTML = groups.map((g) => {
-        const count = products.filter((p) => matchesCatalog(p, g.filter, '')).length;
-        const sample = products.find((p) => matchesCatalog(p, g.filter, ''));
+        const count = products.filter((p) => isProductPublished(p) && matchesCatalog(p, g.filter, '')).length;
+        const sample = products.find((p) => isProductPublished(p) && matchesCatalog(p, g.filter, ''));
         const cover = sample ? getCoverImage(sample) : null;
         const media = cover
           ? `<img src="${cover}" alt="">`
@@ -749,7 +872,7 @@
     function renderProducts(filter = catalogFilter) {
       catalogFilter = filter || 'all';
       const filtered = sortCatalogProducts(
-        products.filter((p) => matchesCatalog(p, catalogFilter, catalogQuery)),
+        products.filter((p) => isProductPublished(p) && matchesCatalog(p, catalogFilter, catalogQuery)),
       );
 
       if (!filtered.length) {
@@ -1556,6 +1679,50 @@
       toastTimer = setTimeout(() => toast.classList.remove('show'), 2200);
     }
 
+    let adminSaveStatusTimer;
+    function setAdminSaveStatus(state, message) {
+      const el = document.getElementById('adminSaveStatus');
+      if (!el) return;
+      clearTimeout(adminSaveStatusTimer);
+      if (!state || !message) {
+        el.hidden = true;
+        el.className = 'admin-save-status';
+        el.textContent = '';
+        return;
+      }
+      el.hidden = false;
+      el.className = `admin-save-status is-${state}`;
+      el.textContent = message;
+      if (state === 'ok') {
+        adminSaveStatusTimer = setTimeout(() => {
+          el.hidden = true;
+        }, 3200);
+      }
+    }
+
+    function getStoreCategoryTiles() {
+      const content = (typeof mergeStoreContent === 'function')
+        ? mergeStoreContent(SHOP_CONFIG.content)
+        : (SHOP_CONFIG.content || {});
+      const defaults = [
+        { filter: 'basket', name: 'ตะกร้าหวาย', emoji: '🧺' },
+        { filter: 'chair', name: 'เก้าอี้หวาย', emoji: '🪑' },
+        { filter: 'home', name: 'ของใช้ในบ้าน', emoji: '🏡' },
+        { filter: 'gift', name: 'ของขวัญ/ของฝาก', emoji: '🎁' },
+      ];
+      const raw = content?.home?.categories;
+      if (!Array.isArray(raw) || !raw.length) return defaults;
+      return defaults.map((d) => {
+        const hit = raw.find((x) => String(x.filter || '') === d.filter);
+        if (!hit) return { ...d };
+        return {
+          filter: d.filter,
+          name: String(hit.name || d.name).trim() || d.name,
+          emoji: String(hit.emoji || d.emoji).trim() || d.emoji,
+        };
+      });
+    }
+
     // ========== PAYMENT INFO (ดึงจาก SHOP_CONFIG — แก้ที่หัวสคริปต์) ==========
     function getPaymentInfo() {
       migratePaymentFields();
@@ -2360,6 +2527,28 @@
         .replace(/\n/g, '<br>');
     }
 
+    /** Escape for HTML attribute / inline JS string contexts (no <br> rewrite). */
+    function escapeAttr(str) {
+      return String(str || '')
+        .replace(/&/g, '&amp;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+    }
+
+    /** Probe / seed order ids — never auto-mutate in tests; extra confirm in UI. */
+    const PROTECTED_TEST_ORDER_IDS = Object.freeze([
+      'RW-TEST-DIRECT',
+      'RW-DIRECT-SHOULD-FAIL',
+    ]);
+
+    function isProtectedTestOrder(id) {
+      const raw = String(id || '').trim().toUpperCase();
+      if (!raw) return false;
+      return PROTECTED_TEST_ORDER_IDS.some((p) => raw === p || raw.startsWith(`${p}-`) || raw.startsWith(`${p}_`));
+    }
+
     function printShippingLabel(order) {
       if (!order) {
         showToast('ไม่พบข้อมูลออเดอร์');
@@ -2897,17 +3086,28 @@
       return parseProductImportRows(rows);
     }
 
-    function applyProductImport(items, mode) {
-      if (!items.length) return { added: 0, updated: 0 };
+    async function applyProductImport(items, mode) {
+      if (!items.length) return { added: 0, updated: 0, ok: false, error: 'empty' };
+
+      const gate = requireAdminCloudReady('สินค้า');
+      if (!gate.ok) {
+        return { added: 0, updated: 0, ok: false, error: gate.reason, message: gate.message };
+      }
+
+      const prevSnapshot = JSON.parse(JSON.stringify(products));
+      const prevNextId = nextProductId;
+      const prevCart = cart.slice();
 
       if (mode === 'replace') {
         products.length = 0;
       }
 
       let added = 0;
+      const newIds = [];
       items.forEach((item) => {
+        const id = nextProductId++;
         products.push({
-          id: nextProductId++,
+          id,
           name: item.name,
           price: item.price,
           cat: item.cat,
@@ -2919,17 +3119,32 @@
           images: item.images,
           image: item.image,
         });
+        newIds.push(id);
         added++;
       });
 
       nextProductId = Math.max(...products.map((p) => p.id), 0) + 1;
       const validIds = new Set(products.map((p) => p.id));
       cart = cart.filter((c) => validIds.has(c.id));
-      saveProducts({ syncRemote: true });
+
+      const remote = await syncProductsToSupabase(mode === 'replace' ? undefined : newIds);
+      const outcome = describeCloudSaveResult(remote, 'สินค้า');
+      if (!outcome.ok) {
+        products.length = 0;
+        prevSnapshot.forEach((p) => products.push(p));
+        nextProductId = prevNextId;
+        cart = prevCart;
+        saveCart();
+        updateBadge();
+        renderProducts(document.querySelector('.filter-btn.active')?.dataset.filter || 'all');
+        return { added: 0, updated: 0, ok: false, error: remote?.reason || 'remote_error', message: outcome.message };
+      }
+
+      await persistAll();
       saveCart();
       updateBadge();
       renderProducts(document.querySelector('.filter-btn.active')?.dataset.filter || 'all');
-      return { added, updated: 0 };
+      return { added, updated: 0, ok: true, message: outcome.message };
     }
 
     const adminOverlay = document.getElementById('adminOverlay');
@@ -3369,12 +3584,39 @@
       }
 
       if (!hasAdminPinConfigured()) {
+        // Local PIN bootstrap only (no Supabase) — never claim cloud save success
         SHOP_CONFIG.adminPinHash = hashAdminPin(pin);
-        await saveShopSettings({});
+        if (dbReady) {
+          try {
+            await idbSet('shopSettings', {
+              shopName: SHOP_CONFIG.shopName,
+              shopSub: SHOP_CONFIG.shopSub,
+              phoneDisplay: SHOP_CONFIG.phoneDisplay,
+              phoneTel: SHOP_CONFIG.phoneTel,
+              lineUrl: SHOP_CONFIG.lineUrl,
+              facebookUrl: SHOP_CONFIG.facebookUrl,
+              addressHtml: SHOP_CONFIG.addressHtml,
+              mapUrl: SHOP_CONFIG.mapUrl,
+              adminPinHash: getAdminPinHash(),
+              promoMin: SHOP_CONFIG.promoMin,
+              promoDiscount: SHOP_CONFIG.promoDiscount,
+              shippingFee: SHOP_CONFIG.shippingFee,
+              freeShippingMin: SHOP_CONFIG.freeShippingMin,
+              bankName: SHOP_CONFIG.bankName,
+              bankAccountName: SHOP_CONFIG.bankAccountName,
+              promptPayNo: SHOP_CONFIG.promptPayNo,
+              bankAccountNo: SHOP_CONFIG.bankAccountNo,
+              bankNote: SHOP_CONFIG.bankNote,
+              heroImages: Array.isArray(SHOP_CONFIG.heroImages) ? SHOP_CONFIG.heroImages : [],
+              storefrontPhotos: Array.isArray(SHOP_CONFIG.storefrontPhotos) ? SHOP_CONFIG.storefrontPhotos : [],
+              content: SHOP_CONFIG.content || null,
+            });
+          } catch (e) { console.warn(e); }
+        }
         adminLoggedIn = true;
         if (errEl) errEl.classList.remove('show');
         showAdminMain();
-        showToast('ตั้งรหัสหลังร้านแล้ว ✓');
+        showToast('ตั้งรหัสหลังร้านแล้ว (โหมดท้องถิ่น) — การบันทึกข้อมูลร้านต้องเชื่อม Supabase');
         return;
       }
       if (verifyAdminPin(pin)) {
@@ -3412,12 +3654,37 @@
     function renderAdminTab(tab) {
       if (tab === 'dash') {
         void (async () => {
-          adminContent.innerHTML = '<div class="empty-admin">กำลังโหลดแดชบอร์ดจาก Supabase…</div>';
+          adminContent.innerHTML = '<div class="empty-admin">กำลังโหลดแดชบอร์ด…</div>';
+          setAdminSaveStatus('saving', 'กำลังโหลดภาพรวม…');
           await refreshAdminOrdersFromSupabase();
+          if (typeof RachaweiStoreApi?.fetchVideosForAdmin === 'function' && isSupabaseReady() && adminLoggedIn) {
+            try {
+              const vids = await RachaweiStoreApi.fetchVideosForAdmin();
+              if (vids.ok && Array.isArray(vids.videos)) {
+                shopVideos = vids.videos;
+                saveShopVideos({ syncRemote: false });
+              }
+            } catch (_) { /* keep local */ }
+          }
           renderAdminDash();
+          setAdminSaveStatus(null);
         })();
       } else if (tab === 'products') renderAdminProducts();
-      else if (tab === 'videos') renderAdminVideos();
+      else if (tab === 'categories') renderAdminCategories();
+      else if (tab === 'media') renderAdminMedia();
+      else if (tab === 'videos') {
+        void (async () => {
+          adminContent.innerHTML = '<div class="empty-admin">กำลังโหลดวิดีโอ…</div>';
+          if (typeof RachaweiStoreApi?.fetchVideosForAdmin === 'function' && isSupabaseReady() && adminLoggedIn) {
+            const vids = await RachaweiStoreApi.fetchVideosForAdmin();
+            if (vids.ok && Array.isArray(vids.videos)) {
+              shopVideos = vids.videos;
+              await saveShopVideos({ syncRemote: false });
+            }
+          }
+          renderAdminVideos();
+        })();
+      }
       else if (tab === 'orders') {
         void (async () => {
           adminContent.innerHTML = '<div class="empty-admin">กำลังโหลดออเดอร์จาก Supabase…</div>';
@@ -3427,18 +3694,56 @@
       }
       else if (tab === 'content') {
         if (typeof renderAdminFrontContent === 'function') renderAdminFrontContent();
-        else document.getElementById('adminContent').innerHTML = '<p>โหลดแท็บหน้าบ้านไม่สำเร็จ</p>';
+        else document.getElementById('adminContent').innerHTML = '<p>โหลดแท็บเนื้อหาไม่สำเร็จ</p>';
       }
+      else if (tab === 'banners') renderAdminBanners();
+      else if (tab === 'customers') renderAdminCustomers();
       else if (tab === 'settings') renderAdminSettings();
     }
 
     async function saveShopSettings(partial) {
-      // exposed for tests
+      setAdminSaveStatus('saving', 'กำลังบันทึกขึ้น Supabase…');
+      const gate = requireAdminCloudReady('การตั้งค่า/เนื้อหา');
+      if (!gate.ok) {
+        setAdminSaveStatus('error', gate.message);
+        showToast(gate.message);
+        return { ok: false, error: gate.reason, localOnly: true };
+      }
+
+      const prevSnapshot = {
+        shopName: SHOP_CONFIG.shopName,
+        shopSub: SHOP_CONFIG.shopSub,
+        phoneDisplay: SHOP_CONFIG.phoneDisplay,
+        phoneTel: SHOP_CONFIG.phoneTel,
+        lineUrl: SHOP_CONFIG.lineUrl,
+        facebookUrl: SHOP_CONFIG.facebookUrl,
+        addressHtml: SHOP_CONFIG.addressHtml,
+        mapUrl: SHOP_CONFIG.mapUrl,
+        adminPinHash: getAdminPinHash(),
+        promoMin: SHOP_CONFIG.promoMin,
+        promoDiscount: SHOP_CONFIG.promoDiscount,
+        shippingFee: SHOP_CONFIG.shippingFee,
+        freeShippingMin: SHOP_CONFIG.freeShippingMin,
+        bankName: SHOP_CONFIG.bankName,
+        bankAccountName: SHOP_CONFIG.bankAccountName,
+        promptPayNo: SHOP_CONFIG.promptPayNo,
+        bankAccountNo: SHOP_CONFIG.bankAccountNo,
+        bankNote: SHOP_CONFIG.bankNote,
+        heroImages: Array.isArray(SHOP_CONFIG.heroImages) ? SHOP_CONFIG.heroImages.slice() : [],
+        storefrontPhotos: Array.isArray(SHOP_CONFIG.storefrontPhotos)
+          ? SHOP_CONFIG.storefrontPhotos.map((p) => (p && typeof p === 'object' ? { ...p } : p))
+          : [],
+        content: SHOP_CONFIG.content
+          ? (typeof mergeStoreContent === 'function'
+            ? mergeStoreContent(SHOP_CONFIG.content)
+            : JSON.parse(JSON.stringify(SHOP_CONFIG.content)))
+          : null,
+      };
+
       Object.assign(SHOP_CONFIG, partial);
       if (partial && partial.content && typeof mergeStoreContent === 'function') {
         SHOP_CONFIG.content = mergeStoreContent(partial.content);
       }
-      applyShopConfig();
       const toSave = {
         shopName: SHOP_CONFIG.shopName,
         shopSub: SHOP_CONFIG.shopSub,
@@ -3462,20 +3767,33 @@
         storefrontPhotos: Array.isArray(SHOP_CONFIG.storefrontPhotos) ? SHOP_CONFIG.storefrontPhotos : [],
         content: SHOP_CONFIG.content || null
       };
+
+      const remote = await RachaweiStoreApi.saveShopSettingsRemote(toSave);
+      const outcome = describeCloudSaveResult(remote, 'การตั้งค่า/เนื้อหา');
+      if (!outcome.ok) {
+        Object.assign(SHOP_CONFIG, prevSnapshot);
+        if (prevSnapshot.content && typeof mergeStoreContent === 'function') {
+          SHOP_CONFIG.content = mergeStoreContent(prevSnapshot.content);
+        }
+        applyShopConfig();
+        renderPopularCats();
+        refreshHeroSlides();
+        setAdminSaveStatus('error', outcome.message);
+        showToast(outcome.message);
+        return { ok: false, error: remote?.error || remote?.reason || outcome.reason, localOnly: true };
+      }
+
+      applyShopConfig();
+      renderPopularCats();
+      refreshHeroSlides();
       if (dbReady) {
         try {
           await idbSet('shopSettings', toSave);
         } catch (e) { console.warn(e); }
       }
-      if (isSupabaseReady() && adminLoggedIn) {
-        const remote = await RachaweiStoreApi.saveShopSettingsRemote(toSave);
-        if (!remote.ok) {
-          console.warn('บันทึกตั้งค่าร้านขึ้น Supabase ไม่สำเร็จ', remote.error);
-          showToast('บันทึกในเครื่องแล้ว แต่ซิงก์คลาวด์ไม่สำเร็จ');
-          return;
-        }
-      }
-      showToast('บันทึกตั้งค่าร้านแล้ว');
+      setAdminSaveStatus('ok', outcome.message);
+      showToast(outcome.message);
+      return { ok: true };
     }
 
     function renderAdminSettings() {
@@ -3485,16 +3803,19 @@
       window._heroImagesDraft = heroImages.slice();
 
       el.innerHTML = `
+        ${adminCloudStatusBannerHtml()}
         <div class="admin-section-title">ตั้งค่าร้าน (แก้ไขได้ตลอด)</div>
         <p style="font-size:0.85rem;color:var(--text-soft);margin-bottom:1rem;line-height:1.55;">
-          ค่าเหล่านี้แสดงบนหน้าร้านทันที
-          ${isSupabaseReady()
-            ? 'เมื่อเข้าสู่ระบบ Supabase แล้ว การบันทึกจะซิงก์ขึ้นคลาวด์ให้ลูกค้าทุกคนเห็น'
-            : 'โหมดท้องถิ่น: บันทึกในเบราว์เซอร์เครื่องนี้ — ตั้ง VITE_SUPABASE_* แล้ว deploy เพื่อซิงก์คลาวด์'}
+          ค่าเหล่านี้แสดงบนหน้าร้านทันทีหลังบันทึก ·
+          ${isSupabaseReady() && adminLoggedIn
+            ? 'โหมดคลาวด์: บันทึกจะซิงก์ขึ้น <code>store_shop_settings</code> ให้ลูกค้าทุกคนเห็น'
+            : '<strong style="color:#a93226;">ถ้ายังไม่เชื่อมต่อหรือยังไม่ login การบันทึกจะอยู่แค่เครื่องนี้ — ไม่ขึ้นฐานข้อมูล</strong>'}
         </p>
         <div style="display:grid;gap:0.75rem;max-width:560px;">
           <label style="font-size:0.82rem;font-weight:600;">ชื่อร้าน
             <input class="admin-input" id="setShopName" value="${escapeHtml(c.shopName||'')}" style="width:100%;margin-top:0.25rem;"></label>
+          <label style="font-size:0.82rem;font-weight:600;">คำโปรยใต้ชื่อร้าน
+            <input class="admin-input" id="setShopSub" value="${escapeHtml(c.shopSub||'')}" placeholder="เช่น งานหัตถกรรมจักสานหวายบ้านบุทม" style="width:100%;margin-top:0.25rem;"></label>
           <label style="font-size:0.82rem;font-weight:600;">เบอร์แสดงผล
             <input class="admin-input" id="setPhoneDisplay" value="${escapeHtml(c.phoneDisplay||'')}" style="width:100%;margin-top:0.25rem;"></label>
           <label style="font-size:0.82rem;font-weight:600;">เบอร์โทร (รูปแบบ +66…)
@@ -3651,6 +3972,7 @@
         }
         const settingsPatch = {
           shopName: document.getElementById('setShopName').value.trim() || SHOP_CONFIG.shopName,
+          shopSub: document.getElementById('setShopSub')?.value.trim() || SHOP_CONFIG.shopSub || '',
           phoneDisplay: phoneDisplay || SHOP_CONFIG.phoneDisplay,
           phoneTel: phoneTel || SHOP_CONFIG.phoneTel,
           lineUrl: document.getElementById('setLine').value.trim() || SHOP_CONFIG.lineUrl,
@@ -3669,8 +3991,10 @@
           heroImages: (window._heroImagesDraft || []).slice(0, 10)
         };
         if (nextPin) settingsPatch.adminPinHash = hashAdminPin(nextPin);
-        saveShopSettings(settingsPatch);
-        refreshHeroSlides();
+        void (async () => {
+          await saveShopSettings(settingsPatch);
+          refreshHeroSlides();
+        })();
       };
 
       document.getElementById('btnExportProductsJson').onclick = () => {
@@ -3916,6 +4240,16 @@
       renderAdminDash();
     }
 
+    function jumpAdminTab(tab) {
+      const btn = document.querySelector(`.admin-tab[data-tab="${tab}"]`);
+      if (btn) btn.click();
+      else {
+        adminTab = tab;
+        document.querySelectorAll('.admin-tab').forEach((t) => t.classList.toggle('active', t.dataset.tab === tab));
+        renderAdminTab(tab);
+      }
+    }
+
     function renderAdminDash() {
       const cloudMode = isSupabaseReady();
       const statsBlocked = Boolean(adminOrdersError) && cloudMode;
@@ -3929,52 +4263,47 @@
             return o.statusIndex < 2;
           }).length;
       const orderCount = statsBlocked ? null : orders.length;
-      const withImages = products.filter(p => getProductImages(p).length > 0).length;
+      const activeProducts = products.filter((p) => (p.status || 'active') !== 'hidden').length;
       const storageLabel = cloudMode
         ? (adminOrdersError
           ? 'Supabase อ่านออเดอร์ไม่ได้'
-          : (adminOrdersSource === 'rpc' || adminOrdersSource === 'select'
-            ? 'Supabase (store_orders)'
-            : 'Supabase'))
-        : (dbReady ? 'IndexedDB พร้อม (โหมดท้องถิ่น)' : 'หน่วยความจำชั่วคราว');
+          : 'เชื่อมต่อ Supabase แล้ว')
+        : (dbReady ? 'โหมดท้องถิ่น (IndexedDB)' : 'หน่วยความจำชั่วคราว');
 
       const fmtStat = (v) => (v == null ? '—' : String(v));
       const fmtMoney = (v) => (v == null ? '—' : formatPrice(v));
 
       adminContent.innerHTML = `
+        ${adminCloudStatusBannerHtml()}
         ${adminOrdersStatusBannerHtml()}
+        <div class="admin-dash-hero">
+          <h3>${escapeHtml(SHOP_CONFIG.shopName || 'ราชาหวายสุรินทร์')}</h3>
+          <p>${escapeHtml(SHOP_CONFIG.shopSub || 'จัดการหน้าร้าน · สินค้า · ออเดอร์')} · ${storageLabel}</p>
+        </div>
+
         <div class="admin-stats">
-          <div class="stat-card"><div class="num">${products.length}</div><div class="lbl">สินค้าทั้งหมด</div></div>
-          <div class="stat-card"><div class="num">${shopVideos.length}</div><div class="lbl">วิดีโอแนะนำ</div></div>
-          <div class="stat-card"><div class="num">${fmtStat(orderCount)}</div><div class="lbl">ออเดอร์ทั้งหมด</div></div>
+          <div class="stat-card"><div class="num">${activeProducts}</div><div class="lbl">สินค้าเผยแพร่</div></div>
+          <div class="stat-card"><div class="num">${shopVideos.length}</div><div class="lbl">วิดีโอ</div></div>
+          <div class="stat-card"><div class="num">${fmtStat(orderCount)}</div><div class="lbl">ออเดอร์</div></div>
           <div class="stat-card"><div class="num">${fmtStat(pending)}</div><div class="lbl">รอดำเนินการ</div></div>
           <div class="stat-card"><div class="num">${fmtMoney(totalSales)}</div><div class="lbl">ยอดรวม</div></div>
         </div>
 
-        <div class="admin-form-card">
-          <h3>💾 สำรองและกู้คืนข้อมูล 🔒</h3>
-          <p style="font-size:0.88rem;color:var(--text-soft);margin-bottom:0.9rem;line-height:1.5;">
-            ไฟล์สำรองถูก<strong>เข้ารหัสด้วยรหัสผ่าน</strong> (AES-256) ก่อนดาวน์โหลด<br>
-            เก็บสินค้า รูป ออเดอร์ ตะกร้า อย่างปลอดภัย · สถานะ: <strong>${storageLabel}</strong>
-            ${withImages ? ` · มีรูป ${withImages} รายการ` : ''}
-          </p>
-          <div class="admin-actions" style="flex-wrap:wrap;">
-            <button class="btn btn-primary btn-sm" id="backupExportBtn">⬇️ ดาวน์โหลดไฟล์เข้ารหัส</button>
-            <button class="btn btn-outline btn-sm" id="backupImportBtn">⬆️ นำเข้าไฟล์สำรอง</button>
-            <button class="btn btn-outline btn-sm" id="backupResetBtn" style="color:#c0392b;border-color:#e8b4b4;">🗑️ รีเซ็ตข้อมูล</button>
-          </div>
-          <input type="file" id="backupFileInput" accept=".json,application/json" style="display:none;" />
-          <div class="demo-hint" style="margin-top:0.9rem;">
-            🔒 ใช้ <strong>AES-GCM 256-bit</strong> + PBKDF2 · จำรหัสผ่านให้ดี หากลืมจะเปิดไฟล์ไม่ได้<br>
-            รองรับไฟล์เก่าที่ไม่ได้เข้ารหัส (จะถามก่อนนำเข้า)
-          </div>
+        <div class="admin-section-title"><span>ไปยังเมนูจัดการ</span></div>
+        <div class="admin-quick-nav">
+          <button type="button" class="admin-quick-nav__btn" data-jump="products"><span>สินค้า</span><small>เพิ่ม แก้ไข ปิดการขาย</small></button>
+          <button type="button" class="admin-quick-nav__btn" data-jump="orders"><span>ออเดอร์</span><small>รายละเอียด สถานะ สลิป</small></button>
+          <button type="button" class="admin-quick-nav__btn" data-jump="banners"><span>แบนเนอร์</span><small>ภาพปกและข้อความฮีโร่</small></button>
+          <button type="button" class="admin-quick-nav__btn" data-jump="content"><span>เนื้อหาหน้าแรก</span><small>ข้อความ รีวิว เรื่องราว</small></button>
+          <button type="button" class="admin-quick-nav__btn" data-jump="media"><span>รูปภาพและสื่อ</span><small>ภาพหน้าร้าน / รีวิว</small></button>
+          <button type="button" class="admin-quick-nav__btn" data-jump="settings"><span>ตั้งค่าร้าน</span><small>ติดต่อ โปร ชำระเงิน</small></button>
         </div>
 
         <div class="admin-section-title">ออเดอร์ล่าสุด</div>
         ${statsBlocked
           ? '<div class="empty-admin">ไม่สามารถแสดงออเดอร์ได้จนกว่าจะเชื่อมต่อ Supabase สำเร็จ<br><small>กด «ลองโหลดใหม่» ด้านบนหลังแก้ env / RLS</small></div>'
           : (orders.length === 0
-            ? '<div class="empty-admin">ยังไม่มีออเดอร์ในระบบ<br><small>เมื่อลูกค้าสั่งซื้อผ่าน store_create_order จะแสดงที่นี่ทันที</small></div>'
+            ? '<div class="empty-admin">ยังไม่มีออเดอร์ในระบบ<br><small>เมื่อลูกค้าสั่งซื้อ จะแสดงที่นี่</small></div>'
             : `
           <div class="admin-table-wrap">
             <table class="admin-table">
@@ -3982,11 +4311,11 @@
                 <tr><th>เลขที่</th><th>ลูกค้า</th><th>ยอด</th><th>สถานะ</th></tr>
               </thead>
               <tbody>
-                ${orders.slice(0, 8).map(o => {
+                ${orders.slice(0, 6).map((o) => {
                   const flow = o.method === 'cod' ? COD_FLOW : STATUS_FLOW;
                   const st = flow[o.statusIndex] || flow[0];
                   return `<tr>
-                    <td><strong>${o.id}</strong></td>
+                    <td><strong>${escapeHtml(o.id)}</strong></td>
                     <td>${escapeHtml(o.name)}<br><small>${escapeHtml(o.phoneDisplay || '')}</small></td>
                     <td>${formatPrice(o.total)}</td>
                     <td><span class="status-badge-tag ${st.badge}">${st.label}</span></td>
@@ -3995,23 +4324,39 @@
               </tbody>
             </table>
           </div>
+          <div class="admin-actions" style="margin-top:0.75rem;">
+            <button type="button" class="btn btn-outline btn-sm" data-jump="orders">ดูออเดอร์ทั้งหมด</button>
+          </div>
         `)}
-        <div class="demo-hint" style="margin-top:1.2rem;">
-          💡 แท็บ <strong>สินค้า</strong> = เพิ่ม/แก้ไขสินค้าและรูปภาพ · แท็บ <strong>ออเดอร์</strong> = ติดตามและอัปเดตสถานะ
-        </div>
+
+        <details class="admin-form-card" style="margin-top:1.2rem;">
+          <summary style="cursor:pointer;font-weight:700;color:var(--rattan-deep);">สำรองและกู้คืนข้อมูล</summary>
+          <p style="font-size:0.85rem;color:var(--text-soft);margin:0.7rem 0 0.9rem;line-height:1.5;">
+            ไฟล์สำรองเข้ารหัส AES-256 · ใช้เมื่อย้ายเครื่องหรือสำรองฉุกเฉิน
+          </p>
+          <div class="admin-actions" style="flex-wrap:wrap;">
+            <button class="btn btn-primary btn-sm" id="backupExportBtn">ดาวน์โหลดไฟล์เข้ารหัส</button>
+            <button class="btn btn-outline btn-sm" id="backupImportBtn">นำเข้าไฟล์สำรอง</button>
+            <button class="btn btn-outline btn-sm" id="backupResetBtn" style="color:#c0392b;border-color:#e8b4b4;">รีเซ็ตข้อมูลท้องถิ่น</button>
+          </div>
+          <input type="file" id="backupFileInput" accept=".json,application/json" style="display:none;" />
+        </details>
       `;
 
       bindAdminOrdersRetry();
-      document.getElementById('backupExportBtn').addEventListener('click', () => downloadBackup());
-      document.getElementById('backupImportBtn').addEventListener('click', () => {
-        document.getElementById('backupFileInput').click();
+      adminContent.querySelectorAll('[data-jump]').forEach((btn) => {
+        btn.addEventListener('click', () => jumpAdminTab(btn.getAttribute('data-jump')));
       });
-      document.getElementById('backupFileInput').addEventListener('change', (e) => {
+      document.getElementById('backupExportBtn')?.addEventListener('click', () => downloadBackup());
+      document.getElementById('backupImportBtn')?.addEventListener('click', () => {
+        document.getElementById('backupFileInput')?.click();
+      });
+      document.getElementById('backupFileInput')?.addEventListener('change', (e) => {
         const file = e.target.files && e.target.files[0];
         if (file) importBackupFile(file);
         e.target.value = '';
       });
-      document.getElementById('backupResetBtn').addEventListener('click', resetToDefault);
+      document.getElementById('backupResetBtn')?.addEventListener('click', resetToDefault);
     }
 
     function productThumb(p) {
@@ -4027,6 +4372,7 @@
       const editP = editingProductId ? products.find(p => p.id === editingProductId) : null;
 
       adminContent.innerHTML = `
+        ${adminCloudStatusBannerHtml()}
         <div class="admin-import-card">
           <div class="admin-import-card__head">
             <h3>📥 นำเข้าจาก Excel</h3>
@@ -4054,14 +4400,18 @@
 
         <div class="admin-form-card">
           <h3>${editP ? '✏️ ' : '➕ '}${formTitle}</h3>
-          <p class="admin-form-sub">เพิ่มทีละรายการ หรือแก้ไขรูป/รายละเอียดหลังนำเข้า Excel</p>
+          <p class="admin-form-sub">
+            เพิ่มทีละรายการ หรือแก้ไขรูป/รายละเอียดหลังนำเข้า Excel ·
+            schema เดิมมีราคาเดียว (<code>store_products.price</code>) — ยังไม่มีคอลัมน์ราคาพิเศษแยก ·
+            ใช้ป้าย «พิเศษ / ยอดนิยม» เพื่อทำเครื่องหมายสินค้าพิเศษ
+          </p>
           <div class="form-row">
             <div class="form-group">
               <label>ชื่อสินค้า *</label>
               <input type="text" id="apName" value="${editP ? editP.name.replace(/"/g, '&quot;') : ''}" placeholder="ชื่อสินค้า" />
             </div>
             <div class="form-group">
-              <label>ราคา (บาท) *</label>
+              <label>ราคาขาย (บาท) *</label>
               <input type="number" id="apPrice" value="${editP ? editP.price : ''}" min="0" step="10" placeholder="0" />
             </div>
           </div>
@@ -4109,11 +4459,28 @@
             </div>
             <div class="admin-gallery-list" id="apGalleryList"></div>
           </div>
-          <div class="form-group">
-            <label>ป้ายสินค้า (เช่น ยอดนิยม, ใหม่)</label>
-            <input type="text" id="apBadge" value="${editP && editP.badge ? editP.badge : ''}" placeholder="ว่างไว้ถ้าไม่มี" />
+          <div class="form-row">
+            <div class="form-group">
+              <label>ป้ายสินค้า (เช่น ยอดนิยม, ใหม่)</label>
+              <input type="text" id="apBadge" value="${editP && editP.badge ? editP.badge : ''}" placeholder="ว่างไว้ถ้าไม่มี" />
+            </div>
+            <div class="form-group">
+              <label>สถานะเผยแพร่</label>
+              <select id="apStatus">
+                <option value="active" ${!editP || (editP.status || 'active') === 'active' ? 'selected' : ''}>เผยแพร่ (ลูกค้าเห็น)</option>
+                <option value="hidden" ${editP && editP.status === 'hidden' ? 'selected' : ''}>ปิดการขาย / ซ่อน</option>
+                <option value="draft" ${editP && editP.status === 'draft' ? 'selected' : ''}>แบบร่าง</option>
+              </select>
+            </div>
           </div>
-          <div class="admin-actions" style="margin-top:0.5rem;">
+          <div id="apPreview" class="admin-form-card" style="margin:0.5rem 0 0;padding:0.85rem;background:#fff;">
+            <div style="font-size:0.78rem;color:var(--text-soft);margin-bottom:0.35rem;">ตัวอย่างก่อนบันทึก</div>
+            <strong id="apPreviewName">${editP ? escapeHtml(editP.name) : 'ชื่อสินค้า'}</strong>
+            <div id="apPreviewMeta" style="font-size:0.85rem;margin-top:0.25rem;color:var(--text-soft);">
+              ${editP ? `${formatPrice(editP.price)} · สต็อก ${editP.stock != null ? editP.stock : '—'} · ${categoryMap[editP.cat] || editP.cat}` : 'กรอกชื่อและราคาแล้วดูตัวอย่างที่นี่'}
+            </div>
+          </div>
+          <div class="admin-actions" style="margin-top:0.75rem;">
             <button class="btn btn-primary btn-sm" id="apSaveBtn">${editP ? 'บันทึกการแก้ไข' : 'เพิ่มสินค้า'}</button>
             ${editP ? '<button class="btn btn-outline btn-sm" id="apCancelBtn">ยกเลิก</button>' : ''}
           </div>
@@ -4122,24 +4489,42 @@
         <div class="admin-section-title">
           <span>รายการสินค้า (${products.length})</span>
         </div>
-        <div class="admin-table-wrap">
+        <div class="admin-product-list">
+          ${products.map((p) => `
+            <article class="admin-product-card">
+              ${productThumb(p)}
+              <div class="admin-product-card__body">
+                <div class="admin-product-card__name">${escapeHtml(p.name)}</div>
+                <div class="admin-product-card__meta">
+                  ${formatPrice(p.price)} · สต็อก ${p.stock != null ? p.stock : '—'} · ${escapeHtml(categoryMap[p.cat] || p.cat || '')}
+                  · ${(p.status || 'active') === 'active' ? 'เผยแพร่' : ((p.status === 'hidden') ? 'ซ่อน' : 'แบบร่าง')}
+                </div>
+              </div>
+              <div class="admin-product-card__actions">
+                <button type="button" class="btn btn-outline btn-xs" onclick="adminEditProduct(${p.id})">แก้ไข</button>
+                <button type="button" class="btn btn-outline btn-xs" style="color:#c0392b;border-color:#e8b4b4;" onclick="adminDeleteProduct(${p.id})">ลบ</button>
+              </div>
+            </article>
+          `).join('') || '<div class="empty-admin">ยังไม่มีสินค้า</div>'}
+        </div>
+        <div class="admin-table-wrap admin-products-table-wrap">
           <table class="admin-table">
             <thead>
-              <tr><th>รูป</th><th>ชื่อ</th><th>ราคา</th><th>สต็อก</th><th>ขนาด</th><th>หมวด</th><th>จัดการ</th></tr>
+              <tr><th>รูป</th><th>ชื่อ</th><th>ราคา</th><th>สต็อก</th><th>สถานะ</th><th>หมวด</th><th>จัดการ</th></tr>
             </thead>
             <tbody>
-              ${products.map(p => `
+              ${products.map((p) => `
                 <tr>
                   <td>${productThumb(p)}</td>
-                  <td><strong>${p.name}</strong><br><small style="color:var(--text-soft)">${(p.desc || '').slice(0, 40)}${(p.desc || '').length > 40 ? '…' : ''}</small></td>
+                  <td class="admin-product-name"><strong>${escapeHtml(p.name)}</strong><br><small style="color:var(--text-soft)">${escapeHtml((p.desc || '').slice(0, 48))}${(p.desc || '').length > 48 ? '…' : ''}</small></td>
                   <td>${formatPrice(p.price)}</td>
                   <td>${p.stock != null ? p.stock : '—'}</td>
-                  <td style="font-size:0.78rem;">${p.size ? escapeHtml(p.size) : '—'}</td>
-                  <td>${categoryMap[p.cat] || p.cat}</td>
+                  <td>${(p.status || 'active') === 'active' ? 'เผยแพร่' : ((p.status === 'hidden') ? 'ซ่อน' : 'แบบร่าง')}</td>
+                  <td>${escapeHtml(categoryMap[p.cat] || p.cat || '')}</td>
                   <td>
                     <div class="admin-actions">
-                      <button class="btn btn-outline btn-xs" onclick="adminEditProduct(${p.id})">แก้ไข</button>
-                      <button class="btn btn-outline btn-xs" style="color:#c0392b;border-color:#e8b4b4;" onclick="adminDeleteProduct(${p.id})">ลบ</button>
+                      <button type="button" class="btn btn-outline btn-xs" onclick="adminEditProduct(${p.id})">แก้ไข</button>
+                      <button type="button" class="btn btn-outline btn-xs" style="color:#c0392b;border-color:#e8b4b4;" onclick="adminDeleteProduct(${p.id})">ลบ</button>
                     </div>
                   </td>
                 </tr>
@@ -4207,22 +4592,32 @@
           });
 
           document.getElementById('apConfirmImportBtn').addEventListener('click', () => {
-            const mode = document.querySelector('input[name="apImportMode"]:checked')?.value || 'append';
-            if (mode === 'replace' && !confirm(`แทนที่สินค้าทั้งหมด (${products.length} รายการ) ด้วย ${items.length} รายการจากไฟล์?`)) {
-              return;
-            }
-            const result = applyProductImport(items, mode);
-            importPreview.hidden = true;
-            importPreview.innerHTML = '';
-            showToast(`นำเข้า ${result.added} รายการแล้ว ✓`);
-            renderAdminProducts();
+            void (async () => {
+              const mode = document.querySelector('input[name="apImportMode"]:checked')?.value || 'append';
+              if (mode === 'replace' && !confirm(`แทนที่สินค้าทั้งหมด (${products.length} รายการ) ด้วย ${items.length} รายการจากไฟล์?`)) {
+                return;
+              }
+              setAdminSaveStatus('saving', 'กำลังนำเข้าสินค้าขึ้น Supabase…');
+              const result = await applyProductImport(items, mode);
+              importPreview.hidden = true;
+              importPreview.innerHTML = '';
+              if (!result.ok) {
+                setAdminSaveStatus('error', result.message || 'นำเข้าไม่สำเร็จ');
+                showToast(result.message || 'นำเข้าสินค้าไม่สำเร็จ — ข้อมูลยังไม่เข้า Supabase');
+                renderAdminProducts();
+                return;
+              }
+              setAdminSaveStatus('ok', result.message || `นำเข้า ${result.added} รายการขึ้น Supabase แล้ว ✓`);
+              showToast(result.message || `นำเข้า ${result.added} รายการขึ้น Supabase แล้ว ✓`);
+              renderAdminProducts();
+            })();
           });
         } catch (err) {
           importPreview.innerHTML = `<div class="admin-import-preview__empty"><strong>อ่านไฟล์ไม่สำเร็จ</strong><br>${err.message || err}</div>`;
         }
       });
 
-      document.getElementById('apSaveBtn').addEventListener('click', saveAdminProduct);
+      document.getElementById('apSaveBtn').addEventListener('click', () => { void saveAdminProduct(); });
       const cancelBtn = document.getElementById('apCancelBtn');
       if (cancelBtn) {
         cancelBtn.addEventListener('click', () => {
@@ -4230,6 +4625,25 @@
           renderAdminProducts();
         });
       }
+      const refreshPreview = () => {
+        const name = document.getElementById('apName')?.value.trim() || 'ชื่อสินค้า';
+        const price = parseFloat(document.getElementById('apPrice')?.value);
+        const stockRaw = document.getElementById('apStock')?.value;
+        const stock = stockRaw === '' || stockRaw == null ? '—' : Math.max(0, Math.floor(Number(stockRaw) || 0));
+        const cat = document.getElementById('apCat')?.value || 'basket';
+        const status = document.getElementById('apStatus')?.value || 'active';
+        const nameEl = document.getElementById('apPreviewName');
+        const metaEl = document.getElementById('apPreviewMeta');
+        if (nameEl) nameEl.textContent = name;
+        if (metaEl) {
+          metaEl.textContent = `${Number.isFinite(price) ? formatPrice(price) : '—'} · สต็อก ${stock} · ${categoryMap[cat] || cat} · ${status === 'active' ? 'เผยแพร่' : (status === 'hidden' ? 'ซ่อน' : 'แบบร่าง')}`;
+        }
+      };
+      ['apName', 'apPrice', 'apStock', 'apCat', 'apStatus'].forEach((id) => {
+        document.getElementById(id)?.addEventListener('input', refreshPreview);
+        document.getElementById(id)?.addEventListener('change', refreshPreview);
+      });
+      refreshPreview();
 
       // Multi file upload
       const fileInput = document.getElementById('apFile');
@@ -4410,7 +4824,7 @@
       });
     }
 
-    function saveAdminProduct() {
+    async function saveAdminProduct() {
       const name = document.getElementById('apName').value.trim();
       const price = parseFloat(document.getElementById('apPrice').value);
       const cat = document.getElementById('apCat').value;
@@ -4418,61 +4832,97 @@
       const desc = document.getElementById('apDesc').value.trim();
       const detail = document.getElementById('apDetail').value.trim();
       const badge = document.getElementById('apBadge').value.trim() || null;
+      const status = document.getElementById('apStatus')?.value || 'active';
       const stockRaw = document.getElementById('apStock')?.value;
       const stock = stockRaw === '' || stockRaw == null ? 0 : Math.max(0, Math.floor(Number(stockRaw) || 0));
       const size = (document.getElementById('apSize')?.value || '').trim();
       const images = (window._apImages || []).slice(0, MAX_PRODUCT_IMAGES);
       const image = images[0] || null;
 
-      if (!name || isNaN(price) || price < 0) {
-        showToast('กรุณากรอกชื่อและราคาให้ถูกต้อง');
+      if (!name) {
+        setAdminSaveStatus('error', 'กรุณากรอกชื่อสินค้า');
+        showToast('กรุณากรอกชื่อสินค้า');
+        document.getElementById('apName')?.focus();
+        return;
+      }
+      if (!Number.isFinite(price) || price < 0 || price > 1000000) {
+        setAdminSaveStatus('error', 'ราคาไม่ถูกต้อง (0–1,000,000 บาท)');
+        showToast('กรุณากรอกราคาให้ถูกต้อง');
+        document.getElementById('apPrice')?.focus();
+        return;
+      }
+      if (!Number.isFinite(stock) || stock < 0 || stock > 100000) {
+        setAdminSaveStatus('error', 'สต็อกไม่ถูกต้อง');
+        showToast('กรุณากรอกสต็อกเป็นจำนวนเต็มไม่ติดลบ');
+        document.getElementById('apStock')?.focus();
         return;
       }
 
-      if (editingProductId) {
-        const p = products.find(x => x.id === editingProductId);
-        if (p) {
-          p.name = name;
-          p.price = price;
-          p.cat = cat;
-          p.category = categoryMap[cat];
-          p.emoji = emoji;
-          p.desc = desc;
-          p.detail = detail;
-          p.images = images;
-          p.image = image;
-          p.badge = badge;
-          p.stock = stock;
-          p.size = size;
-        }
-        showToast('บันทึกสินค้าแล้ว ✓');
-      } else {
-        products.push({
-          id: nextProductId++,
-          name,
-          price,
-          cat,
-          category: categoryMap[cat],
-          emoji,
-          desc,
-          detail,
-          images,
-          image,
-          badge,
-          stock,
-          size,
-        });
-        showToast('เพิ่มสินค้าแล้ว ✓');
+      const gate = requireAdminCloudReady('สินค้า');
+      if (!gate.ok) {
+        setAdminSaveStatus('error', gate.message);
+        showToast(gate.message);
+        return;
       }
-      const syncedId = editingProductId || products[products.length - 1]?.id;
+
+      setAdminSaveStatus('saving', 'กำลังบันทึกสินค้าขึ้น Supabase…');
+      const prevSnapshot = JSON.parse(JSON.stringify(products));
+      const prevNextId = nextProductId;
+      const wasEditing = editingProductId;
+      const fields = {
+        name,
+        price,
+        cat,
+        category: categoryMap[cat],
+        emoji,
+        desc,
+        detail,
+        images,
+        image,
+        badge,
+        stock,
+        size,
+        status,
+        featured: badge === 'พิเศษ' || badge === 'ยอดนิยม',
+      };
+
+      let syncedId = wasEditing;
+      if (wasEditing) {
+        const p = products.find((x) => x.id === wasEditing);
+        if (!p) {
+          setAdminSaveStatus('error', 'ไม่พบสินค้าที่กำลังแก้ไข');
+          showToast('ไม่พบสินค้าที่กำลังแก้ไข');
+          return;
+        }
+        Object.assign(p, fields);
+      } else {
+        syncedId = nextProductId++;
+        products.push({ id: syncedId, ...fields });
+      }
+
+      const remote = await syncProductsToSupabase(syncedId != null ? [syncedId] : undefined);
+      const outcome = describeCloudSaveResult(remote, 'สินค้า');
+      if (!outcome.ok) {
+        products.length = 0;
+        prevSnapshot.forEach((p) => products.push(p));
+        nextProductId = prevNextId;
+        editingProductId = wasEditing;
+        renderProducts(catalogFilter);
+        renderPopularCats();
+        renderAdminProducts();
+        setAdminSaveStatus('error', outcome.message);
+        showToast(outcome.message);
+        return;
+      }
+
       editingProductId = null;
       window._apImages = [];
-      void saveProducts({
-        syncRemote: true,
-        productIds: syncedId != null ? [syncedId] : undefined,
-      });
-      renderProducts(document.querySelector('.filter-btn.active')?.dataset.filter || 'all');
+      await persistAll();
+      renderProducts(catalogFilter);
+      renderPopularCats();
       renderAdminProducts();
+      setAdminSaveStatus('ok', outcome.message);
+      showToast(outcome.message);
     }
 
     window.adminEditProduct = function(id) {
@@ -4482,24 +4932,44 @@
     };
 
     window.adminDeleteProduct = async function(id) {
-      if (!confirm('ลบสินค้านี้?')) return;
-      const idx = products.findIndex(p => p.id === id);
-      if (idx >= 0) products.splice(idx, 1);
-      cart = cart.filter(c => c.id !== id);
-      shopVideos.forEach((v) => {
-        if (v.productId === id) v.productId = null;
-      });
-      if (isSupabaseReady() && adminLoggedIn) {
-        const remote = await RachaweiStoreApi.deleteProductRemote(id);
-        if (!remote.ok) console.warn('ลบสินค้าบน Supabase ไม่สำเร็จ', remote.error);
+      const p = products.find((x) => x.id === id);
+      const label = p ? `${p.name} (${formatPrice(p.price)})` : String(id);
+      if (!confirm(`ยืนยันลบสินค้า?\n\n${label}\n\nการลบจากคลาวด์จะทำให้ลูกค้าไม่เห็นสินค้านี้ — กดยกเลิกหากไม่แน่ใจ`)) return;
+
+      const gate = requireAdminCloudReady('สินค้า');
+      if (!gate.ok) {
+        const msg = gate.message.replace('บันทึก', 'ลบ');
+        setAdminSaveStatus('error', msg);
+        showToast(msg);
+        return;
       }
-      await saveProducts(); // local only — remote delete already handled above
-      saveShopVideos();
+
+      setAdminSaveStatus('saving', 'กำลังลบสินค้าจาก Supabase…');
+      const remote = await RachaweiStoreApi.deleteProductRemote(id);
+      const outcome = describeCloudSaveResult(
+        remote?.ok ? remote : { ok: false, error: remote?.error || 'delete_failed' },
+        'สินค้า',
+      );
+      if (!outcome.ok) {
+        const msg = outcome.message.replace('บันทึก', 'ลบ');
+        setAdminSaveStatus('error', msg);
+        showToast(msg);
+        return;
+      }
+
+      const idx = products.findIndex((x) => x.id === id);
+      if (idx >= 0) products.splice(idx, 1);
+      cart = cart.filter((c) => c.id !== id);
+      shopVideos.forEach((v) => {
+        if (Number(v.productId) === Number(id)) v.productId = null;
+      });
+      await persistAll();
       saveCart();
       updateBadge();
-      renderProducts(document.querySelector('.filter-btn.active')?.dataset.filter || 'all');
+      renderProducts(catalogFilter);
       renderAdminProducts();
-      showToast('ลบสินค้าแล้ว');
+      setAdminSaveStatus('ok', 'ลบสินค้าจาก Supabase แล้ว ✓');
+      showToast('ลบสินค้าจาก Supabase แล้ว ✓');
     };
 
     function resolveAdminVideoTitle(rawTitle, productId, videoUrl) {
@@ -4543,9 +5013,10 @@
       ).join('');
 
       adminContent.innerHTML = `
+        ${adminCloudStatusBannerHtml()}
         <div class="admin-form-card">
           <h3>${editV ? '✏️ ' : '➕ '}${formTitle}</h3>
-          <p class="admin-form-sub">วิดีโอจะแสดงใต้รายการสินค้าในหน้าร้าน · รองรับ YouTube / ลิงก์ MP4 / TikTok / Facebook Reels</p>
+          <p class="admin-form-sub">วิดีโอจะแสดงใต้รายการสินค้าในหน้าร้าน · ซิงก์ตาราง <code>store_videos</code> เมื่อ login แอดมิน · รองรับ YouTube / MP4 / TikTok / Facebook Reels</p>
           <div class="admin-form-error" id="avFormError" role="alert"></div>
           <div class="form-group">
             <label>ลิงก์วิดีโอ *</label>
@@ -4635,7 +5106,7 @@
       }
     }
 
-    function saveAdminVideo() {
+    async function saveAdminVideo() {
       const rawTitle = document.getElementById('avTitle').value.trim();
       const videoUrl = document.getElementById('avUrl').value.trim();
       const productRaw = document.getElementById('avProductId').value;
@@ -4660,32 +5131,85 @@
         return;
       }
 
-      if (editingVideoId) {
-        const video = shopVideos.find((v) => v.id === editingVideoId);
-        if (video) {
-          video.title = title;
-          video.videoUrl = videoUrl;
-          video.productId = productId;
-          video.views = views;
-          video.thumbnail = thumbnail;
+      const gate = requireAdminCloudReady('วิดีโอ');
+      if (!gate.ok) {
+        setAdminSaveStatus('error', gate.message);
+        showAdminVideoFormError(gate.message);
+        return;
+      }
+
+      setAdminSaveStatus('saving', 'กำลังบันทึกวิดีโอขึ้น Supabase…');
+      const prevSnapshot = JSON.parse(JSON.stringify(shopVideos));
+      const prevNextId = nextVideoId;
+      const wasEditing = editingVideoId;
+      let syncedId = wasEditing;
+
+      if (wasEditing) {
+        const video = shopVideos.find((v) => v.id === wasEditing);
+        if (!video) {
+          showAdminVideoFormError('ไม่พบวิดีโอที่กำลังแก้ไข');
+          return;
         }
-        showToast('บันทึกวิดีโอแล้ว ✓');
+        video.title = title;
+        video.videoUrl = videoUrl;
+        video.productId = productId;
+        video.views = views;
+        video.thumbnail = thumbnail;
+        video.isActive = true;
       } else {
-        shopVideos.push({
+        const created = {
           id: nextVideoId++,
           title,
           videoUrl,
           productId,
           views,
           thumbnail,
-        });
-        showToast('เพิ่มวิดีโอแล้ว ✓');
+          isActive: true,
+        };
+        shopVideos.push(created);
+        syncedId = created.id;
+      }
+
+      // Cloud-first: upsert without writing IndexedDB until Supabase ack
+      const ids = syncedId != null ? [String(syncedId)] : [];
+      let failed = 0;
+      let lastError = null;
+      let resolvedId = syncedId;
+      for (const id of ids) {
+        const video = shopVideos.find((v) => String(v.id) === String(id));
+        if (!video) continue;
+        const remoteUpsert = await RachaweiStoreApi.upsertVideo(video);
+        if (!remoteUpsert.ok) {
+          failed += 1;
+          lastError = remoteUpsert.error || 'upsert_failed';
+        } else if (remoteUpsert.id != null && String(remoteUpsert.id) !== String(video.id)) {
+          video.id = remoteUpsert.id;
+          resolvedId = remoteUpsert.id;
+          nextVideoId = Math.max(nextVideoId, Number(remoteUpsert.id) + 1 || nextVideoId);
+        }
+      }
+      const remote = failed
+        ? { ok: false, error: lastError || 'video_sync_failed', reason: 'upsert_failed' }
+        : { ok: true, id: resolvedId };
+      const outcome = describeCloudSaveResult(remote, 'วิดีโอ');
+      if (!outcome.ok) {
+        shopVideos.length = 0;
+        prevSnapshot.forEach((v) => shopVideos.push(v));
+        nextVideoId = prevNextId;
+        editingVideoId = wasEditing;
+        renderShopVideos();
+        renderAdminVideos();
+        setAdminSaveStatus('error', outcome.message);
+        showToast(outcome.message);
+        return;
       }
 
       editingVideoId = null;
-      saveShopVideos();
+      await persistAll();
       renderShopVideos();
       renderAdminVideos();
+      setAdminSaveStatus('ok', outcome.message);
+      showToast(outcome.message);
     }
 
     window.adminEditVideo = function(id) {
@@ -4694,16 +5218,300 @@
       adminContent.scrollTop = 0;
     };
 
-    window.adminDeleteVideo = function(id) {
+    window.adminDeleteVideo = async function(id) {
       if (!confirm('ลบวิดีโอนี้?')) return;
+
+      const gate = requireAdminCloudReady('วิดีโอ');
+      if (!gate.ok) {
+        const msg = gate.message.replace('บันทึก', 'ลบ');
+        setAdminSaveStatus('error', msg);
+        showToast(msg);
+        return;
+      }
+
+      setAdminSaveStatus('saving', 'กำลังลบวิดีโอจาก Supabase…');
+      const remote = typeof RachaweiStoreApi.deleteVideoRemote === 'function'
+        ? await RachaweiStoreApi.deleteVideoRemote(id)
+        : { ok: false, error: 'api_missing' };
+      const outcome = describeCloudSaveResult(
+        remote?.ok ? remote : { ok: false, error: remote?.error || 'delete_failed' },
+        'วิดีโอ',
+      );
+      if (!outcome.ok) {
+        const msg = outcome.message.replace('บันทึก', 'ลบ');
+        setAdminSaveStatus('error', msg);
+        showToast(msg);
+        return;
+      }
+
       const idx = shopVideos.findIndex((v) => v.id === id);
       if (idx >= 0) shopVideos.splice(idx, 1);
       if (editingVideoId === id) editingVideoId = null;
-      saveShopVideos();
+      await persistAll();
       renderShopVideos();
       renderAdminVideos();
-      showToast('ลบวิดีโอแล้ว');
+      setAdminSaveStatus('ok', 'ลบวิดีโอจาก Supabase แล้ว ✓');
+      showToast('ลบวิดีโอจาก Supabase แล้ว ✓');
     };
+
+    function renderAdminCategories() {
+      const tiles = getStoreCategoryTiles();
+      adminContent.innerHTML = `
+        ${adminCloudStatusBannerHtml()}
+        <div class="admin-section-title"><span>หมวดหมู่บนหน้าร้าน</span></div>
+        <p style="font-size:0.88rem;color:var(--text-soft);margin:0 0 1rem;line-height:1.5;">
+          แก้ไขชื่อและอีโมจิของหมวดที่แสดงใน «หมวดยอดนิยม» — คีย์หมวดผูกกับสินค้าเดิม (ตะกร้า / เก้าอี้ / ของใช้ / ของขวัญ)
+          ไม่สร้างตารางใหม่ บันทึกใน <code>store_shop_settings.content</code>
+        </p>
+        <div class="admin-form-card" style="display:grid;gap:0.85rem;">
+          ${tiles.map((t, i) => `
+            <div class="form-row">
+              <div class="form-group">
+                <label>ชื่อหมวด (${escapeHtml(t.filter)})</label>
+                <input class="admin-input" id="catName_${i}" data-filter="${escapeAttr(t.filter)}" value="${escapeAttr(t.name)}" />
+              </div>
+              <div class="form-group">
+                <label>อีโมจิ</label>
+                <input class="admin-input" id="catEmoji_${i}" value="${escapeAttr(t.emoji)}" maxlength="8" />
+              </div>
+            </div>
+            <div style="font-size:0.8rem;color:var(--text-soft);margin-top:-0.45rem;">
+              สินค้าในหมวดนี้: ${products.filter((p) => isProductPublished(p) && matchesCatalog(p, t.filter, '')).length} รายการเผยแพร่
+            </div>
+          `).join('')}
+          <div class="admin-actions">
+            <button type="button" class="btn btn-primary btn-sm" id="catSaveBtn">บันทึกหมวดหมู่</button>
+          </div>
+        </div>
+      `;
+      document.getElementById('catSaveBtn')?.addEventListener('click', async () => {
+        const next = tiles.map((t, i) => ({
+          filter: t.filter,
+          name: document.getElementById(`catName_${i}`)?.value.trim() || t.name,
+          emoji: document.getElementById(`catEmoji_${i}`)?.value.trim() || t.emoji,
+        }));
+        const content = mergeStoreContent(SHOP_CONFIG.content || {});
+        content.home = content.home || {};
+        content.home.categories = next;
+        await saveShopSettings({ content });
+        renderAdminCategories();
+      });
+    }
+
+    function renderAdminBanners() {
+      const content = mergeStoreContent(SHOP_CONFIG.content || {});
+      window._cmsHeroDraft = (Array.isArray(SHOP_CONFIG.heroImages) ? SHOP_CONFIG.heroImages : []).filter(Boolean).slice();
+      adminContent.innerHTML = `
+        ${adminCloudStatusBannerHtml()}
+        <div class="admin-section-title"><span>แบนเนอร์ / ภาพปกหน้าแรก</span></div>
+        <p style="font-size:0.88rem;color:var(--text-soft);margin:0 0 1rem;line-height:1.5;">
+          ข้อความฮีโร่และรูปสไลด์พื้นหลัง — ใช้ข้อมูลเดิมในตั้งค่าร้าน/เนื้อหา (hero_images + content.hero)
+        </p>
+        <div class="admin-form-card" style="display:grid;gap:0.75rem;max-width:560px;">
+          <label style="font-size:0.82rem;font-weight:600;">หัวข้อหลัก
+            <input class="admin-input" id="bnHeroTitle" value="${escapeAttr(content.hero?.title || '')}" style="margin-top:0.25rem;" /></label>
+          <label style="font-size:0.82rem;font-weight:600;">คำโปรย
+            <textarea class="admin-input" id="bnHeroDesc" rows="2" style="margin-top:0.25rem;">${escapeAttr(content.hero?.desc || '')}</textarea></label>
+          <label style="font-size:0.82rem;font-weight:600;">ข้อความปุ่ม
+            <input class="admin-input" id="bnHeroCta" value="${escapeAttr(content.hero?.cta || '')}" style="margin-top:0.25rem;" /></label>
+          <div class="admin-section-title" style="margin:0.2rem 0 0;">รูปสไลด์ (${(window._cmsHeroDraft || []).length}/10)</div>
+          <div id="bnHeroList" class="hero-admin-list"></div>
+          <label class="btn btn-outline btn-sm" style="justify-content:center;cursor:pointer;">อัปโหลดรูปสไลด์
+            <input type="file" id="bnHeroUpload" accept="image/*" multiple hidden /></label>
+          <div class="admin-actions">
+            <button type="button" class="btn btn-primary btn-sm" id="bnSaveBtn">บันทึกแบนเนอร์</button>
+          </div>
+        </div>
+      `;
+      const paint = () => {
+        const list = document.getElementById('bnHeroList');
+        if (!list) return;
+        const imgs = window._cmsHeroDraft || [];
+        list.innerHTML = imgs.length
+          ? imgs.map((src, idx) => `
+            <div class="hero-admin-item">
+              <img src="${src}" alt="">
+              <button type="button" class="btn btn-outline btn-xs" data-bn-remove="${idx}">ลบ</button>
+            </div>`).join('')
+          : '<div class="empty-admin">ยังไม่มีรูปสไลด์</div>';
+        list.querySelectorAll('[data-bn-remove]').forEach((btn) => {
+          btn.addEventListener('click', () => {
+            window._cmsHeroDraft.splice(Number(btn.getAttribute('data-bn-remove')), 1);
+            paint();
+          });
+        });
+      };
+      paint();
+      document.getElementById('bnHeroUpload')?.addEventListener('change', async (e) => {
+        const files = Array.from(e.target.files || []);
+        e.target.value = '';
+        for (const file of files) {
+          if ((window._cmsHeroDraft || []).length >= 10) {
+            showToast('ใส่ได้สูงสุด 10 รูป');
+            break;
+          }
+          try {
+            const dataUrl = await new Promise((resolve, reject) => {
+              const reader = new FileReader();
+              reader.onload = () => resolve(reader.result);
+              reader.onerror = reject;
+              reader.readAsDataURL(file);
+            });
+            const compressed = await compressImage(dataUrl, 1400, 0.78);
+            window._cmsHeroDraft.push(compressed);
+          } catch (_) {
+            showToast('อัปโหลดรูปไม่สำเร็จ');
+          }
+        }
+        paint();
+      });
+      document.getElementById('bnSaveBtn')?.addEventListener('click', async () => {
+        const contentNext = mergeStoreContent(SHOP_CONFIG.content || {});
+        contentNext.hero = {
+          ...(contentNext.hero || {}),
+          title: document.getElementById('bnHeroTitle')?.value.trim() || contentNext.hero.title,
+          desc: document.getElementById('bnHeroDesc')?.value.trim() || contentNext.hero.desc,
+          cta: document.getElementById('bnHeroCta')?.value.trim() || contentNext.hero.cta,
+        };
+        await saveShopSettings({
+          content: contentNext,
+          heroImages: (window._cmsHeroDraft || []).slice(0, 10),
+        });
+        if (typeof applyStoreContent === 'function') applyStoreContent();
+        refreshHeroSlides();
+        renderAdminBanners();
+      });
+    }
+
+    function renderAdminMedia() {
+      const photos = Array.isArray(SHOP_CONFIG.storefrontPhotos)
+        ? SHOP_CONFIG.storefrontPhotos.map((p) => ({ ...p }))
+        : [];
+      window._cmsStorefrontDraft = photos;
+      const reviews = mergeStoreContent(SHOP_CONFIG.content || {}).reviews?.items || [];
+      adminContent.innerHTML = `
+        ${adminCloudStatusBannerHtml()}
+        <div class="admin-section-title"><span>รูปภาพและสื่อ</span></div>
+        <p style="font-size:0.88rem;color:var(--text-soft);margin:0 0 1rem;line-height:1.5;">
+          จัดการภาพหน้าร้าน (<code>storefront_photos</code>) และสรุปรูปรีวิว —
+          ระบบเดิมเก็บเป็น URL / data URL ใน jsonb (ยังไม่มี Supabase Storage bucket) — ไม่สร้าง bucket ใหม่
+        </p>
+        <div class="admin-form-card">
+          <h3>ภาพหน้าร้าน (${photos.length})</h3>
+          <div id="mediaStorefrontList" class="admin-gallery-list" style="margin:0.6rem 0;"></div>
+          <label class="btn btn-outline btn-sm" style="justify-content:center;cursor:pointer;">เพิ่มรูปหน้าร้าน
+            <input type="file" id="mediaStorefrontUpload" accept="image/*" multiple hidden /></label>
+          <div class="admin-actions" style="margin-top:0.75rem;">
+            <button type="button" class="btn btn-primary btn-sm" id="mediaSaveBtn">บันทึกภาพหน้าร้าน</button>
+            <button type="button" class="btn btn-outline btn-sm" data-jump-content>แก้รูปรีวิวในเนื้อหา</button>
+          </div>
+        </div>
+        <div class="admin-section-title" style="margin-top:1.2rem;"><span>รูปรีวิว (${reviews.length})</span></div>
+        <div class="admin-product-list">
+          ${reviews.slice(0, 8).map((r) => `
+            <article class="admin-product-card">
+              <div class="admin-thumb">${r.img ? `<img src="${escapeAttr(r.img)}" alt="">` : '📷'}</div>
+              <div class="admin-product-card__body">
+                <div class="admin-product-card__name">${escapeHtml(r.name || 'ผู้รีวิว')}</div>
+                <div class="admin-product-card__meta">${escapeHtml((r.quote || '').slice(0, 80))}</div>
+              </div>
+            </article>
+          `).join('') || '<div class="empty-admin">ยังไม่มีรีวิว</div>'}
+        </div>
+      `;
+      const paint = () => {
+        const list = document.getElementById('mediaStorefrontList');
+        if (!list) return;
+        const items = window._cmsStorefrontDraft || [];
+        list.innerHTML = items.map((p, idx) => `
+          <div class="admin-gallery-item">
+            <img src="${escapeAttr(p.src || p.url || p)}" alt="">
+            <button type="button" data-media-rm="${idx}">ลบ</button>
+          </div>`).join('') || '<div class="empty-admin">ยังไม่มีภาพหน้าร้าน</div>';
+        list.querySelectorAll('[data-media-rm]').forEach((btn) => {
+          btn.addEventListener('click', () => {
+            window._cmsStorefrontDraft.splice(Number(btn.getAttribute('data-media-rm')), 1);
+            paint();
+          });
+        });
+      };
+      paint();
+      document.getElementById('mediaStorefrontUpload')?.addEventListener('change', async (e) => {
+        const files = Array.from(e.target.files || []);
+        e.target.value = '';
+        for (const file of files) {
+          try {
+            const dataUrl = await new Promise((resolve, reject) => {
+              const reader = new FileReader();
+              reader.onload = () => resolve(reader.result);
+              reader.onerror = reject;
+              reader.readAsDataURL(file);
+            });
+            const compressed = await compressImage(dataUrl, 1200, 0.8);
+            window._cmsStorefrontDraft.push({ src: compressed, alt: file.name || 'ภาพหน้าร้าน' });
+          } catch (_) {
+            showToast('อัปโหลดไม่สำเร็จ');
+          }
+        }
+        paint();
+      });
+      document.getElementById('mediaSaveBtn')?.addEventListener('click', async () => {
+        await saveShopSettings({ storefrontPhotos: (window._cmsStorefrontDraft || []).slice() });
+        if (typeof applyStoreContent === 'function') applyStoreContent();
+        renderAdminMedia();
+      });
+      adminContent.querySelector('[data-jump-content]')?.addEventListener('click', () => jumpAdminTab('content'));
+    }
+
+    function renderAdminCustomers() {
+      const map = new Map();
+      orders.forEach((o) => {
+        const phone = String(o.phone || o.phoneDisplay || '').replace(/\D/g, '') || String(o.phoneDisplay || o.name || o.id);
+        const prev = map.get(phone) || {
+          phone: o.phoneDisplay || o.phone || '—',
+          name: o.name || '—',
+          orders: 0,
+          total: 0,
+          lastAt: 0,
+          lastId: '',
+        };
+        prev.orders += 1;
+        prev.total += Number(o.total) || 0;
+        const created = Number(o.createdAt) || 0;
+        if (created >= prev.lastAt) {
+          prev.lastAt = created;
+          prev.lastId = o.id;
+          prev.name = o.name || prev.name;
+          prev.phone = o.phoneDisplay || o.phone || prev.phone;
+        }
+        map.set(phone, prev);
+      });
+      const rows = Array.from(map.values()).sort((a, b) => b.lastAt - a.lastAt);
+      adminContent.innerHTML = `
+        ${adminCloudStatusBannerHtml()}
+        ${adminOrdersStatusBannerHtml()}
+        <div class="admin-section-title"><span>ลูกค้าจากออเดอร์ (${rows.length})</span></div>
+        <p style="font-size:0.88rem;color:var(--text-soft);margin:0 0 1rem;line-height:1.5;">
+          รายชื่อสรุปจาก <code>store_orders</code> ตามเบอร์โทร — ไม่มีตารางลูกค้าแยก และไม่สร้าง schema ใหม่
+        </p>
+        ${rows.length === 0
+          ? '<div class="empty-admin">ยังไม่มีข้อมูลลูกค้าจากออเดอร์</div>'
+          : `
+          <div class="admin-product-list" style="display:flex;">
+            ${rows.slice(0, 80).map((c) => `
+              <article class="admin-product-card" style="grid-template-columns:1fr;">
+                <div class="admin-product-card__body">
+                  <div class="admin-product-card__name">${escapeHtml(c.name)}</div>
+                  <div class="admin-product-card__meta">
+                    ${escapeHtml(c.phone)} · ${c.orders} ออเดอร์ · รวม ${formatPrice(c.total)}
+                    ${c.lastAt ? `<br>ล่าสุด ${formatDateTime(c.lastAt)} · ${escapeHtml(c.lastId)}` : ''}
+                  </div>
+                </div>
+              </article>
+            `).join('')}
+          </div>`}
+      `;
+    }
 
     function getFilteredAdminOrders() {
       const q = String(adminOrderQuery || '').trim().toLowerCase();
@@ -4743,6 +5551,7 @@
         `<option value="${i}" ${String(adminOrderStatusFilter) === String(i) ? 'selected' : ''}>${s.label}</option>`
       ).join('');
       adminContent.innerHTML = `
+        ${adminCloudStatusBannerHtml()}
         ${adminOrdersStatusBannerHtml()}
         <div class="admin-section-title">
           <span>ออเดอร์ทั้งหมด ${blocked ? '' : `(${filtered.length}${filtered.length !== orders.length ? ` / ${orders.length}` : ''})`}</span>
@@ -4769,7 +5578,7 @@
             ? '<div class="empty-admin">ไม่พบออเดอร์ที่ตรงเงื่อนไข</div>'
             : `
           <div class="admin-table-wrap">
-            <table class="admin-table">
+            <table class="admin-table admin-orders-table">
               <thead>
                 <tr>
                   <th>เลขที่</th>
@@ -4794,8 +5603,12 @@
                     (o.promoDiscount > 0 ? `โปร −${formatPrice(o.promoDiscount)}` : null),
                     `ส่ง ${formatPrice(o.shippingFee || 0)}`,
                   ].filter(Boolean).join(' · ');
-                  return `<tr>
-                    <td><strong>${escapeHtml(o.id)}</strong><br><small>${formatDateTime(o.createdAt)}</small></td>
+                  const oid = escapeAttr(o.id);
+                  const testBadge = isProtectedTestOrder(o.id)
+                    ? '<span class="admin-order-test-badge" title="รายการทดสอบ — ห้ามลบ/แก้สถานะอัตโนมัติ">TEST</span>'
+                    : '';
+                  return `<tr data-order-id="${oid}">
+                    <td><strong>${escapeHtml(o.id)}</strong>${testBadge}<br><small>${formatDateTime(o.createdAt)}</small></td>
                     <td>
                       <strong>${escapeHtml(o.name || '')}</strong><br>
                       <small>${escapeHtml(o.phoneDisplay || '')}</small><br>
@@ -4807,27 +5620,29 @@
                     <td style="font-size:0.78rem;">
                       ${o.paymentSlip && o.paymentSlip !== '__remote__'
                         ? `<div class="admin-slip-actions">
-                            <button type="button" class="btn btn-outline btn-xs" onclick="adminViewSlip('${escapeHtml(o.id)}')">🧾 ดู</button>
-                            <button type="button" class="btn btn-primary btn-xs" onclick="adminConfirmPayment('${escapeHtml(o.id)}')">✓ ยืนยัน</button>
-                            <button type="button" class="btn btn-outline btn-xs" onclick="adminRejectSlip('${escapeHtml(o.id)}')">✕ ปฏิเสธ</button>
+                            <button type="button" class="btn btn-outline btn-xs" onclick="adminViewSlip('${oid}')">🧾 ดู</button>
+                            <button type="button" class="btn btn-primary btn-xs" onclick="adminConfirmPayment('${oid}')">✓ ยืนยัน</button>
+                            <button type="button" class="btn btn-outline btn-xs" onclick="adminRejectSlip('${oid}')">✕ ปฏิเสธ</button>
                           </div>`
                         : (o.paymentSlip === '__remote__'
                           ? `<span style="color:#2e7d32;">มีสลิป</span>
-                             <button type="button" class="btn btn-primary btn-xs" style="margin-top:0.25rem;" onclick="adminConfirmPayment('${escapeHtml(o.id)}')">✓ ยืนยัน</button>`
+                             <button type="button" class="btn btn-primary btn-xs" style="margin-top:0.25rem;" onclick="adminConfirmPayment('${oid}')">✓ ยืนยัน</button>`
                           : (paymentNeedsSlip(o.method) ? '<span style="color:var(--text-soft);">รอสลิป</span>' : '—'))}
                     </td>
                     <td><span class="status-badge-tag ${st.badge}">${st.label}</span></td>
                     <td>
                       <div class="admin-order-manage">
-                        <select class="status-select" onchange="adminSetOrderStatus('${escapeHtml(o.id)}', this.value)">
+                        <button type="button" class="btn btn-primary btn-xs admin-order-detail-btn" onclick="adminViewOrderDetail('${oid}')">ดูรายละเอียด</button>
+                        <select class="status-select" aria-label="เปลี่ยนสถานะออเดอร์ ${oid}" onchange="adminSetOrderStatus('${oid}', this.value)">
                           ${opts}
                         </select>
-                        <div class="admin-actions" style="margin-top:0.4rem;">
-                          <button class="btn btn-outline btn-xs" onclick="adminPrintOrder('${escapeHtml(o.id)}')">🖨️ ใบปะหน้า</button>
+                        <div class="admin-actions">
+                          <button type="button" class="btn btn-outline btn-xs" onclick="adminPrintOrder('${oid}')">🖨️ ใบปะหน้า</button>
                           <div class="admin-order-menu">
-                            <button type="button" class="btn btn-outline btn-xs admin-order-menu-btn" aria-label="เมนูออเดอร์" aria-haspopup="true" aria-expanded="false" onclick="adminToggleOrderMenu(event, '${escapeHtml(o.id)}')">⋯</button>
-                            <div class="admin-order-menu-panel" id="adminOrderMenu-${escapeHtml(o.id)}" hidden>
-                              <button type="button" class="admin-order-menu-item admin-order-menu-item--danger" onclick="adminDeleteOrder('${escapeHtml(o.id)}')">ลบออเดอร์</button>
+                            <button type="button" class="btn btn-outline btn-xs admin-order-menu-btn" aria-label="เมนูออเดอร์" aria-haspopup="true" aria-expanded="false" onclick="adminToggleOrderMenu(event, '${oid}')">⋯</button>
+                            <div class="admin-order-menu-panel" id="adminOrderMenu-${oid}" hidden>
+                              <button type="button" class="admin-order-menu-item" onclick="adminViewOrderDetail('${oid}')">ดูรายละเอียด</button>
+                              <button type="button" class="admin-order-menu-item admin-order-menu-item--danger" onclick="adminDeleteOrder('${oid}')">ลบออเดอร์</button>
                             </div>
                           </div>
                         </div>
@@ -4927,9 +5742,15 @@
     function closeAllAdminOrderMenus() {
       document.querySelectorAll('.admin-order-menu-panel').forEach((panel) => {
         panel.hidden = true;
+        panel.style.top = '';
+        panel.style.left = '';
+        panel.style.right = '';
       });
       document.querySelectorAll('.admin-order-menu-btn').forEach((btn) => {
         btn.setAttribute('aria-expanded', 'false');
+      });
+      document.querySelectorAll('.admin-table-wrap--menu-open').forEach((wrap) => {
+        wrap.classList.remove('admin-table-wrap--menu-open');
       });
     }
 
@@ -4941,41 +5762,217 @@
         closeAllAdminOrderMenus();
       });
       document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape') closeAllAdminOrderMenus();
+        if (e.key === 'Escape') {
+          closeAllAdminOrderMenus();
+          closeAdminOrderDetail();
+        }
       });
+      window.addEventListener('resize', () => closeAllAdminOrderMenus(), { passive: true });
+      window.addEventListener('scroll', () => closeAllAdminOrderMenus(), { passive: true, capture: true });
+    }
+
+    function positionAdminOrderMenu(panel, btn) {
+      const rect = btn.getBoundingClientRect();
+      const panelWidth = Math.max(152, panel.offsetWidth || 152);
+      const gap = 6;
+      let top = rect.bottom + gap;
+      let left = rect.right - panelWidth;
+      const vw = window.innerWidth || document.documentElement.clientWidth;
+      const vh = window.innerHeight || document.documentElement.clientHeight;
+      if (left < 8) left = 8;
+      if (left + panelWidth > vw - 8) left = Math.max(8, vw - panelWidth - 8);
+      panel.hidden = false;
+      // Measure after unhiding
+      const ph = panel.offsetHeight || 88;
+      if (top + ph > vh - 8) {
+        top = Math.max(8, rect.top - ph - gap);
+      }
+      panel.style.top = `${Math.round(top)}px`;
+      panel.style.left = `${Math.round(left)}px`;
+      panel.style.right = 'auto';
     }
 
     window.adminToggleOrderMenu = function(event, id) {
-      event.stopPropagation();
-      const panel = document.getElementById(`adminOrderMenu-${id}`);
-      const btn = event.currentTarget;
-      if (!panel || !btn) return;
+      if (event) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+      const orderId = String(id || '').trim();
+      const panel = document.getElementById(`adminOrderMenu-${orderId}`);
+      const btn = event && event.currentTarget
+        ? event.currentTarget
+        : document.querySelector(`.admin-order-menu-btn[aria-expanded="true"]`);
+      if (!panel) {
+        showToast('เปิดเมนูออเดอร์ไม่สำเร็จ');
+        return;
+      }
       const willOpen = panel.hidden;
       closeAllAdminOrderMenus();
-      if (willOpen) {
-        panel.hidden = false;
+      if (willOpen && btn) {
+        const wrap = btn.closest('.admin-table-wrap');
+        if (wrap) wrap.classList.add('admin-table-wrap--menu-open');
+        positionAdminOrderMenu(panel, btn);
         btn.setAttribute('aria-expanded', 'true');
       }
     };
 
-    window.adminSetOrderStatus = async function(id, idxStr) {
-      const o = orders.find(x => x.id === id);
-      if (!o) return;
-      const idx = parseInt(idxStr, 10);
-      if (idx === ORDER_CANCELLED_INDEX && !confirm(`ยกเลิกออเดอร์ ${id}?\n\nระบบจะคืนสต็อกสินค้า (หลังรัน SQL 010) และไม่สามารถกู้คืนออเดอร์ได้`)) {
-        renderAdminOrders();
+    const adminOrderDetailModal = document.getElementById('adminOrderDetailModal');
+    const adminOrderDetailBody = document.getElementById('adminOrderDetailBody');
+    const adminOrderDetailActions = document.getElementById('adminOrderDetailActions');
+    const adminOrderDetailTitle = document.getElementById('adminOrderDetailTitle');
+
+    function closeAdminOrderDetail() {
+      if (!adminOrderDetailModal) return;
+      adminOrderDetailModal.classList.remove('open');
+      adminOrderDetailModal.hidden = true;
+      if (adminOrderDetailBody) adminOrderDetailBody.innerHTML = '';
+      if (adminOrderDetailActions) adminOrderDetailActions.innerHTML = '';
+    }
+
+    function renderAdminOrderDetailContent(o) {
+      const flow = o.method === 'cod' ? COD_FLOW : STATUS_FLOW;
+      const st = flow[o.statusIndex] || flow[0];
+      const oid = escapeAttr(o.id);
+      const testBadge = isProtectedTestOrder(o.id)
+        ? '<span class="admin-order-test-badge">TEST</span>'
+        : '';
+      const itemRows = (o.items || []).map((i) => {
+        const line = (Number(i.price) || 0) * (Number(i.qty) || 0);
+        return `<tr>
+          <td>${i.emoji ? `${escapeHtml(i.emoji)} ` : ''}${escapeHtml(i.name || '—')}</td>
+          <td>${Number(i.qty) || 0}</td>
+          <td>${formatPrice(i.price || 0)}</td>
+          <td>${formatPrice(line)}</td>
+        </tr>`;
+      }).join('') || '<tr><td colspan="4">ไม่มีรายการสินค้า</td></tr>';
+      const opts = flow.map((s, i) =>
+        `<option value="${i}" ${i === o.statusIndex ? 'selected' : ''}>${s.label}</option>`
+      ).join('');
+      const slipLabel = o.paymentSlip
+        ? (o.paymentSlip === '__remote__' ? 'มีสลิปบนคลาวด์' : 'มีสลิปแนบ')
+        : (paymentNeedsSlip(o.method) ? 'รอสลิป' : '—');
+
+      if (adminOrderDetailTitle) {
+        adminOrderDetailTitle.innerHTML = `ออเดอร์ ${escapeHtml(o.id)}${testBadge}`;
+      }
+      if (adminOrderDetailBody) {
+        adminOrderDetailBody.innerHTML = `
+          <dl class="admin-order-detail-grid">
+            <div class="admin-order-detail-row"><dt>เลขออเดอร์</dt><dd><strong>${escapeHtml(o.id)}</strong>${testBadge}</dd></div>
+            <div class="admin-order-detail-row"><dt>วันเวลา</dt><dd>${formatDateTime(o.createdAt)}</dd></div>
+            <div class="admin-order-detail-row"><dt>ลูกค้า</dt><dd>${escapeHtml(o.name || '—')}<br><small>${escapeHtml(o.phoneDisplay || o.phone || '')}</small></dd></div>
+            <div class="admin-order-detail-row"><dt>ที่อยู่</dt><dd>${escapeHtml(o.address || '—')}</dd></div>
+            ${o.note ? `<div class="admin-order-detail-row"><dt>โน้ต</dt><dd>${escapeHtml(o.note)}</dd></div>` : ''}
+            <div class="admin-order-detail-row"><dt>ชำระเงิน</dt><dd>${methodLabel(o.method)} · สลิป: ${slipLabel}</dd></div>
+            <div class="admin-order-detail-row"><dt>สถานะ</dt><dd><span class="status-badge-tag ${st.badge}">${st.label}</span></dd></div>
+          </dl>
+          <table class="admin-order-detail-items">
+            <thead><tr><th>สินค้า</th><th>จำนวน</th><th>ราคา</th><th>รวม</th></tr></thead>
+            <tbody>${itemRows}</tbody>
+          </table>
+          <dl class="admin-order-detail-grid">
+            <div class="admin-order-detail-row"><dt>สินค้า</dt><dd>${formatPrice(o.subtotal || 0)}</dd></div>
+            ${(o.promoDiscount > 0) ? `<div class="admin-order-detail-row"><dt>โปรโมชัน</dt><dd>−${formatPrice(o.promoDiscount)}</dd></div>` : ''}
+            <div class="admin-order-detail-row"><dt>ค่าส่ง</dt><dd>${formatPrice(o.shippingFee || 0)}</dd></div>
+            <div class="admin-order-detail-row"><dt>ยอดรวม</dt><dd><strong>${formatPrice(o.total)}</strong></dd></div>
+          </dl>
+        `;
+      }
+      if (adminOrderDetailActions) {
+        adminOrderDetailActions.innerHTML = `
+          <div class="admin-order-status-row">
+            <label class="visually-hidden" for="adminOrderDetailStatus">สถานะออเดอร์</label>
+            <select class="status-select" id="adminOrderDetailStatus" aria-label="เปลี่ยนสถานะออเดอร์" onchange="adminSetOrderStatus('${oid}', this.value)">
+              ${opts}
+            </select>
+            <button type="button" class="btn btn-primary btn-xs" id="adminOrderDetailSaveStatus" onclick="adminSetOrderStatus('${oid}', document.getElementById('adminOrderDetailStatus').value)">บันทึกสถานะ</button>
+          </div>
+          <button type="button" class="btn btn-outline" onclick="adminPrintOrder('${oid}')">🖨️ พิมพ์ใบปะหน้า</button>
+          ${o.paymentSlip && o.paymentSlip !== '__remote__'
+            ? `<button type="button" class="btn btn-outline" onclick="adminViewSlip('${oid}')">🧾 ดูสลิป</button>`
+            : ''}
+          <button type="button" class="btn btn-outline" style="color:#a93226;border-color:rgba(169,50,38,0.35);" onclick="adminDeleteOrder('${oid}')">ลบออเดอร์</button>
+          <button type="button" class="btn btn-outline" id="adminOrderDetailClose2">ปิด</button>
+        `;
+        document.getElementById('adminOrderDetailClose2')?.addEventListener('click', closeAdminOrderDetail);
+      }
+    }
+
+    window.adminViewOrderDetail = function(id) {
+      closeAllAdminOrderMenus();
+      const orderId = String(id || '').trim();
+      const o = orders.find((x) => x.id === orderId);
+      if (!o) {
+        showToast('ไม่พบออเดอร์นี้ในรายการ');
         return;
       }
+      if (!adminOrderDetailModal) {
+        showToast('เปิดหน้ารายละเอียดไม่สำเร็จ');
+        return;
+      }
+      renderAdminOrderDetailContent(o);
+      adminOrderDetailModal.hidden = false;
+      adminOrderDetailModal.classList.add('open');
+    };
+
+    document.getElementById('adminOrderDetailClose')?.addEventListener('click', closeAdminOrderDetail);
+    adminOrderDetailModal?.addEventListener('click', (e) => {
+      if (e.target === adminOrderDetailModal) closeAdminOrderDetail();
+    });
+
+    function confirmProtectedTestOrderAction(orderId, actionLabel) {
+      if (!isProtectedTestOrder(orderId)) return true;
+      return confirm(
+        `รายการนี้เป็นออเดอร์ทดสอบ (${orderId})\n\nยืนยันที่จะ${actionLabel}จริงหรือไม่?\n\nห้ามลบ/แก้สถานะอัตโนมัติ — กดยกเลิกหากไม่แน่ใจ`,
+      );
+    }
+
+    window.adminSetOrderStatus = async function(id, idxStr) {
+      const orderId = String(id || '').trim();
+      const o = orders.find((x) => x.id === orderId);
+      if (!o) {
+        showToast('ไม่พบออเดอร์นี้ในรายการ');
+        return;
+      }
+      const idx = parseInt(idxStr, 10);
+      if (Number.isNaN(idx)) {
+        showToast('สถานะไม่ถูกต้อง');
+        renderAdminOrders();
+        if (adminOrderDetailModal?.classList.contains('open')) renderAdminOrderDetailContent(o);
+        return;
+      }
+      if (idx === o.statusIndex) {
+        showToast('สถานะนี้ถูกเลือกอยู่แล้ว');
+        return;
+      }
+      if (!confirmProtectedTestOrderAction(orderId, 'เปลี่ยนสถานะ')) {
+        renderAdminOrders();
+        if (adminOrderDetailModal?.classList.contains('open')) renderAdminOrderDetailContent(o);
+        return;
+      }
+      if (idx === ORDER_CANCELLED_INDEX && !confirm(`ยกเลิกออเดอร์ ${orderId}?\n\nระบบจะคืนสต็อกสินค้า (หลังรัน SQL 010) และไม่สามารถกู้คืนออเดอร์ได้`)) {
+        renderAdminOrders();
+        if (adminOrderDetailModal?.classList.contains('open')) renderAdminOrderDetailContent(o);
+        return;
+      }
+
+      const prevIndex = o.statusIndex;
+      const prevHistory = Array.isArray(o.history) ? o.history.slice() : [];
       o.statusIndex = idx;
-      if (!o.history.find(h => h.index === idx)) {
+      if (!o.history.find((h) => h.index === idx)) {
         o.history.push({ index: idx, at: Date.now() });
       }
       saveOrders();
+
       if (isSupabaseReady() && adminLoggedIn) {
-        const remote = await RachaweiStoreApi.updateOrderStatus(id, o.statusIndex, o.history);
+        const remote = await RachaweiStoreApi.updateOrderStatus(orderId, o.statusIndex, o.history);
         if (!remote.ok) {
-          showToast('อัปเดตสถานะบนคลาวด์ไม่สำเร็จ');
+          o.statusIndex = prevIndex;
+          o.history = prevHistory;
+          saveOrders();
+          showToast(remote.message || remote.error || 'อัปเดตสถานะบนคลาวด์ไม่สำเร็จ');
           renderAdminOrders();
+          if (adminOrderDetailModal?.classList.contains('open')) renderAdminOrderDetailContent(o);
           return;
         }
         if (idx === ORDER_CANCELLED_INDEX) {
@@ -4987,9 +5984,23 @@
             }
           } catch (_) { /* ignore */ }
         }
+        await refreshAdminOrdersFromSupabase();
+      } else if (isSupabaseReady() && !adminLoggedIn) {
+        o.statusIndex = prevIndex;
+        o.history = prevHistory;
+        saveOrders();
+        showToast('ต้องเข้าสู่ระบบแอดมินก่อนเปลี่ยนสถานะ');
+        renderAdminOrders();
+        if (adminOrderDetailModal?.classList.contains('open')) renderAdminOrderDetailContent(o);
+        return;
       }
+
       showToast(idx === ORDER_CANCELLED_INDEX ? 'ยกเลิกออเดอร์และคืนสต็อกแล้ว ✓' : 'อัปเดตสถานะแล้ว ✓');
       renderAdminOrders();
+      const fresh = orders.find((x) => x.id === orderId);
+      if (adminOrderDetailModal?.classList.contains('open') && fresh) {
+        renderAdminOrderDetailContent(fresh);
+      }
     };
 
     window.adminDeleteOrder = async function(id) {
@@ -5001,10 +6012,14 @@
         showToast('ไม่พบออเดอร์นี้ในรายการ');
         return;
       }
+
+      const itemCount = Array.isArray(o.items) ? o.items.length : 0;
+      const hasSlip = Boolean(o.paymentSlip);
       const confirmed = confirm(
-        `ยืนยันลบออเดอร์?\n\nเลขที่: ${orderId}\n\nการลบจะลบรายการสินค้าในออเดอร์นี้ด้วย และไม่สามารถกู้คืนได้`,
+        `ยืนยันลบออเดอร์?\n\nเลขที่: ${orderId}\nลูกค้า: ${o.name || '—'}\nรายการสินค้า: ${itemCount} รายการ\nสลิป/ชำระเงิน: ${hasSlip ? 'มีข้อมูลแนบ' : 'ไม่มี'}\n\nการลบจะลบรายการสินค้าในออเดอร์นี้ด้วย และไม่สามารถกู้คืนได้`,
       );
       if (!confirmed) return;
+      if (!confirmProtectedTestOrderAction(orderId, 'ลบ')) return;
 
       if (!adminLoggedIn) {
         showToast('ต้องเข้าสู่ระบบแอดมินก่อนลบออเดอร์');
@@ -5023,10 +6038,13 @@
 
       orders = orders.filter((x) => x.id !== orderId);
       saveOrders();
+      closeAdminOrderDetail();
       await refreshAdminOrdersFromSupabase();
       renderAdminTab(adminTab);
       showToast('ลบออเดอร์สำเร็จ');
     };
+
+    window.closeAdminOrderDetail = closeAdminOrderDetail;
 
     window.adminPrintOrder = function(id) {
       const o = orders.find(x => x.id === id);
@@ -5072,6 +6090,7 @@
     };
     window.saveShopSettings = saveShopSettings;
     window.saveProducts = saveProducts;
+    window.adminCloudStatusBannerHtml = adminCloudStatusBannerHtml;
     window.renderProducts = renderProducts;
     window.refreshHeroSlides = refreshHeroSlides;
     window.renderPopularCats = renderPopularCats;
@@ -5453,8 +6472,18 @@
       if (!Array.isArray(products) || products.length === 0) {
         products = DEFAULT_PRODUCTS.map(p => ({ ...p }));
       }
+      if (isSupabaseReady() && typeof RachaweiStoreApi.fetchActiveVideos === 'function') {
+        try {
+          const vids = await RachaweiStoreApi.fetchActiveVideos();
+          if (vids.ok && Array.isArray(vids.videos) && vids.videos.length) {
+            shopVideos = vids.videos;
+          }
+        } catch (e) {
+          console.warn('โหลดวิดีโอจาก Supabase ไม่สำเร็จ — ใช้รายการท้องถิ่น', e);
+        }
+      }
       nextProductId = Math.max(...products.map(p => p.id), 0) + 1;
-      nextVideoId = Math.max(...shopVideos.map((v) => v.id), 0) + 1;
+      nextVideoId = Math.max(...shopVideos.map((v) => Number(v.id) || 0), 0) + 1;
       if (!ok && cart.length === 0) {
         const lsCart = loadCartFromLocalStorage();
         if (lsCart?.length) {

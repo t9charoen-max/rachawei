@@ -1,7 +1,7 @@
 /**
  * เนื้อหาหน้าบ้านทั้งหมด (ข้อความ / รูป / วิดีโออ้างอิง)
  * ค่าเริ่มต้นนี้ใช้ตอนยังไม่เคยแก้จากหลังร้าน
- * แก้ผ่าน #admin → แท็บ «หน้าบ้าน» จะบันทึกใน IndexedDB ของเครื่องนั้น
+ * แก้ผ่าน #admin → แท็บ «หน้าบ้าน» บันทึกขึ้น Supabase (store_shop_settings) ก่อนแคช IndexedDB
  */
 const DEFAULT_STORE_CONTENT = {
   hero: {
@@ -21,6 +21,13 @@ const DEFAULT_STORE_CONTENT = {
     productsMore: 'ดูทั้งหมด →',
     videosTitle: 'ราชาหวาย VIDEO',
     videosHint: 'เลื่อนดู →',
+    /** Tiles on storefront popular-cats — filter keys match product.cat / catalog filters */
+    categories: [
+      { filter: 'basket', name: 'ตะกร้าหวาย', emoji: '🧺' },
+      { filter: 'chair', name: 'เก้าอี้หวาย', emoji: '🪑' },
+      { filter: 'home', name: 'ของใช้ในบ้าน', emoji: '🏡' },
+      { filter: 'gift', name: 'ของขวัญ/ของฝาก', emoji: '🎁' },
+    ],
   },
   reviews: {
     kicker: 'รีวิวลูกค้า',

@@ -516,13 +516,62 @@
     };
   }
 
+  function mapUpdateOrderStatusError(error) {
+    const raw = String(error?.message || error || '');
+    const lower = raw.toLowerCase();
+    if (/not_admin|42501|permission denied|jwt/i.test(raw) || lower.includes('not_admin')) {
+      return 'ไม่มีสิทธิ์เปลี่ยนสถานะ — ต้องเข้าสู่ระบบด้วยบัญชีแอดมินใน store_admins';
+    }
+    if (/order_not_found/i.test(raw)) {
+      return 'ไม่พบออเดอร์นี้ในระบบ';
+    }
+    if (/missing_order_id/i.test(raw)) {
+      return 'เลขออเดอร์ไม่ถูกต้อง';
+    }
+    if (/invalid_history/i.test(raw)) {
+      return 'ประวัติสถานะไม่ถูกต้อง';
+    }
+    if (/store_admin_set_order_status|pgrst202|404|could not find the function/i.test(raw)) {
+      return 'ยังไม่มีฟังก์ชันอัปเดตสถานะบนเซิร์ฟเวอร์ — ต้องรัน SQL 010';
+    }
+    if (/supabase_not_configured|not configured/i.test(raw)) {
+      return 'ยังไม่ได้เชื่อมต่อ Supabase — ตรวจการตั้งค่าแล้วลองใหม่';
+    }
+    if (/no_session|not authenticated|session/i.test(raw)) {
+      return 'ยังไม่ได้เข้าสู่ระบบแอดมิน — กรุณา login ก่อนเปลี่ยนสถานะ';
+    }
+    return raw ? `อัปเดตสถานะไม่สำเร็จ: ${raw}` : 'อัปเดตสถานะไม่สำเร็จ';
+  }
+
   async function updateOrderStatus(orderId, statusIndex, history) {
     const sb = getClient();
-    if (!sb) return { ok: false, error: 'supabase_not_configured' };
+    if (!sb) {
+      return {
+        ok: false,
+        error: 'supabase_not_configured',
+        message: mapUpdateOrderStatusError('supabase_not_configured'),
+      };
+    }
+
+    const session = await getSession();
+    if (!session) {
+      return {
+        ok: false,
+        error: 'no_session',
+        message: mapUpdateOrderStatusError('no_session'),
+      };
+    }
 
     const id = String(orderId || '').trim();
     const idx = Number(statusIndex) || 0;
     const hist = history || [];
+    if (!id) {
+      return {
+        ok: false,
+        error: 'missing_order_id',
+        message: mapUpdateOrderStatusError('missing_order_id'),
+      };
+    }
 
     try {
       const { data, error } = await sb.rpc('store_admin_set_order_status', {
@@ -532,7 +581,12 @@
       });
       if (!error) return { ok: Boolean(data), source: 'rpc' };
       if (!/pgrst202|could not find the function/i.test(String(error.message || ''))) {
-        return { ok: false, error: error.message, source: 'rpc' };
+        return {
+          ok: false,
+          error: error.message,
+          message: mapUpdateOrderStatusError(error),
+          source: 'rpc',
+        };
       }
     } catch (e) {
       /* fall through to direct update for older DB */
@@ -545,7 +599,14 @@
         history: hist,
       })
       .eq('id', id);
-    if (error) return { ok: false, error: error.message, source: 'select' };
+    if (error) {
+      return {
+        ok: false,
+        error: error.message,
+        message: mapUpdateOrderStatusError(error),
+        source: 'select',
+      };
+    }
     return { ok: true, source: 'select' };
   }
 
@@ -675,6 +736,104 @@
     const sb = getClient();
     if (!sb) return { ok: false, error: 'supabase_not_configured' };
     const { error } = await sb.from('store_products').delete().eq('id', String(id));
+    if (error) return { ok: false, error: error.message };
+    return { ok: true };
+  }
+
+  function normalizeVideoRow(row) {
+    if (!row) return null;
+    const productRaw = row.product_id != null ? row.product_id : row.productId;
+    const productId = productRaw == null || productRaw === ''
+      ? null
+      : (Number.isFinite(Number(productRaw)) ? Number(productRaw) : productRaw);
+    return {
+      id: row.id,
+      title: row.title || '',
+      videoUrl: row.video_url || row.videoUrl || '',
+      productId,
+      thumbnail: row.thumbnail || '',
+      views: Number(row.views) || 0,
+      sortOrder: Number(row.sort_order != null ? row.sort_order : row.sortOrder) || 0,
+      isActive: row.is_active !== false && row.isActive !== false,
+    };
+  }
+
+  async function fetchActiveVideos() {
+    const sb = getClient();
+    if (!sb) return { ok: false, videos: [], error: 'supabase_not_configured' };
+    const { data, error } = await sb
+      .from('store_videos')
+      .select('id,title,video_url,product_id,thumbnail,views,sort_order,is_active')
+      .eq('is_active', true)
+      .order('sort_order', { ascending: true })
+      .order('id', { ascending: true });
+    if (error) return { ok: false, videos: [], error: error.message };
+    return {
+      ok: true,
+      videos: (data || []).map(normalizeVideoRow).filter(Boolean),
+    };
+  }
+
+  async function fetchVideosForAdmin() {
+    const sb = getClient();
+    if (!sb) return { ok: false, videos: [], error: 'supabase_not_configured' };
+    const session = await getSession();
+    if (!session) return { ok: false, videos: [], error: 'no_session' };
+    const { data, error } = await sb
+      .from('store_videos')
+      .select('id,title,video_url,product_id,thumbnail,views,sort_order,is_active')
+      .order('sort_order', { ascending: true })
+      .order('id', { ascending: true });
+    if (error) return { ok: false, videos: [], error: error.message };
+    return {
+      ok: true,
+      videos: (data || []).map(normalizeVideoRow).filter(Boolean),
+    };
+  }
+
+  async function upsertVideo(video) {
+    const sb = getClient();
+    if (!sb) return { ok: false, error: 'supabase_not_configured' };
+    const session = await getSession();
+    if (!session) return { ok: false, error: 'no_session' };
+
+    const row = {
+      title: String(video.title || '').trim() || 'วิดีโอ',
+      video_url: String(video.videoUrl || video.video_url || '').trim(),
+      product_id: video.productId != null && video.productId !== '' ? String(video.productId) : null,
+      thumbnail: video.thumbnail ? String(video.thumbnail) : null,
+      views: Math.max(0, Number(video.views) || 0),
+      sort_order: Number(video.sortOrder != null ? video.sortOrder : video.id) || 0,
+      is_active: video.isActive !== false,
+    };
+    if (!row.video_url) return { ok: false, error: 'missing_video_url' };
+
+    const idNum = Number(video.id);
+    if (Number.isFinite(idNum) && idNum > 0) {
+      const { data, error } = await sb
+        .from('store_videos')
+        .upsert({ id: idNum, ...row }, { onConflict: 'id' })
+        .select('id')
+        .maybeSingle();
+      if (error) return { ok: false, error: error.message };
+      return { ok: true, id: data?.id ?? idNum };
+    }
+
+    const { data, error } = await sb
+      .from('store_videos')
+      .insert(row)
+      .select('id')
+      .single();
+    if (error) return { ok: false, error: error.message };
+    return { ok: true, id: data?.id };
+  }
+
+  async function deleteVideoRemote(id) {
+    const sb = getClient();
+    if (!sb) return { ok: false, error: 'supabase_not_configured' };
+    const session = await getSession();
+    if (!session) return { ok: false, error: 'no_session' };
+    const { error } = await sb.from('store_videos').delete().eq('id', Number(id) || id);
     if (error) return { ok: false, error: error.message };
     return { ok: true };
   }
@@ -941,6 +1100,10 @@
     deleteOrderForAdmin,
     upsertProduct,
     deleteProductRemote,
+    fetchActiveVideos,
+    fetchVideosForAdmin,
+    upsertVideo,
+    deleteVideoRemote,
     saveShopSettingsRemote,
     signIn,
     signOut,
