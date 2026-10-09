@@ -38,23 +38,23 @@ node scripts/check-ai-assistant-edge.mjs https://jvgfudxdwdwfumdznymu.supabase.c
 
 ## ขั้นตอนที่เจ้าของระบบต้องทำ
 
+**ใช้ iPhone / ไม่มี Terminal?** → อ่าน **[DEPLOY-IPHONE.md](./DEPLOY-IPHONE.md)**  
+(GitHub Actions กด Run หรือ Supabase Dashboard Via Editor)
+
 ### 1) ยืนยัน Secret (ทำแล้วถ้ามี `GEMINI_API_KEY`)
 Supabase Dashboard → โปรเจกต์ **ref `jvgfudxdwdwfumdznymu`** → **Project Settings → Edge Functions → Secrets**  
 - ต้องมี `GEMINI_API_KEY`  
 - (ไม่บังคับ) `GEMINI_MODEL` = `gemini-2.5-flash-lite`
 
-### 2) Deploy ฟังก์ชันด้วย CLI
-จากเครื่องของคุณ (ต้อง login เป็นเจ้าของโปรเจกต์):
+### 2) Deploy ฟังก์ชัน
+- **iPhone:** ดู `DEPLOY-IPHONE.md` (Actions หรือ Dashboard)  
+- **CLI (Mac/PC):**
 
 ```bash
-# ในโฟลเดอร์ repo หลัง checkout สาขา PR #123
 supabase login
 supabase link --project-ref jvgfudxdwdwfumdznymu
 supabase functions deploy ai-sales-assistant --no-verify-jwt
 ```
-
-หรือจาก Dashboard: **Edge Functions → Deploy a new function** แล้วอัปโหลดโฟลเดอร์  
-`supabase/functions/ai-sales-assistant/`
 
 > `--no-verify-jwt` ให้หน้าร้านเรียกด้วย anon/publishable key ได้  
 > ฟังก์ชันอ่านเฉพาะ `store_products` ที่ `status=active` — ไม่เปิดออเดอร์ลูกค้า
