@@ -170,6 +170,45 @@
     };
   }
 
+  const PACK_MARKER_RE = /\[\[PACK\s+([^\]]*)\]\]/i;
+
+  function parsePackFromDescription(raw) {
+    const text = String(raw || '');
+    const m = text.match(PACK_MARKER_RE);
+    if (!m) return { type: '', items: 0, comparePrice: 0, clean: text };
+    const attrs = m[1];
+    const type = (attrs.match(/type="([^"]*)"/i) || attrs.match(/type=(\S+)/i) || [])[1] || '';
+    const items = Number((attrs.match(/items="([^"]*)"/i) || attrs.match(/items=(\d+)/i) || [])[1]) || 0;
+    const comparePrice = Number((attrs.match(/compare="([^"]*)"/i) || attrs.match(/compare=(\d+)/i) || [])[1]) || 0;
+    return {
+      type: ['pair', 'set', 'gift'].includes(type) ? type : '',
+      items: items > 0 ? items : 0,
+      comparePrice: comparePrice > 0 ? comparePrice : 0,
+      clean: text.replace(PACK_MARKER_RE, '').trim(),
+    };
+  }
+
+  function truncateCardDesc(text, max = 110) {
+    const s = String(text || '').replace(PACK_MARKER_RE, '').replace(/\s+/g, ' ').trim();
+    if (s.length <= max) return s;
+    const cut = s.slice(0, max);
+    const sp = cut.lastIndexOf(' ');
+    const soft = sp > Math.floor(max * 0.45) ? cut.slice(0, sp) : cut;
+    return `${soft.trim()}…`;
+  }
+
+  function composeDescriptionWithPack(detail, product) {
+    const base = String(detail || '').replace(PACK_MARKER_RE, '').trim();
+    const type = product?.packType || '';
+    if (!['pair', 'set', 'gift'].includes(type)) return base;
+    const items = Number(product.packItems) > 0
+      ? Number(product.packItems)
+      : (type === 'pair' ? 2 : 0);
+    const compare = Number(product.comparePrice) > 0 ? Number(product.comparePrice) : 0;
+    const marker = `[[PACK type="${type}" items="${items || 0}" compare="${compare || 0}"]]`;
+    return base ? `${base}\n\n${marker}` : marker;
+  }
+
   function rowToStoreProduct(row) {
     const id = Number(row.id);
     if (!Number.isFinite(id)) return null;
@@ -179,12 +218,15 @@
     const badge = row.badge || (row.featured ? 'พิเศษ' : null);
     const size = row.size || '';
     const dims = parseDimsFromSize(size);
+    const pack = parsePackFromDescription(row.description || '');
+    let cat = row.store_cat || (row.category === 'เก้าอี้' ? 'chair' : 'basket');
+    if (row.category === 'ชุดของขวัญ' || pack.type === 'gift') cat = row.store_cat || 'gift';
     return {
       id,
       name: row.name,
-      cat: row.store_cat || (row.category === 'เก้าอี้' ? 'chair' : 'basket'),
+      cat,
       category: row.category || '',
-      desc: String(row.description || '').slice(0, 160),
+      desc: truncateCardDesc(pack.clean || row.description || '', 110),
       detail: row.description || '',
       price: Number(row.price) || 0,
       stock: row.stock != null ? Number(row.stock) : null,
@@ -200,6 +242,9 @@
       featured: Boolean(row.featured),
       status: row.status || 'active',
       sortOrder: row.sort_order != null ? Number(row.sort_order) : id,
+      packType: pack.type,
+      packItems: pack.items,
+      comparePrice: pack.comparePrice,
     };
   }
 
@@ -728,7 +773,7 @@
     const row = {
       id: String(product.id),
       name: product.name,
-      description: product.detail || product.desc || '',
+      description: composeDescriptionWithPack(product.detail || product.desc || '', product),
       price: Number(product.price) || 0,
       images,
       category: product.category || '',

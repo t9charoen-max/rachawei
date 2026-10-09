@@ -41,6 +41,8 @@
       shippingEta: '',
       shippingCarrier: '',
       freeShippingNote: '',
+      /** ค่าธรรมเนียมปลายทาง (COD) — บาท; 0 หรือว่าง = ไม่มี/ไม่แสดง (ห้ามคิดเอง) */
+      codFee: 0,
       // ข้อมูลโอนเงิน (แสดงตอนชำระเงิน)
       bankName: 'ธ.กสิกรไทย',
       bankAccountName: 'ราชาหวายสุรินทร์',

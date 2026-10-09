@@ -178,7 +178,127 @@
 
     function getShippingRatePerItem() {
       const fee = Number(SHOP_CONFIG.shippingFee);
-      return Number.isFinite(fee) && fee >= 0 ? fee : 100;
+      // Use only the configured / DB value. Never invent or coerce to 100.
+      // Invalid / missing → 0 (Admin must set the real rate).
+      return Number.isFinite(fee) && fee >= 0 ? fee : 0;
+    }
+
+    /** COD surcharge from Admin only — never invent a fee */
+    function getCodFeeAmount() {
+      const fromConfig = Number(SHOP_CONFIG.codFee);
+      if (Number.isFinite(fromConfig) && fromConfig > 0) return fromConfig;
+      const fromContent = Number(SHOP_CONFIG.content?.fulfillment?.codFee);
+      if (Number.isFinite(fromContent) && fromContent > 0) return fromContent;
+      return 0;
+    }
+
+    function getAppliedCodFee(method) {
+      const m = method !== undefined
+        ? method
+        : (typeof selectedMethod !== 'undefined' ? selectedMethod : '');
+      if (m !== 'cod') return 0;
+      return getCodFeeAmount();
+    }
+
+    const PACK_MARKER_RE = /\[\[PACK\s+([^\]]*)\]\]/i;
+
+    function parsePackMeta(raw) {
+      const text = String(raw || '');
+      const m = text.match(PACK_MARKER_RE);
+      if (!m) return { type: '', items: 0, comparePrice: 0, clean: text };
+      const attrs = m[1];
+      const type = (attrs.match(/type="([^"]*)"/i) || attrs.match(/type=(\S+)/i) || [])[1] || '';
+      const items = Number((attrs.match(/items="([^"]*)"/i) || attrs.match(/items=(\d+)/i) || [])[1]) || 0;
+      const comparePrice = Number((attrs.match(/compare="([^"]*)"/i) || attrs.match(/compare=(\d+)/i) || [])[1]) || 0;
+      const clean = text.replace(PACK_MARKER_RE, '').trim();
+      return {
+        type: ['pair', 'set', 'gift'].includes(type) ? type : '',
+        items: items > 0 ? items : 0,
+        comparePrice: comparePrice > 0 ? comparePrice : 0,
+        clean,
+      };
+    }
+
+    function composeDetailWithPack(detail, pack) {
+      const base = String(detail || '').replace(PACK_MARKER_RE, '').trim();
+      if (!pack || !pack.type) return base;
+      const items = Number(pack.items) > 0 ? Number(pack.items) : (pack.type === 'pair' ? 2 : 0);
+      const compare = Number(pack.comparePrice) > 0 ? Number(pack.comparePrice) : 0;
+      const marker = `[[PACK type="${pack.type}" items="${items || 0}" compare="${compare || 0}"]]`;
+      return base ? `${base}\n\n${marker}` : marker;
+    }
+
+    function getProductPack(p) {
+      if (!p) return { type: '', items: 0, comparePrice: 0 };
+      if (p.packType) {
+        return {
+          type: p.packType,
+          items: Number(p.packItems) || (p.packType === 'pair' ? 2 : 0),
+          comparePrice: Number(p.comparePrice) || 0,
+        };
+      }
+      const parsed = parsePackMeta(p.detail || p.desc || '');
+      return { type: parsed.type, items: parsed.items, comparePrice: parsed.comparePrice };
+    }
+
+    function truncateCardDesc(text, max = 110) {
+      const s = String(text || '').replace(PACK_MARKER_RE, '').replace(/\s+/g, ' ').trim();
+      if (s.length <= max) return s;
+      const cut = s.slice(0, max);
+      const sp = Math.max(cut.lastIndexOf(' '), cut.lastIndexOf('ๆ'), cut.lastIndexOf('ะ'));
+      // Prefer breaking at whitespace; avoid chopping mid-token when possible
+      const soft = sp > Math.floor(max * 0.45) ? cut.slice(0, sp) : cut;
+      return `${soft.trim()}…`;
+    }
+
+    function isConfiguredLineUrl(url) {
+      const u = String(url || '').trim();
+      return /^https?:\/\/(line\.me|liff\.line\.me)\//i.test(u);
+    }
+
+    function buildLineOrderText(product, qty = 1) {
+      const q = Math.max(1, Number(qty) || 1);
+      const pack = getProductPack(product);
+      const packNote = pack.type
+        ? `\nประเภท: ${pack.type === 'pair' ? 'ขายเป็นคู่' : pack.type === 'gift' ? 'ชุดของขวัญ' : 'ชุดสินค้า'}${pack.items ? ` (${pack.items} ชิ้นในชุด)` : ''}`
+        : '';
+      return [
+        '🛒 สั่งซื้อทาง LINE — ราชาหวายสุรินทร์',
+        '─────────────────',
+        `สินค้า: ${product.name}`,
+        `ราคา: ${formatPrice(product.price)} / ชิ้น`,
+        `จำนวน: ${q}`,
+        `รวมสินค้า: ${formatPrice(product.price * q)}`,
+        packNote,
+        `ลิงก์สินค้า: ${productShareUrl(product.id)}`,
+        '',
+        'กรุณายืนยันสต็อก ที่อยู่จัดส่ง และวิธีชำระกับร้านค่ะ',
+      ].filter((line) => line !== '').join('\n');
+    }
+
+    function buildLineOrderUrl(product, qty = 1) {
+      const base = String(SHOP_CONFIG.lineUrl || '').trim();
+      if (!isConfiguredLineUrl(base)) return '';
+      const text = buildLineOrderText(product, qty);
+      const enc = encodeURIComponent(text);
+      const oa =
+        base.match(/line\.me\/(?:R\/)?ti\/p\/(@[\w.-]+)/i) ||
+        base.match(/line\.me\/R\/oaMessage\/(@[\w.-]+)/i);
+      if (oa) return `https://line.me/R/oaMessage/${encodeURIComponent(oa[1])}/?text=${enc}`;
+      const sep = base.includes('?') ? '&' : '?';
+      return `${base}${sep}text=${enc}`;
+    }
+
+    function updateCartShippingNote() {
+      const el = document.getElementById('cartShippingNote');
+      if (!el) return;
+      const rate = getShippingRatePerItem();
+      const cod = getCodFeeAmount();
+      let note = `* ค่าจัดส่งแยกจากราคาสินค้า — ${rate.toLocaleString('th-TH')} บาท/ชิ้น × จำนวนในตะกร้า`;
+      if (cod > 0) {
+        note += ` · หากเลือกชำระปลายทาง (COD) มีค่าธรรมเนียมปลายทาง ${cod.toLocaleString('th-TH')} บาท (แยกจากค่าจัดส่ง)`;
+      }
+      el.textContent = note;
     }
 
     function mapStoreCatFromCategory(category, storeCat) {
@@ -199,8 +319,8 @@
         name: item.name,
         cat: mapStoreCatFromCategory(item.category, item.storeCat),
         category: item.category,
-        desc: String(item.description || item.desc || '').slice(0, 160),
         detail: item.detail || item.description || item.desc || '',
+        desc: truncateCardDesc(item.description || item.desc || item.detail || '', 110),
         price: Number(item.price) || 0,
         stock: item.stock != null ? Number(item.stock) : null,
         size: item.size || '',
@@ -211,6 +331,12 @@
         badge,
         images,
         image: images[0] || '',
+        ...(() => {
+          const pack = parsePackMeta(item.detail || item.description || item.desc || '');
+          return pack.type
+            ? { packType: pack.type, packItems: pack.items, comparePrice: pack.comparePrice }
+            : {};
+        })(),
       };
     }
 
@@ -283,6 +409,10 @@
         if (ful.eta != null) SHOP_CONFIG.shippingEta = String(ful.eta || '');
         if (ful.carrier != null) SHOP_CONFIG.shippingCarrier = String(ful.carrier || '');
         if (ful.freeNote != null) SHOP_CONFIG.freeShippingNote = String(ful.freeNote || '');
+        if (ful.codFee != null && ful.codFee !== '') {
+          const n = Number(ful.codFee);
+          SHOP_CONFIG.codFee = Number.isFinite(n) && n > 0 ? n : 0;
+        }
       }
       migratePaymentFields();
       // If hero DOM already exists (mid-session refresh), paint immediately.
@@ -763,8 +893,8 @@
       return `<div class="cart-fulfillment-note">${bits.join('<br>')}</div>`;
     }
 
-    function getCartTotal() {
-      return getCartSubtotal() - getPromoDiscount() + getShippingFee();
+    function getCartTotal(method) {
+      return getCartSubtotal() - getPromoDiscount() + getShippingFee() + getAppliedCodFee(method);
     }
 
     function isValidThaiPhone(raw) {
@@ -932,7 +1062,11 @@
       if (filter === 'new') return p.badge === 'ใหม่';
       if (filter === 'best') return p.badge === 'ยอดนิยม' || p.badge === 'สานมือ';
       if (filter === 'promo') return p.badge === 'ยอดนิยม' || p.badge === 'ของขวัญ';
-      if (filter === 'gift') return p.badge === 'ของขวัญ' || /ขวัญ|กระเช้า/.test(p.name + p.category);
+      if (filter === 'gift') {
+        const pack = getProductPack(p);
+        return p.cat === 'gift' || pack.type === 'gift' || pack.type === 'set' || pack.type === 'pair'
+          || p.badge === 'ของขวัญ' || /ขวัญ|กระเช้า|ชุด/.test(`${p.name}${p.category || ''}`);
+      }
       if (filter === 'fav') return isWished(p.id);
       return true;
     }
@@ -1032,7 +1166,14 @@
               const sizeLine = dims || (p.size ? String(p.size) : '');
               return sizeLine ? `<div class="product-size">ขนาด: ${escapeHtml(sizeLine)}</div>` : '';
             })()}
-            ${p.desc ? `<p class="product-card-desc">${escapeHtml(String(p.desc))}</p>` : ''}
+            ${(() => {
+              const cardDesc = truncateCardDesc(p.desc || parsePackMeta(p.detail || '').clean || '', 110);
+              const pack = getProductPack(p);
+              const packHint = pack.type
+                ? `<div class="product-pack-hint">${pack.type === 'pair' ? 'ขายเป็นคู่' : pack.type === 'gift' ? 'ชุดของขวัญ' : 'ชุดสินค้า'}${pack.items ? ` · ${pack.items} ชิ้น` : ''}</div>`
+                : '';
+              return `${packHint}${cardDesc ? `<p class="product-card-desc">${escapeHtml(cardDesc)}</p>` : ''}`;
+            })()}
             <button type="button" class="btn btn-primary btn-add-full" ${available ? '' : 'disabled'} onclick="addToCart(${p.id})" aria-label="ใส่ ${p.name} ลงตะกร้า">
               🛒 ใส่ตะกร้า
             </button>
@@ -1304,31 +1445,70 @@
       pdProductId = id;
       pdImages = getProductImages(p);
       pdIndex = 0;
+      const pack = getProductPack(p);
 
       document.getElementById('pdCat').textContent = p.category || '';
       document.getElementById('pdName').textContent = p.name;
       const priceBits = [formatPrice(p.price)];
-      if (p.size) priceBits.push(`<small>${p.size}</small>`);
+      if (pack.type === 'pair') priceBits.push('<small>/ คู่</small>');
+      else if (pack.type === 'set' || pack.type === 'gift') priceBits.push('<small>/ ชุด</small>');
+      if (p.size) priceBits.push(`<small>${escapeHtml(String(p.size))}</small>`);
       if (p.stock != null) {
         priceBits.push(`<small>${p.stock > 0 ? `คงเหลือ ${p.stock} ชิ้น` : 'หมดชั่วคราว'}</small>`);
       }
       document.getElementById('pdPrice').innerHTML = priceBits.join(' ');
 
+      const bundleEl = document.getElementById('pdBundle');
+      if (bundleEl) {
+        if (pack.type) {
+          const typeLabel = pack.type === 'pair' ? 'สินค้าขายเป็นคู่' : pack.type === 'gift' ? 'ชุดของขวัญ / กระเช้า' : 'ชุดสินค้า';
+          const bits = [`<strong>${typeLabel}</strong>`];
+          if (pack.items > 0) bits.push(`รวม ${pack.items} ชิ้นในชุด`);
+          if (pack.comparePrice > p.price) {
+            const save = pack.comparePrice - p.price;
+            bits.push(
+              `ราคาแยกชิ้นรวม ${formatPrice(pack.comparePrice)} → ชุดนี้ ${formatPrice(p.price)} (คุ้มกว่า ${formatPrice(save)})`,
+            );
+          }
+          bundleEl.innerHTML = bits.join('<br>');
+          bundleEl.hidden = false;
+        } else {
+          bundleEl.innerHTML = '';
+          bundleEl.hidden = true;
+        }
+      }
+
       const meta = document.getElementById('pdMeta');
       let chips = '';
-      if (p.badge) chips += `<span class="pd-chip">${p.badge}</span>`;
+      if (p.badge) chips += `<span class="pd-chip">${escapeHtml(p.badge)}</span>`;
+      if (pack.type === 'pair') chips += `<span class="pd-chip">ขายเป็นคู่</span>`;
+      if (pack.type === 'set') chips += `<span class="pd-chip">ชุดสินค้า</span>`;
+      if (pack.type === 'gift') chips += `<span class="pd-chip">ชุดของขวัญ</span>`;
       chips += `<span class="pd-chip">สานมือ</span>`;
       chips += `<span class="pd-chip">หวายธรรมชาติ</span>`;
-      chips += `<span class="pd-chip">${p.category || 'สินค้า'}</span>`;
+      chips += `<span class="pd-chip">${escapeHtml(p.category || 'สินค้า')}</span>`;
       if (pdImages.length > 1) chips += `<span class="pd-chip">${pdImages.length} รูป</span>`;
       meta.innerHTML = chips;
 
-      let descText = p.detail || p.desc || '';
+      let descText = parsePackMeta(p.detail || p.desc || '').clean;
       if (!String(descText).includes('ดูแล')) {
         descText += (descText ? '\n\n' : '') +
           'การดูแลเบื้องต้น: เช็ดด้วยผ้าแห้งหรือหมาดเล็กน้อย ผึ่งลมในที่ร่ม หลีกเลี่ยงแช่น้ำและแดดจัด — ดูคู่มือเต็มด้านล่างหน้าเว็บ';
       }
       document.getElementById('pdDesc').textContent = descText;
+
+      const lineBtn = document.getElementById('pdLineOrder');
+      if (lineBtn) {
+        const lineHref = buildLineOrderUrl(p, 1);
+        if (lineHref) {
+          lineBtn.href = lineHref;
+          lineBtn.hidden = false;
+          lineBtn.setAttribute('aria-label', `สั่งซื้อ ${p.name} ทาง LINE`);
+        } else {
+          lineBtn.removeAttribute('href');
+          lineBtn.hidden = true;
+        }
+      }
 
       renderPdGallery();
       document.getElementById('productDetailModal').classList.add('open');
@@ -1415,6 +1595,11 @@
     window.openProductDetail = openProductDetail;
     window.navigateToProduct = navigateToProduct;
     window.productShareUrl = productShareUrl;
+    window.buildLineOrderUrl = buildLineOrderUrl;
+    window.getCodFeeAmount = getCodFeeAmount;
+    window.getProductPack = getProductPack;
+    window.truncateCardDesc = truncateCardDesc;
+    window.getShippingRatePerItem = getShippingRatePerItem;
     window.pdGo = pdGo;
     window.pdPrev = pdPrev;
     window.pdNext = pdNext;
@@ -1512,10 +1697,12 @@
       const subtotal = getCartSubtotal();
       const promo = getPromoDiscount();
       const shipping = getShippingFee();
+      const codHint = getCodFeeAmount();
       const total = getCartTotal();
 
       cartCountText.textContent = count + ' ชิ้น';
       cartTotalText.textContent = formatPrice(total);
+      updateCartShippingNote();
 
       const breakdown = document.getElementById('cartBreakdown');
       if (breakdown) {
@@ -1524,6 +1711,9 @@
           lines += `<div class="cart-total-row cart-total-row--promo"><span>ส่วนลดโปรโมชั่น</span><span>-${formatPrice(promo)}</span></div>`;
         }
         lines += `<div class="cart-total-row"><span>${formatShippingLabel(shipping)}</span><span>${formatPrice(shipping)}</span></div>`;
+        if (codHint > 0) {
+          lines += `<div class="cart-total-row cart-total-row--cod-hint"><span>ค่าธรรมเนียมปลายทาง (COD) — หากเลือกชำระปลายทาง</span><span>${formatPrice(codHint)}</span></div>`;
+        }
         lines += getFulfillmentNoteHtml();
         breakdown.innerHTML = lines;
       }
@@ -1610,13 +1800,17 @@
       }
     });
 
-    // If cart covers navigation intent: first dismiss cart, then allow landing link.
+    // In-store home navigation (not landing / "เปิดตัว"). Close cart first if open.
     const storeBackHome = document.getElementById('storeBackHome');
     if (storeBackHome) {
       storeBackHome.addEventListener('click', (e) => {
-        if (!isCartOpen()) return;
         e.preventDefault();
-        closeCart();
+        if (isCartOpen()) closeCart();
+        if (document.getElementById('productDetailModal')?.classList.contains('open')) {
+          closeProductDetail();
+        }
+        showPage('home');
+        window.scrollTo({ top: 0, behavior: 'smooth' });
       });
     }
 
@@ -1956,6 +2150,12 @@
         document.querySelectorAll('.pay-method').forEach((m) => {
           m.classList.toggle('selected', m.dataset.method === selectedMethod);
         });
+        // Refresh totals when COD surcharge applies / is cleared
+        const step3 = document.getElementById('payStep3');
+        if (step3 && step3.style.display !== 'none' && !step3.hidden) {
+          try { renderPayConfirm(); } catch (_) { /* ignore */ }
+        }
+        renderCart();
       });
     });
 
@@ -1975,7 +2175,8 @@
       const subtotal = getCartSubtotal();
       const promo = getPromoDiscount();
       const shipping = getShippingFee();
-      const total = getCartTotal();
+      const codFee = getAppliedCodFee(selectedMethod);
+      const total = getCartTotal(selectedMethod);
       const lines = document.getElementById('payOrderLines');
       let html = '';
       cart.forEach(item => {
@@ -1987,6 +2188,11 @@
       html += `<div><span>ยอดสินค้า</span><span>${formatPrice(subtotal)}</span></div>`;
       if (promo > 0) html += `<div><span>ส่วนลดโปรโมชั่น</span><span>-${formatPrice(promo)}</span></div>`;
       html += `<div><span>${formatShippingLabel(shipping)}</span><span>${formatPrice(shipping)}</span></div>`;
+      if (codFee > 0) {
+        html += `<div><span>ค่าธรรมเนียมปลายทาง (COD)</span><span>${formatPrice(codFee)}</span></div>`;
+      } else if (selectedMethod === 'cod' && getCodFeeAmount() === 0) {
+        html += `<div style="font-size:0.82rem;color:var(--text-soft);border:none;"><span>ค่าธรรมเนียมปลายทาง</span><span>ไม่มี (ตามที่ร้านตั้ง)</span></div>`;
+      }
       const fulfillNote = getFulfillmentNoteHtml();
       if (fulfillNote) html += `<div class="pay-fulfillment-note" style="display:block;border:none;padding:0.35rem 0;font-size:0.82rem;color:var(--text-soft);">${fulfillNote.replace(/^<div[^>]*>|<\/div>$/g, '')}</div>`;
       html += `<div style="font-weight:700;border:none;padding-top:0.5rem;"><span>รวมทั้งสิ้น</span><span>${formatPrice(total)}</span></div>`;
@@ -2023,12 +2229,15 @@
           </div>
         `;
       } else {
+        const codNote = codFee > 0
+          ? `<br><span style="font-size:0.82rem;color:var(--rattan-deep);">รวมค่าธรรมเนียมปลายทาง ${formatPrice(codFee)} (แยกจากค่าจัดส่ง)</span>`
+          : '';
         box.innerHTML = `
           <div style="font-size:1.5rem;margin-bottom:0.4rem;">🏠</div>
           <div style="font-weight:600;color:var(--rattan-deep);">ชำระเมื่อรับสินค้า</div>
           <div class="pay-amount">${formatPrice(total)}</div>
           <div class="pay-account" style="text-align:center;">
-            จ่ายเงินสดตอนรับของ<br>
+            จ่ายเงินสดตอนรับของ${codNote}<br>
             <span style="font-size:0.78rem;color:var(--text-soft);">ร้านจะติดต่อยืนยันที่อยู่และเวลานัดรับ</span>
           </div>
         `;
@@ -2061,6 +2270,7 @@
       text += `ยอดสินค้า: ${formatPrice(getCartSubtotal())}\n`;
       if (getPromoDiscount() > 0) text += `ส่วนลด: -${formatPrice(getPromoDiscount())}\n`;
       text += `${formatShippingLabel(getShippingFee())}: ${formatPrice(getShippingFee())}\n`;
+      if (codFee > 0) text += `ค่าธรรมเนียมปลายทาง (COD): ${formatPrice(codFee)}\n`;
       if (SHOP_CONFIG.shippingEta) text += `ระยะเวลาจัดส่ง: ${SHOP_CONFIG.shippingEta}\n`;
       if (SHOP_CONFIG.shippingCarrier) text += `ขนส่ง: ${SHOP_CONFIG.shippingCarrier}\n`;
       if (SHOP_CONFIG.freeShippingNote) text += `เงื่อนไขส่งฟรี: ${SHOP_CONFIG.freeShippingNote}\n`;
@@ -2157,7 +2367,8 @@
       const subtotal = getCartSubtotal();
       const promo = getPromoDiscount();
       const shipping = getShippingFee();
-      const total = getCartTotal();
+      const codFee = getAppliedCodFee(selectedMethod);
+      const total = getCartTotal(selectedMethod);
       const items = cart.map(item => {
         const p = products.find((x) => String(x.id) === String(item.id));
         return p
@@ -2176,6 +2387,7 @@
         subtotal,
         promoDiscount: promo,
         shippingFee: shipping,
+        codFee,
         total,
         paymentSlip: pendingSlip || null,
       };
@@ -2845,16 +3057,21 @@
     const categoryMap = {
       basket: 'ตะกร้าหวาย',
       chair: 'เก้าอี้หวาย',
-      home: 'ของใช้ในบ้าน'
+      home: 'ของใช้ในบ้าน',
+      gift: 'ชุดของขวัญ',
     };
 
     const categoryReverseMap = {
       basket: 'basket',
       chair: 'chair',
       home: 'home',
+      gift: 'gift',
       'ตะกร้าหวาย': 'basket',
       'เก้าอี้หวาย': 'chair',
       'ของใช้ในบ้าน': 'home',
+      'ชุดของขวัญ': 'gift',
+      'ของขวัญ': 'gift',
+      'กระเช้า': 'gift',
     };
 
     const PRODUCT_IMPORT_HEADERS = [
@@ -3807,6 +4024,18 @@
       if (partial && partial.content && typeof mergeStoreContent === 'function') {
         SHOP_CONFIG.content = mergeStoreContent(partial.content);
       }
+      if (partial && partial.codFee != null) {
+        const n = Number(partial.codFee);
+        SHOP_CONFIG.codFee = Number.isFinite(n) && n > 0 ? n : 0;
+        const contentNext = typeof mergeStoreContent === 'function'
+          ? mergeStoreContent(SHOP_CONFIG.content || {})
+          : { ...(SHOP_CONFIG.content || {}) };
+        contentNext.fulfillment = {
+          ...(contentNext.fulfillment || {}),
+          codFee: SHOP_CONFIG.codFee,
+        };
+        SHOP_CONFIG.content = contentNext;
+      }
       const toSave = {
         shopName: SHOP_CONFIG.shopName,
         shopSub: SHOP_CONFIG.shopSub,
@@ -3883,8 +4112,12 @@
             <input class="admin-input" id="setPhoneDisplay" value="${escapeHtml(c.phoneDisplay||'')}" style="width:100%;margin-top:0.25rem;"></label>
           <label style="font-size:0.82rem;font-weight:600;">เบอร์โทร (รูปแบบ +66…)
             <input class="admin-input" id="setPhoneTel" value="${escapeHtml(c.phoneTel||'')}" style="width:100%;margin-top:0.25rem;"></label>
-          <label style="font-size:0.82rem;font-weight:600;">ลิงก์ LINE
-            <input class="admin-input" id="setLine" value="${escapeHtml(c.lineUrl||'')}" style="width:100%;margin-top:0.25rem;"></label>
+          <label style="font-size:0.82rem;font-weight:600;">ลิงก์ LINE Official Account
+            <input class="admin-input" id="setLine" value="${escapeHtml(c.lineUrl||'')}" placeholder="https://line.me/..." style="width:100%;margin-top:0.25rem;"></label>
+          <p style="font-size:0.78rem;color:var(--text-soft);margin:0;line-height:1.45;">
+            ใช้กับปุ่ม «สั่งซื้อทาง LINE» บนหน้ารายละเอียดสินค้า — ใส่เฉพาะ URL จริงของร้าน (เช่น line.me) ห้ามใส่ลิงก์ปลอม
+            ถ้าเว้นว่าง ปุ่มสั่งซื้อทาง LINE จะไม่แสดง
+          </p>
           <label style="font-size:0.82rem;font-weight:600;">ลิงก์ Facebook
             <input class="admin-input" id="setFb" value="${escapeHtml(c.facebookUrl||'')}" style="width:100%;margin-top:0.25rem;"></label>
           <label style="font-size:0.82rem;font-weight:600;">ที่อยู่ (รองรับ HTML ขึ้นบรรทัดใหม่ด้วย &lt;br&gt;)
@@ -3916,6 +4149,12 @@
           <label style="font-size:0.82rem;font-weight:600;">เงื่อนไขส่งฟรี (ข้อความ — ไม่เปลี่ยนอัตราต่อชิ้น)
             <textarea class="admin-input" id="setFreeShippingNote" rows="2" placeholder="ว่างไว้ถ้ายังไม่มีเงื่อนไขจริง" style="width:100%;margin-top:0.25rem;">${escapeHtml(c.freeShippingNote || '')}</textarea>
           </label>
+          <label style="font-size:0.82rem;font-weight:600;">ค่าธรรมเนียมปลายทาง COD (บาท)
+            <input class="admin-input" type="number" id="setCodFee" value="${c.codFee ?? 0}" min="0" step="10" style="width:100%;margin-top:0.25rem;">
+          </label>
+          <p style="font-size:0.78rem;color:var(--text-soft);margin:0;line-height:1.45;">
+            ใส่ 0 หรือว่าง = ไม่มีค่าธรรมเนียม — จะแจ้งลูกค้าก่อนยืนยันออเดอร์เมื่อเลือก COD เท่านั้น (แยกจากค่าจัดส่งชัดเจน)
+          </p>
           <input type="hidden" id="setFreeShippingMin" value="${c.freeShippingMin || 0}" />
           <p style="font-size:0.78rem;color:var(--text-soft);margin:0;line-height:1.45;">ค่าจัดส่งต่อชิ้นใช้ทั้งหน้าร้านและตอนสร้างออเดอร์บนเซิร์ฟเวอร์</p>
           <label style="font-size:0.82rem;font-weight:600;">ธนาคาร
@@ -4050,6 +4289,9 @@
         const shippingEta = document.getElementById('setShippingEta')?.value.trim() || '';
         const shippingCarrier = document.getElementById('setShippingCarrier')?.value.trim() || '';
         const freeShippingNote = document.getElementById('setFreeShippingNote')?.value.trim() || '';
+        const codFeeRaw = document.getElementById('setCodFee')?.value;
+        const codFee = Math.max(0, Number(codFeeRaw) || 0);
+        const lineUrlRaw = document.getElementById('setLine').value.trim();
         const contentNext = typeof mergeStoreContent === 'function'
           ? mergeStoreContent(SHOP_CONFIG.content || {})
           : { ...(SHOP_CONFIG.content || {}) };
@@ -4058,13 +4300,14 @@
           eta: shippingEta,
           carrier: shippingCarrier,
           freeNote: freeShippingNote,
+          codFee,
         };
         const settingsPatch = {
           shopName: document.getElementById('setShopName').value.trim() || SHOP_CONFIG.shopName,
           shopSub: document.getElementById('setShopSub')?.value.trim() || SHOP_CONFIG.shopSub || '',
           phoneDisplay: phoneDisplay || SHOP_CONFIG.phoneDisplay,
           phoneTel: phoneTel || SHOP_CONFIG.phoneTel,
-          lineUrl: document.getElementById('setLine').value.trim() || SHOP_CONFIG.lineUrl,
+          lineUrl: lineUrlRaw,
           facebookUrl: document.getElementById('setFb').value.trim() || SHOP_CONFIG.facebookUrl,
           addressHtml: document.getElementById('setAddress').value.trim() || SHOP_CONFIG.addressHtml,
           mapUrl: document.getElementById('setMapUrl').value.trim() || SHOP_CONFIG.mapUrl,
@@ -4075,6 +4318,7 @@
           shippingEta,
           shippingCarrier,
           freeShippingNote,
+          codFee,
           bankName: document.getElementById('setBankName').value.trim(),
           bankAccountName: document.getElementById('setBankAccName').value.trim(),
           promptPayNo: document.getElementById('setPromptPayNo').value.trim(),
@@ -4515,12 +4759,33 @@
                 <option value="basket" ${!editP || editP.cat === 'basket' ? 'selected' : ''}>ตะกร้าหวาย</option>
                 <option value="chair" ${editP && editP.cat === 'chair' ? 'selected' : ''}>เก้าอี้หวาย</option>
                 <option value="home" ${editP && editP.cat === 'home' ? 'selected' : ''}>ของใช้ในบ้าน</option>
+                <option value="gift" ${editP && editP.cat === 'gift' ? 'selected' : ''}>ชุดของขวัญ / กระเช้า</option>
               </select>
             </div>
             <div class="form-group">
               <label>อีโมจิ (ถ้าไม่มีรูป)</label>
               <input type="text" id="apEmoji" value="${editP ? (editP.emoji || '') : '🧺'}" placeholder="🧺" maxlength="4" />
             </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>ประเภทชุด / คู่</label>
+              <select id="apPackType">
+                <option value="" ${!editP || !getProductPack(editP).type ? 'selected' : ''}>สินค้าชิ้นเดียว</option>
+                <option value="pair" ${editP && getProductPack(editP).type === 'pair' ? 'selected' : ''}>ขายเป็นคู่</option>
+                <option value="set" ${editP && getProductPack(editP).type === 'set' ? 'selected' : ''}>ชุดสินค้า</option>
+                <option value="gift" ${editP && getProductPack(editP).type === 'gift' ? 'selected' : ''}>ชุดของขวัญ / กระเช้า</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>จำนวนชิ้นในชุด</label>
+              <input type="number" id="apPackItems" value="${editP && getProductPack(editP).items ? getProductPack(editP).items : ''}" min="0" step="1" placeholder="เช่น 2" />
+            </div>
+          </div>
+          <div class="form-group">
+            <label>ราคาแยกชิ้นรวม (บาท) — ใช้เทียบความคุ้มค่า</label>
+            <input type="number" id="apComparePrice" value="${editP && getProductPack(editP).comparePrice ? getProductPack(editP).comparePrice : ''}" min="0" step="10" placeholder="ว่างไว้ถ้าไม่มีตัวเลขจริง" />
+            <p style="font-size:0.75rem;color:var(--text-soft);margin:0.25rem 0 0;line-height:1.4;">แสดงบนหน้าร้านเฉพาะเมื่อมากกว่าและมีข้อมูลจริง — ไม่บังคับ</p>
           </div>
           <div class="form-row">
             <div class="form-group">
@@ -4953,8 +5218,21 @@
       const widthCm = parseDim('apWidthCm');
       const lengthCm = parseDim('apLengthCm');
       const heightCm = parseDim('apHeightCm');
+      const packType = (document.getElementById('apPackType')?.value || '').trim();
+      const packItemsRaw = document.getElementById('apPackItems')?.value;
+      const packItems = packItemsRaw === '' || packItemsRaw == null
+        ? (packType === 'pair' ? 2 : 0)
+        : Math.max(0, Math.floor(Number(packItemsRaw) || 0));
+      const compareRaw = document.getElementById('apComparePrice')?.value;
+      const comparePrice = compareRaw === '' || compareRaw == null
+        ? 0
+        : Math.max(0, Number(compareRaw) || 0);
       const images = (window._apImages || []).slice(0, MAX_PRODUCT_IMAGES);
       const image = images[0] || null;
+      const detailWithPack = composeDetailWithPack(detail, packType
+        ? { type: packType, items: packItems, comparePrice }
+        : null);
+      const cardDesc = truncateCardDesc(desc || parsePackMeta(detailWithPack).clean, 110);
 
       if (!name) {
         setAdminSaveStatus('error', 'กรุณากรอกชื่อสินค้า');
@@ -4992,17 +5270,20 @@
         cat,
         category: categoryMap[cat],
         emoji,
-        desc,
-        detail,
+        desc: cardDesc,
+        detail: detailWithPack,
         images,
         image,
-        badge,
+        badge: badge || (packType === 'gift' ? 'ของขวัญ' : null),
         stock,
         size,
         widthCm,
         lengthCm,
         heightCm,
         status,
+        packType: packType || '',
+        packItems: packType ? packItems : 0,
+        comparePrice: packType ? comparePrice : 0,
         featured: badge === 'พิเศษ' || badge === 'ยอดนิยม',
       };
 
@@ -6685,7 +6966,7 @@
         if (el) el.scrollIntoView({ behavior: 'smooth' });
       });
     });
-    // Logo stays inside /store/ (SPA home). "← เปิดตัว" navigates to landing `/`.
+    // Logo + "← หน้าแรก" stay inside /store/ SPA home (not landing "เปิดตัว").
     const logoEl = document.querySelector('header .logo');
     if (logoEl) {
       logoEl.addEventListener('click', (e) => {
@@ -6889,12 +7170,24 @@
           if (a.textContent.trim().match(/^0\d/)) a.textContent = c.phoneDisplay;
         }
       });
-      // LINE links
-      document.querySelectorAll('a[href*="line.me"]').forEach(a => {
-        a.href = c.lineUrl;
+      // LINE links (skip product-order button — it carries prefilled order text)
+      document.querySelectorAll('a[href*="line.me"]').forEach((a) => {
+        if (a.id === 'pdLineOrder' || a.classList.contains('pd-line-order')) return;
+        if (c.lineUrl) a.href = c.lineUrl;
       });
       const lineFab = document.getElementById('shopLineBtn');
-      if (lineFab && c.lineUrl) lineFab.href = c.lineUrl;
+      if (lineFab && isConfiguredLineUrl(c.lineUrl)) lineFab.href = c.lineUrl;
+      const pdLine = document.getElementById('pdLineOrder');
+      if (pdLine && pdProductId != null) {
+        const p = products.find((x) => x.id === pdProductId);
+        const href = p ? buildLineOrderUrl(p, 1) : '';
+        if (href) {
+          pdLine.href = href;
+          pdLine.hidden = false;
+        } else {
+          pdLine.hidden = true;
+        }
+      }
       // Facebook
       document.querySelectorAll('a[href*="facebook.com"]').forEach(a => {
         a.href = c.facebookUrl;

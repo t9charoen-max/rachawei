@@ -18,6 +18,7 @@
     "test:store": "node scripts/test-store-admin.mjs",
     "test:store:full": "node scripts/test-store-full.mjs",
     "check:store:prod": "node scripts/check-store-production.mjs",
+    "check:store:closeout": "node scripts/check-production-closeout.mjs",
     "check:ai-assistant": "node scripts/check-ai-assistant-edge.mjs",
     "lint": "oxlint",
     "preview": "vite preview",

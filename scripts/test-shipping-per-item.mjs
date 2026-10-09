@@ -74,21 +74,25 @@ try {
   await new Promise((r) => setTimeout(r, 500));
 
   const cfgSrc = fs.readFileSync(path.join(ROOT, 'public/store/js/config.js'), 'utf8');
-  ok('built config default shippingFee 100', /shippingFee:\s*100/.test(cfgSrc));
+  ok('built config has numeric shippingFee seed', /shippingFee:\s*\d+/.test(cfgSrc));
+  const appSrc = fs.readFileSync(path.join(ROOT, 'public/store/js/app.js'), 'utf8');
+  ok('getShippingRatePerItem does not invent fallback 100',
+    /Never invent or coerce to 100/.test(appSrc) || /fee >= 0 \? fee : 0/.test(appSrc));
+  ok('app.js never assigns shippingFee=100 at runtime', !/SHOP_CONFIG\.shippingFee\s*=\s*100/.test(appSrc));
 
-  const cfg = await page.evaluate(() => {
-    // Force standard rate for formula tests (DB may still have legacy flat 80)
-    SHOP_CONFIG.shippingFee = 100;
-    return {
-      rate: SHOP_CONFIG.shippingFee,
-      installHidden: !!document.getElementById('installBanner')?.hidden,
-      policyHidden: !!document.getElementById('storePolicy')?.hidden,
-      isPerItem: getShippingFee.toString().includes('getShippingRatePerItem') || getShippingFee.toString().includes('getCartCount'),
-    };
-  });
-  ok('runtime shipping rate set to 100/item for test', cfg.rate === 100, String(cfg.rate));
-  ok('install banner stays hidden', cfg.installHidden);
-  ok('empty policy section hidden', cfg.policyHidden);
+  const live = await page.evaluate(() => ({
+    rate: Number(SHOP_CONFIG.shippingFee),
+    installHidden: !!document.getElementById('installBanner')?.hidden,
+    policyHidden: !!document.getElementById('storePolicy')?.hidden,
+    isPerItem: getShippingFee.toString().includes('getShippingRatePerItem') || getShippingFee.toString().includes('getCartCount'),
+  }));
+  ok('runtime keeps loaded shippingFee (may be DB 80 or seed)', Number.isFinite(live.rate) && live.rate >= 0, String(live.rate));
+  ok('install banner stays hidden', live.installHidden);
+  ok('empty policy section hidden', live.policyHidden);
+
+  // Formula tests use an explicit Admin-like rate — do not claim Production is 100
+  const TEST_RATE = 100;
+  await page.evaluate((rate) => { SHOP_CONFIG.shippingFee = rate; }, TEST_RATE);
 
   const cases = await page.evaluate(() => {
     function setCart(lines) {
@@ -101,10 +105,11 @@ try {
       const sub = getCartSubtotal();
       const promo = getPromoDiscount();
       const total = getCartTotal();
+      const rate = Number(SHOP_CONFIG.shippingFee);
       return {
         qty: getCartCount(),
         shipping,
-        expectShip: 100 * qty,
+        expectShip: rate * qty,
         sub,
         promo,
         total,
@@ -121,29 +126,42 @@ try {
         ]);
         const shipping = getShippingFee();
         const qty = getCartCount();
-        return { qty, shipping, expect: 100 * qty };
+        const rate = Number(SHOP_CONFIG.shippingFee);
+        return { qty, shipping, expect: rate * qty };
       })(),
     };
   });
-  ok('1 item → shipping 100', cases.one.shipping === 100 && cases.one.shipping === cases.one.expectShip, JSON.stringify(cases.one));
-  ok('3 items → shipping 300 (no double count)', cases.three.shipping === 300 && cases.three.total === cases.three.expectTotal, JSON.stringify(cases.three));
+  ok('1 item → shipping = rate×1', cases.one.shipping === cases.one.expectShip && cases.one.total === cases.one.expectTotal, JSON.stringify(cases.one));
+  ok('3 items → shipping = rate×3 (no double count)', cases.three.shipping === cases.three.expectShip && cases.three.total === cases.three.expectTotal, JSON.stringify(cases.three));
   ok('multi SKU qty sum shipping', cases.multiSku.shipping === cases.multiSku.expect && cases.multiSku.qty === 3, JSON.stringify(cases.multiSku));
 
   // freeShippingMin must NOT zero the fee
-  const noAutoFree = await page.evaluate(() => {
+  const noAutoFree = await page.evaluate((rate) => {
     SHOP_CONFIG.freeShippingMin = 1;
-    SHOP_CONFIG.shippingFee = 100;
+    SHOP_CONFIG.shippingFee = rate;
     cart = [{ id: products[0].id, qty: 1 }];
     return getShippingFee();
+  }, TEST_RATE);
+  ok('freeShippingMin does not auto-zero fee', noAutoFree === TEST_RATE, String(noAutoFree));
+
+  // Preserve a non-100 Admin/DB rate — never coerce to 100
+  const keepLive = await page.evaluate(() => {
+    SHOP_CONFIG.shippingFee = 80;
+    const before = getShippingRatePerItem();
+    SHOP_CONFIG.shippingFee = 'x';
+    const invalid = getShippingRatePerItem();
+    SHOP_CONFIG.shippingFee = 80;
+    return { before, invalid, after: getShippingRatePerItem() };
   });
-  ok('freeShippingMin does not auto-zero fee', noAutoFree === 100, String(noAutoFree));
+  ok('loaded 80฿ rate is used as-is', keepLive.before === 80 && keepLive.after === 80, JSON.stringify(keepLive));
+  ok('invalid shippingFee falls back to 0 (not invented 100)', keepLive.invalid === 0, String(keepLive.invalid));
 
   // Checkout UI label + sample QR
-  await page.evaluate(() => {
-    SHOP_CONFIG.shippingFee = 100;
+  await page.evaluate((rate) => {
+    SHOP_CONFIG.shippingFee = rate;
     cart = [{ id: products[0].id, qty: 2 }];
     openCheckout();
-  });
+  }, TEST_RATE);
   await page.type('#custName', 'ทดสอบ ค่าส่ง');
   await page.type('#custPhone', '0812345678');
   await page.type('#custStreet', '126');
