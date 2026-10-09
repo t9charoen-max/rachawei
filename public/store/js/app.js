@@ -5989,6 +5989,12 @@
           <button type="button" class="btn btn-outline admin-order-delete-btn" style="color:#a93226;border-color:rgba(169,50,38,0.35);" data-order-action="delete" data-order-id="${oid}" ${deleteDisabled}>${adminDeleteBusy ? 'กำลังลบ…' : 'ลบออเดอร์'}</button>
           <button type="button" class="btn btn-outline" id="adminOrderDetailClose2" data-order-action="close-detail">ปิด</button>
         `;
+        // Direct listener backup (in addition to delegation) — reliable when modal scrolls on iOS
+        document.getElementById('adminOrderDetailClose2')?.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          closeAdminOrderDetail();
+        });
       }
       if (adminOrderDetailModal) {
         adminOrderDetailModal.setAttribute('data-open-order-id', o.id);

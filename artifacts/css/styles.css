@@ -5441,11 +5441,12 @@
     .admin-order-detail-overlay {
       z-index: 640;
       display: none;
-      /* Avoid backdrop-filter here too — keeps fixed children/taps predictable on iOS */
+      /* Avoid backdrop-filter — keeps taps predictable on iOS Safari */
       backdrop-filter: none;
       -webkit-backdrop-filter: none;
-      background: rgba(44, 36, 27, 0.58);
+      background: rgba(32, 24, 16, 0.72);
       pointer-events: auto;
+      isolation: isolate;
     }
     .admin-order-detail-overlay.open {
       display: flex;
@@ -5455,8 +5456,14 @@
     }
     .admin-order-detail-modal {
       max-width: 520px;
+      width: min(520px, 100%);
       pointer-events: auto;
       -webkit-overflow-scrolling: touch;
+      background: #fffdf9;
+      opacity: 1;
+      isolation: isolate;
+      position: relative;
+      z-index: 1;
     }
     .admin-order-detail-grid {
       display: grid;
