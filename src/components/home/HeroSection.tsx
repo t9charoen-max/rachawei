@@ -1,9 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { HOME_CONTENT } from '../../data/home';
+import { STORE_URL } from '../../lib/storeUrl';
 
 interface HeroSectionProps {
-  onViewProducts: () => void;
-  onContact: () => void;
   coverImages?: string[];
   coverImageAlt?: string;
 }
@@ -11,12 +10,7 @@ interface HeroSectionProps {
 const AUTO_MS = 4000;
 const SWIPE_THRESHOLD = 40;
 
-export function HeroSection({
-  onViewProducts,
-  onContact,
-  coverImages,
-  coverImageAlt,
-}: HeroSectionProps) {
+export function HeroSection({ coverImages, coverImageAlt }: HeroSectionProps) {
   const { hero } = HOME_CONTENT;
   const slides = coverImages?.length ? coverImages : [hero.image];
   const imageAlt = coverImageAlt || hero.imageAlt;
@@ -31,7 +25,6 @@ export function HeroSection({
     setIndex(0);
   }, [slideKey]);
 
-  // Preload so slides actually appear when the index changes
   useEffect(() => {
     slides.forEach((src) => {
       const img = new Image();
@@ -129,22 +122,14 @@ export function HeroSection({
               {hero.subheadline}
             </p>
 
-            <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-              <button
-                type="button"
-                onClick={onViewProducts}
-                className="group relative overflow-hidden rounded-2xl bg-gradient-to-r from-gold-500 to-gold-600 px-7 py-4 text-center text-base font-semibold text-earth-950 shadow-lg shadow-gold-500/25 transition hover:shadow-gold-500/40 active:scale-[0.98]"
+            <div className="mt-8">
+              <a
+                href={STORE_URL}
+                className="group relative inline-flex w-full items-center justify-center overflow-hidden rounded-2xl bg-gradient-to-r from-gold-500 to-gold-600 px-7 py-4 text-center text-base font-semibold text-earth-950 shadow-lg shadow-gold-500/25 transition hover:shadow-gold-500/40 active:scale-[0.98] sm:w-auto"
               >
-                <span className="relative z-10">ดูสินค้าทั้งหมด</span>
-                <span className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/25 to-transparent transition group-hover:translate-x-full duration-700" />
-              </button>
-              <button
-                type="button"
-                onClick={onContact}
-                className="rounded-2xl border border-cream-200/20 bg-earth-900/40 px-7 py-4 text-center text-base font-semibold text-cream-50 backdrop-blur-md transition hover:border-gold-400/40 hover:bg-earth-800/50 active:scale-[0.98]"
-              >
-                ติดต่อร้าน
-              </button>
+                <span className="relative z-10">เข้าสู่ร้านค้า</span>
+                <span className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/25 to-transparent transition duration-700 group-hover:translate-x-full" />
+              </a>
             </div>
 
             {multi && (

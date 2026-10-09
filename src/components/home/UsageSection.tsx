@@ -1,11 +1,7 @@
 import { HOME_CONTENT } from '../../data/home';
 import { SectionHeader } from '../ui/SectionHeader';
 
-interface UsageSectionProps {
-  onViewProducts: () => void;
-}
-
-export function UsageSection({ onViewProducts }: UsageSectionProps) {
+export function UsageSection() {
   const { usage } = HOME_CONTENT;
   const featured = usage.scenarios.find((item) => item.featured);
   const rest = usage.scenarios.filter((item) => !item.featured);
@@ -126,19 +122,9 @@ export function UsageSection({ onViewProducts }: UsageSectionProps) {
         ))}
       </div>
 
-      <div className="mt-8 text-center">
-        <p className="mb-4 text-sm text-cream-300/75">
-          เลือกตะกร้าหวายที่เหมาะกับไลฟ์สไตล์ของคุณ — สานมือจากบ้านบุทม สุรินทร์
-        </p>
-        <button
-          type="button"
-          onClick={onViewProducts}
-          className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-gold-500 to-gold-600 px-8 py-3.5 text-base font-semibold text-earth-950 shadow-lg shadow-gold-500/25 transition hover:shadow-gold-500/40 active:scale-[0.98]"
-        >
-          เลือกชมตะกร้าหวาย
-          <span aria-hidden>→</span>
-        </button>
-      </div>
+      <p className="mt-8 text-center text-sm text-cream-300/75">
+        ตะกร้าหวายสานมือจากบ้านบุทม สุรินทร์ — ชมและสั่งซื้อได้ที่ร้านค้า
+      </p>
     </section>
   );
 }

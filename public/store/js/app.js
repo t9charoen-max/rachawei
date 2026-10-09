@@ -1381,20 +1381,55 @@
       }).join('');
     }
 
+    function isCartOpen() {
+      return Boolean(cartDrawer?.classList.contains('open'));
+    }
+
     function openCart() {
       cartOverlay.classList.add('open');
       cartDrawer.classList.add('open');
+      document.body.classList.add('cart-open');
+      cartDrawer.setAttribute('aria-hidden', 'false');
+      cartOverlay.setAttribute('aria-hidden', 'false');
       renderCart();
+      // Focus close control so mobile users can dismiss without hunting under overlays.
+      window.setTimeout(() => cartClose?.focus?.(), 40);
     }
 
     function closeCart() {
       cartOverlay.classList.remove('open');
       cartDrawer.classList.remove('open');
+      document.body.classList.remove('cart-open');
+      cartDrawer.setAttribute('aria-hidden', 'true');
+      cartOverlay.setAttribute('aria-hidden', 'true');
     }
 
-    cartBtn.addEventListener('click', openCart);
-    cartClose.addEventListener('click', closeCart);
+    cartBtn.addEventListener('click', () => {
+      if (isCartOpen()) closeCart();
+      else openCart();
+    });
+    cartClose.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      closeCart();
+    });
     cartOverlay.addEventListener('click', closeCart);
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && isCartOpen()) {
+        e.preventDefault();
+        closeCart();
+      }
+    });
+
+    // If cart covers navigation intent: first dismiss cart, then allow landing link.
+    const storeBackHome = document.getElementById('storeBackHome');
+    if (storeBackHome) {
+      storeBackHome.addEventListener('click', (e) => {
+        if (!isCartOpen()) return;
+        e.preventDefault();
+        closeCart();
+      });
+    }
 
     cartBody.addEventListener('click', (e) => {
       const btn = e.target.closest('[data-qty-action]');
@@ -5146,6 +5181,7 @@
         if (el) el.scrollIntoView({ behavior: 'smooth' });
       });
     });
+    // Logo stays inside /store/ (SPA home). "← เปิดตัว" navigates to landing `/`.
     const logoEl = document.querySelector('header .logo');
     if (logoEl) {
       logoEl.addEventListener('click', (e) => {
