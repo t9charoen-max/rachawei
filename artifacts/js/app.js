@@ -435,34 +435,117 @@
     }
 
     async function syncProductsToSupabase(productIds) {
-      if (!isSupabaseReady() || !adminLoggedIn) return;
+      if (!isSupabaseReady()) {
+        return { ok: false, skipped: true, reason: 'supabase_not_configured', failed: 0 };
+      }
+      if (!adminLoggedIn) {
+        return { ok: false, skipped: true, reason: 'not_logged_in', failed: 0 };
+      }
       const okAdmin = await RachaweiStoreApi.isAdminUser();
       if (!okAdmin) {
-        console.warn('ข้ามซิงก์สินค้า — ไม่ใช่ admin');
-        return;
+        return { ok: false, skipped: true, reason: 'not_admin', failed: 0 };
       }
       const targets = Array.isArray(productIds) && productIds.length
         ? products.filter((p) => productIds.map(Number).includes(Number(p.id)))
         : products;
+      let failed = 0;
+      const errors = [];
       for (const p of targets) {
         const result = await RachaweiStoreApi.upsertProduct(p);
-        if (!result.ok) console.warn('sync product failed', p.id, result.error);
+        if (!result.ok) {
+          failed += 1;
+          errors.push(`${p.id}: ${result.error || 'upsert_failed'}`);
+          console.warn('sync product failed', p.id, result.error);
+        }
       }
+      return {
+        ok: failed === 0,
+        failed,
+        synced: targets.length - failed,
+        errors,
+        reason: failed ? 'upsert_failed' : null,
+      };
     }
 
     async function saveProducts(options = {}) {
       await persistAll();
       // ซิงก์ขึ้นคลาวด์เฉพาะเมื่อ admin บันทึกโดยตั้งใจ (กันทับข้อมูลเดิมโดยไม่ตั้งใจ)
       if (options.syncRemote) {
-        await syncProductsToSupabase(options.productIds);
+        return syncProductsToSupabase(options.productIds);
       }
+      return { ok: true, localOnly: true };
+    }
+
+    /** Persistent cloud/local truth banner — never imply IndexedDB == Supabase */
+    function adminCloudStatusBannerHtml() {
+      const configured = isSupabaseReady();
+      if (!configured) {
+        return `<div class="admin-sync-banner admin-sync-banner--error" role="alert">
+          <strong>ยังไม่เชื่อมต่อ Supabase</strong><br>
+          การบันทึกตอนนี้เก็บเฉพาะในเบราว์เซอร์เครื่องนี้ (IndexedDB) — <em>ไม่ใช่ฐานข้อมูลคลาวด์</em>
+          และลูกค้าบนเครื่องอื่นจะไม่เห็นการเปลี่ยนแปลง<br>
+          ตรวจ <code>VITE_SUPABASE_URL</code> / <code>VITE_SUPABASE_ANON_KEY</code> บน Vercel แล้ว Redeploy
+        </div>`;
+      }
+      if (!adminLoggedIn) {
+        return `<div class="admin-sync-banner admin-sync-banner--error" role="alert">
+          <strong>ยังไม่ได้เข้าสู่ระบบแอดมิน</strong><br>
+          Supabase พร้อมแล้ว แต่ยังไม่ได้ login — การแก้ไขจะไม่ถูกบันทึกขึ้นฐานข้อมูลจนกว่าจะเข้าสู่ระบบด้วยบัญชีใน store_admins
+        </div>`;
+      }
+      return `<div class="admin-sync-banner admin-sync-banner--ok">
+        เชื่อมต่อ Supabase แล้ว · การบันทึกจากแอดมินจะซิงก์ขึ้นคลาวด์ (RLS + store_is_admin)
+      </div>`;
+    }
+
+    function describeCloudSaveResult(remote, entityLabel) {
+      if (!isSupabaseReady()) {
+        return {
+          ok: false,
+          localOnly: true,
+          message: `บันทึก${entityLabel}ในเครื่องนี้แล้ว — ยังไม่เชื่อมต่อ Supabase จึงไม่ขึ้นฐานข้อมูล`,
+        };
+      }
+      if (!adminLoggedIn) {
+        return {
+          ok: false,
+          localOnly: true,
+          message: `บันทึก${entityLabel}ในเครื่องนี้แล้ว — ยังไม่ได้ login แอดมิน จึงไม่ซิงก์ขึ้นฐานข้อมูล`,
+        };
+      }
+      if (!remote || remote.skipped) {
+        const why = remote?.reason === 'not_admin'
+          ? 'บัญชีนี้ไม่มีสิทธิ์ store_admins'
+          : (remote?.reason || 'ข้ามการซิงก์คลาวด์');
+        return {
+          ok: false,
+          localOnly: true,
+          message: `บันทึก${entityLabel}ในเครื่องแล้ว แต่ซิงก์คลาวด์ไม่สำเร็จ (${why})`,
+        };
+      }
+      if (remote.ok === false) {
+        const detail = remote.error || remote.errors?.[0] || remote.reason || 'unknown';
+        return {
+          ok: false,
+          localOnly: true,
+          message: `บันทึก${entityLabel}ในเครื่องแล้ว แต่ซิงก์คลาวด์ไม่สำเร็จ: ${detail}`,
+        };
+      }
+      return {
+        ok: true,
+        localOnly: false,
+        message: `บันทึก${entityLabel}ขึ้น Supabase สำเร็จ ✓`,
+      };
     }
 
     async function saveShopVideos(options = {}) {
       await persistAll();
-      if (options.syncRemote === false) return { ok: true, local: true };
-      if (!(isSupabaseReady() && adminLoggedIn && typeof RachaweiStoreApi?.upsertVideo === 'function')) {
-        return { ok: true, local: true };
+      if (options.syncRemote === false) return { ok: true, local: true, skipped: true, reason: 'sync_disabled' };
+      if (!isSupabaseReady()) {
+        return { ok: false, local: true, skipped: true, reason: 'supabase_not_configured' };
+      }
+      if (!adminLoggedIn || typeof RachaweiStoreApi?.upsertVideo !== 'function') {
+        return { ok: false, local: true, skipped: true, reason: adminLoggedIn ? 'api_missing' : 'not_logged_in' };
       }
       const ids = options.videoIds
         ? options.videoIds.map(String)
@@ -3585,17 +3668,22 @@
           await idbSet('shopSettings', toSave);
         } catch (e) { console.warn(e); }
       }
+
+      let remote = { ok: true, skipped: !isSupabaseReady() || !adminLoggedIn, reason: !isSupabaseReady() ? 'supabase_not_configured' : (!adminLoggedIn ? 'not_logged_in' : null) };
       if (isSupabaseReady() && adminLoggedIn) {
-        const remote = await RachaweiStoreApi.saveShopSettingsRemote(toSave);
+        remote = await RachaweiStoreApi.saveShopSettingsRemote(toSave);
         if (!remote.ok) {
           console.warn('บันทึกตั้งค่าร้านขึ้น Supabase ไม่สำเร็จ', remote.error);
-          setAdminSaveStatus('error', 'บันทึกในเครื่องแล้ว แต่ซิงก์คลาวด์ไม่สำเร็จ');
-          showToast('บันทึกในเครื่องแล้ว แต่ซิงก์คลาวด์ไม่สำเร็จ');
-          return { ok: false, error: remote.error };
         }
       }
-      setAdminSaveStatus('ok', 'บันทึกสำเร็จ ✓ — หน้าร้านอัปเดตแล้ว');
-      showToast('บันทึกตั้งค่าร้านแล้ว');
+      const outcome = describeCloudSaveResult(remote, 'การตั้งค่า/เนื้อหา');
+      if (!outcome.ok) {
+        setAdminSaveStatus('error', outcome.message);
+        showToast(outcome.message);
+        return { ok: false, error: remote.error || remote.reason, localOnly: true };
+      }
+      setAdminSaveStatus('ok', outcome.message);
+      showToast(outcome.message);
       return { ok: true };
     }
 
@@ -3606,12 +3694,13 @@
       window._heroImagesDraft = heroImages.slice();
 
       el.innerHTML = `
+        ${adminCloudStatusBannerHtml()}
         <div class="admin-section-title">ตั้งค่าร้าน (แก้ไขได้ตลอด)</div>
         <p style="font-size:0.85rem;color:var(--text-soft);margin-bottom:1rem;line-height:1.55;">
-          ค่าเหล่านี้แสดงบนหน้าร้านทันที
-          ${isSupabaseReady()
-            ? 'เมื่อเข้าสู่ระบบ Supabase แล้ว การบันทึกจะซิงก์ขึ้นคลาวด์ให้ลูกค้าทุกคนเห็น'
-            : 'โหมดท้องถิ่น: บันทึกในเบราว์เซอร์เครื่องนี้ — ตั้ง VITE_SUPABASE_* แล้ว deploy เพื่อซิงก์คลาวด์'}
+          ค่าเหล่านี้แสดงบนหน้าร้านทันทีหลังบันทึก ·
+          ${isSupabaseReady() && adminLoggedIn
+            ? 'โหมดคลาวด์: บันทึกจะซิงก์ขึ้น <code>store_shop_settings</code> ให้ลูกค้าทุกคนเห็น'
+            : '<strong style="color:#a93226;">ถ้ายังไม่เชื่อมต่อหรือยังไม่ login การบันทึกจะอยู่แค่เครื่องนี้ — ไม่ขึ้นฐานข้อมูล</strong>'}
         </p>
         <div style="display:grid;gap:0.75rem;max-width:560px;">
           <label style="font-size:0.82rem;font-weight:600;">ชื่อร้าน
@@ -4074,6 +4163,7 @@
       const fmtMoney = (v) => (v == null ? '—' : formatPrice(v));
 
       adminContent.innerHTML = `
+        ${adminCloudStatusBannerHtml()}
         ${adminOrdersStatusBannerHtml()}
         <div class="admin-dash-hero">
           <h3>${escapeHtml(SHOP_CONFIG.shopName || 'ราชาหวายสุรินทร์')}</h3>
@@ -4171,6 +4261,7 @@
       const editP = editingProductId ? products.find(p => p.id === editingProductId) : null;
 
       adminContent.innerHTML = `
+        ${adminCloudStatusBannerHtml()}
         <div class="admin-import-card">
           <div class="admin-import-card__head">
             <h3>📥 นำเข้าจาก Excel</h3>
@@ -4198,14 +4289,18 @@
 
         <div class="admin-form-card">
           <h3>${editP ? '✏️ ' : '➕ '}${formTitle}</h3>
-          <p class="admin-form-sub">เพิ่มทีละรายการ หรือแก้ไขรูป/รายละเอียดหลังนำเข้า Excel</p>
+          <p class="admin-form-sub">
+            เพิ่มทีละรายการ หรือแก้ไขรูป/รายละเอียดหลังนำเข้า Excel ·
+            schema เดิมมีราคาเดียว (<code>store_products.price</code>) — ยังไม่มีคอลัมน์ราคาพิเศษแยก ·
+            ใช้ป้าย «พิเศษ / ยอดนิยม» เพื่อทำเครื่องหมายสินค้าพิเศษ
+          </p>
           <div class="form-row">
             <div class="form-group">
               <label>ชื่อสินค้า *</label>
               <input type="text" id="apName" value="${editP ? editP.name.replace(/"/g, '&quot;') : ''}" placeholder="ชื่อสินค้า" />
             </div>
             <div class="form-group">
-              <label>ราคา (บาท) *</label>
+              <label>ราคาขาย (บาท) *</label>
               <input type="number" id="apPrice" value="${editP ? editP.price : ''}" min="0" step="10" placeholder="0" />
             </div>
           </div>
@@ -4683,15 +4778,21 @@
       const syncedId = editingProductId || products[products.length - 1]?.id;
       editingProductId = null;
       window._apImages = [];
-      await saveProducts({
+      const remote = await saveProducts({
         syncRemote: true,
         productIds: syncedId != null ? [syncedId] : undefined,
       });
       renderProducts(catalogFilter);
       renderPopularCats();
       renderAdminProducts();
-      setAdminSaveStatus('ok', 'บันทึกสินค้าสำเร็จ ✓');
-      showToast('บันทึกสินค้าแล้ว ✓');
+      const outcome = describeCloudSaveResult(remote, 'สินค้า');
+      if (!outcome.ok) {
+        setAdminSaveStatus('error', outcome.message);
+        showToast(outcome.message);
+        return;
+      }
+      setAdminSaveStatus('ok', outcome.message);
+      showToast(outcome.message);
     }
 
     window.adminEditProduct = function(id) {
@@ -4701,24 +4802,45 @@
     };
 
     window.adminDeleteProduct = async function(id) {
-      if (!confirm('ลบสินค้านี้?')) return;
-      const idx = products.findIndex(p => p.id === id);
+      const p = products.find((x) => x.id === id);
+      const label = p ? `${p.name} (${formatPrice(p.price)})` : String(id);
+      if (!confirm(`ยืนยันลบสินค้า?\n\n${label}\n\nการลบจากคลาวด์จะทำให้ลูกค้าไม่เห็นสินค้านี้ — กดยกเลิกหากไม่แน่ใจ`)) return;
+      setAdminSaveStatus('saving', 'กำลังลบสินค้า…');
+      const idx = products.findIndex((x) => x.id === id);
       if (idx >= 0) products.splice(idx, 1);
-      cart = cart.filter(c => c.id !== id);
+      cart = cart.filter((c) => c.id !== id);
       shopVideos.forEach((v) => {
         if (v.productId === id) v.productId = null;
       });
+      let remoteOk = true;
+      let remoteErr = null;
       if (isSupabaseReady() && adminLoggedIn) {
         const remote = await RachaweiStoreApi.deleteProductRemote(id);
-        if (!remote.ok) console.warn('ลบสินค้าบน Supabase ไม่สำเร็จ', remote.error);
+        if (!remote.ok) {
+          remoteOk = false;
+          remoteErr = remote.error || 'delete_failed';
+          console.warn('ลบสินค้าบน Supabase ไม่สำเร็จ', remote.error);
+        }
+      } else if (isSupabaseReady() && !adminLoggedIn) {
+        remoteOk = false;
+        remoteErr = 'not_logged_in';
+      } else {
+        remoteOk = false;
+        remoteErr = 'supabase_not_configured';
       }
-      await saveProducts(); // local only — remote delete already handled above
-      saveShopVideos();
+      await saveProducts(); // local cache
+      await saveShopVideos({ syncRemote: false });
       saveCart();
       updateBadge();
-      renderProducts(document.querySelector('.filter-btn.active')?.dataset.filter || 'all');
+      renderProducts(catalogFilter);
       renderAdminProducts();
-      showToast('ลบสินค้าแล้ว');
+      if (!remoteOk) {
+        setAdminSaveStatus('error', `ลบในเครื่องแล้ว แต่คลาวด์อาจยังมีสินค้าอยู่ — ${remoteErr}`);
+        showToast(`ลบในเครื่องแล้ว แต่คลาวด์อาจยังมีสินค้าอยู่ (${remoteErr})`);
+        return;
+      }
+      setAdminSaveStatus('ok', 'ลบสินค้าจาก Supabase แล้ว ✓');
+      showToast('ลบสินค้าแล้ว ✓');
     };
 
     function resolveAdminVideoTitle(rawTitle, productId, videoUrl) {
@@ -4762,9 +4884,10 @@
       ).join('');
 
       adminContent.innerHTML = `
+        ${adminCloudStatusBannerHtml()}
         <div class="admin-form-card">
           <h3>${editV ? '✏️ ' : '➕ '}${formTitle}</h3>
-          <p class="admin-form-sub">วิดีโอจะแสดงใต้รายการสินค้าในหน้าร้าน · รองรับ YouTube / ลิงก์ MP4 / TikTok / Facebook Reels</p>
+          <p class="admin-form-sub">วิดีโอจะแสดงใต้รายการสินค้าในหน้าร้าน · ซิงก์ตาราง <code>store_videos</code> เมื่อ login แอดมิน · รองรับ YouTube / MP4 / TikTok / Facebook Reels</p>
           <div class="admin-form-error" id="avFormError" role="alert"></div>
           <div class="form-group">
             <label>ลิงก์วิดีโอ *</label>
@@ -4909,13 +5032,21 @@
       const remote = await saveShopVideos({ syncRemote: true, videoIds: syncedId != null ? [syncedId] : undefined });
       renderShopVideos();
       renderAdminVideos();
-      if (remote && remote.ok === false) {
-        setAdminSaveStatus('error', 'บันทึกในเครื่องแล้ว แต่ซิงก์คลาวด์ไม่สำเร็จ');
-        showToast('บันทึกวิดีโอในเครื่องแล้ว แต่ซิงก์คลาวด์ไม่สำเร็จ');
+      const outcome = describeCloudSaveResult(
+        remote?.local === true && !isSupabaseReady()
+          ? { ok: false, skipped: true, reason: 'supabase_not_configured' }
+          : (remote?.local === true && !adminLoggedIn
+            ? { ok: false, skipped: true, reason: 'not_logged_in' }
+            : remote),
+        'วิดีโอ',
+      );
+      if (!outcome.ok) {
+        setAdminSaveStatus('error', outcome.message);
+        showToast(outcome.message);
         return;
       }
-      setAdminSaveStatus('ok', 'บันทึกวิดีโอสำเร็จ ✓');
-      showToast('บันทึกวิดีโอแล้ว ✓');
+      setAdminSaveStatus('ok', outcome.message);
+      showToast(outcome.message);
     }
 
     window.adminEditVideo = function(id) {
@@ -4943,6 +5074,7 @@
     function renderAdminCategories() {
       const tiles = getStoreCategoryTiles();
       adminContent.innerHTML = `
+        ${adminCloudStatusBannerHtml()}
         <div class="admin-section-title"><span>หมวดหมู่บนหน้าร้าน</span></div>
         <p style="font-size:0.88rem;color:var(--text-soft);margin:0 0 1rem;line-height:1.5;">
           แก้ไขชื่อและอีโมจิของหมวดที่แสดงใน «หมวดยอดนิยม» — คีย์หมวดผูกกับสินค้าเดิม (ตะกร้า / เก้าอี้ / ของใช้ / ของขวัญ)
@@ -4987,6 +5119,7 @@
       const content = mergeStoreContent(SHOP_CONFIG.content || {});
       window._cmsHeroDraft = (Array.isArray(SHOP_CONFIG.heroImages) ? SHOP_CONFIG.heroImages : []).filter(Boolean).slice();
       adminContent.innerHTML = `
+        ${adminCloudStatusBannerHtml()}
         <div class="admin-section-title"><span>แบนเนอร์ / ภาพปกหน้าแรก</span></div>
         <p style="font-size:0.88rem;color:var(--text-soft);margin:0 0 1rem;line-height:1.5;">
           ข้อความฮีโร่และรูปสไลด์พื้นหลัง — ใช้ข้อมูลเดิมในตั้งค่าร้าน/เนื้อหา (hero_images + content.hero)
@@ -5074,9 +5207,11 @@
       window._cmsStorefrontDraft = photos;
       const reviews = mergeStoreContent(SHOP_CONFIG.content || {}).reviews?.items || [];
       adminContent.innerHTML = `
+        ${adminCloudStatusBannerHtml()}
         <div class="admin-section-title"><span>รูปภาพและสื่อ</span></div>
         <p style="font-size:0.88rem;color:var(--text-soft);margin:0 0 1rem;line-height:1.5;">
-          จัดการภาพหน้าร้าน (storefront_photos) และดูสรุปรูปรีวิว — อัปโหลดเป็นไฟล์ในเครื่อง/data URL ตามระบบเดิม ไม่สร้าง Storage ใหม่
+          จัดการภาพหน้าร้าน (<code>storefront_photos</code>) และสรุปรูปรีวิว —
+          ระบบเดิมเก็บเป็น URL / data URL ใน jsonb (ยังไม่มี Supabase Storage bucket) — ไม่สร้าง bucket ใหม่
         </p>
         <div class="admin-form-card">
           <h3>ภาพหน้าร้าน (${photos.length})</h3>
@@ -5170,6 +5305,8 @@
       });
       const rows = Array.from(map.values()).sort((a, b) => b.lastAt - a.lastAt);
       adminContent.innerHTML = `
+        ${adminCloudStatusBannerHtml()}
+        ${adminOrdersStatusBannerHtml()}
         <div class="admin-section-title"><span>ลูกค้าจากออเดอร์ (${rows.length})</span></div>
         <p style="font-size:0.88rem;color:var(--text-soft);margin:0 0 1rem;line-height:1.5;">
           รายชื่อสรุปจาก <code>store_orders</code> ตามเบอร์โทร — ไม่มีตารางลูกค้าแยก และไม่สร้าง schema ใหม่
@@ -5231,6 +5368,7 @@
         `<option value="${i}" ${String(adminOrderStatusFilter) === String(i) ? 'selected' : ''}>${s.label}</option>`
       ).join('');
       adminContent.innerHTML = `
+        ${adminCloudStatusBannerHtml()}
         ${adminOrdersStatusBannerHtml()}
         <div class="admin-section-title">
           <span>ออเดอร์ทั้งหมด ${blocked ? '' : `(${filtered.length}${filtered.length !== orders.length ? ` / ${orders.length}` : ''})`}</span>
@@ -5257,7 +5395,7 @@
             ? '<div class="empty-admin">ไม่พบออเดอร์ที่ตรงเงื่อนไข</div>'
             : `
           <div class="admin-table-wrap">
-            <table class="admin-table">
+            <table class="admin-table admin-orders-table">
               <thead>
                 <tr>
                   <th>เลขที่</th>
@@ -5769,6 +5907,7 @@
     };
     window.saveShopSettings = saveShopSettings;
     window.saveProducts = saveProducts;
+    window.adminCloudStatusBannerHtml = adminCloudStatusBannerHtml;
     window.renderProducts = renderProducts;
     window.refreshHeroSlides = refreshHeroSlides;
     window.renderPopularCats = renderPopularCats;

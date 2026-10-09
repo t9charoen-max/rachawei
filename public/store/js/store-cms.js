@@ -533,11 +533,16 @@
     window._cmsProcessDraft = (c.process.steps || []).map((x) => ({ ...x }));
     window._cmsCareDraft = (c.care.cards || []).map((x) => ({ ...x, items: [...(x.items || [])] }));
 
+    const cloudBanner = (typeof adminCloudStatusBannerHtml === 'function')
+      ? adminCloudStatusBannerHtml()
+      : '';
     el.innerHTML = `
-      <div class="admin-section-title">แก้ไขหน้าบ้าน (ข้อความ · รูป · วิดีโอ)</div>
+      ${cloudBanner}
+      <div class="admin-section-title">แก้ไขเนื้อหาหน้าแรก (ข้อความ · รูป · วิดีโอหน้า)</div>
       <p style="font-size:0.85rem;color:var(--text-soft);margin-bottom:0.75rem;line-height:1.55;">
-        จุดที่เห็นบนหน้าร้านแก้ได้ที่นี่ — บันทึกแล้วเห็นทันทีบนเครื่องนี้
-        สินค้า / วิดีโอแนะนำสินค้า ใช้แท็บ <strong>สินค้า</strong> และ <strong>ราชาหวาย VIDEO</strong>
+        จุดที่เห็นบนหน้าร้านแก้ได้ที่นี่ — กดบันทึกแล้วระบบจะแจ้งชัดว่าขึ้น Supabase หรือแค่เครื่องนี้
+        · สินค้า / วิดีโอแนะนำ ใช้แท็บ <strong>สินค้า</strong> และ <strong>วิดีโอ</strong>
+        · เมนูนำทางหลัก / tabbar / AI ผู้ช่วย ยัง hardcode ฝั่งลูกค้า (มี Edge Function เดิม — ไม่เพิ่มหลังบ้านใหม่)
       </p>
       <div style="display:flex;flex-wrap:wrap;gap:0.4rem;margin-bottom:1rem;">
         <button type="button" class="btn btn-outline btn-sm" data-cms-jump="cmsSecHero">① แบนเนอร์ฮีโร่</button>
@@ -1019,6 +1024,10 @@
           productsMore: document.getElementById('cmsProductsMore').value.trim(),
           videosTitle: document.getElementById('cmsVideosTitle').value.trim(),
           videosHint: document.getElementById('cmsVideosHint').value.trim(),
+          // Preserve category tiles managed in แท็บหมวดหมู่
+          categories: (c.home && Array.isArray(c.home.categories))
+            ? c.home.categories.map((x) => ({ ...x }))
+            : undefined,
         },
         reviews: {
           kicker: document.getElementById('cmsRevKicker').value.trim(),
@@ -1083,23 +1092,28 @@
       const heroImages = (window._cmsHeroDraft || []).slice(0, 10);
       const storefrontPhotos = (window._cmsStorefrontDraft || []).slice();
 
-      if (typeof saveShopSettings === 'function') {
-        saveShopSettings({
-          content,
-          storefrontPhotos,
-          heroImages,
-        });
-      } else {
-        SHOP_CONFIG.content = content;
-        SHOP_CONFIG.storefrontPhotos = storefrontPhotos;
-        SHOP_CONFIG.heroImages = heroImages;
-        applyStoreContent();
-      }
-      if (typeof applyStoreContent === 'function') applyStoreContent();
-      if (typeof renderStorefrontPhotos === 'function') {
-        renderStorefrontPhotos(SHOP_CONFIG.storefrontPhotos);
-      }
-      if (typeof refreshHeroSlides === 'function') refreshHeroSlides();
+      void (async () => {
+        if (typeof saveShopSettings === 'function') {
+          await saveShopSettings({
+            content,
+            storefrontPhotos,
+            heroImages,
+          });
+        } else {
+          SHOP_CONFIG.content = content;
+          SHOP_CONFIG.storefrontPhotos = storefrontPhotos;
+          SHOP_CONFIG.heroImages = heroImages;
+          applyStoreContent();
+          if (typeof showToast === 'function') {
+            showToast('บันทึกเนื้อหาในเครื่องแล้ว (ไม่มี saveShopSettings)');
+          }
+        }
+        if (typeof applyStoreContent === 'function') applyStoreContent();
+        if (typeof renderStorefrontPhotos === 'function') {
+          renderStorefrontPhotos(SHOP_CONFIG.storefrontPhotos);
+        }
+        if (typeof refreshHeroSlides === 'function') refreshHeroSlides();
+      })();
     };
 
     document.getElementById('cmsResetContent').onclick = () => {

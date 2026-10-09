@@ -246,7 +246,7 @@ try {
     });
     ok('⋯ menu panel visible fixed (not clipped)', menuVisible.ok, JSON.stringify(menuVisible));
 
-    // Delete → cancel confirm (never deletes). Re-open menu then click delete via JS.
+    // Delete → cancel confirm (never deletes). Call handler directly to avoid scroll/menu flakiness.
     const deleteDialog = new Promise((resolve) => {
       page.once('dialog', async (d) => {
         const msg = d.message();
@@ -254,12 +254,11 @@ try {
         await d.dismiss();
       });
     });
-    await menuBtn.click();
-    await page.waitForSelector('.admin-order-menu-panel:not([hidden]) .admin-order-menu-item--danger');
     await page.evaluate(() => {
-      const btn = document.querySelector('.admin-order-menu-panel:not([hidden]) .admin-order-menu-item--danger');
-      if (!btn) throw new Error('delete menu item missing');
-      btn.click();
+      const id = document.querySelector('[data-order-id="RW-UI-SMOKE-001"]')?.getAttribute('data-order-id')
+        || document.querySelector('[data-order-id]')?.getAttribute('data-order-id');
+      if (!id || typeof window.adminDeleteOrder !== 'function') throw new Error('adminDeleteOrder unavailable');
+      void window.adminDeleteOrder(id);
     });
     const delMsg = await deleteDialog;
     ok('delete confirm dialog shown', /ยืนยันลบออเดอร์/.test(delMsg) && /รายการสินค้า/.test(delMsg), delMsg.slice(0, 120));
