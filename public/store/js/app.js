@@ -6858,22 +6858,6 @@
         return;
       }
 
-      // Local PIN UI can look "logged in" without a Supabase session — gate before busy
-      if (typeof RachaweiStoreApi.getSession === 'function') {
-        try {
-          const session = await RachaweiStoreApi.getSession();
-          if (!session) {
-            console.error('[rachawei] adminDeleteOrder blocked: no_session', { orderId });
-            showToast('ยังไม่ได้เข้าสู่ระบบแอดมิน — กรุณา login ด้วยบัญชี Supabase ก่อนลบออเดอร์');
-            return;
-          }
-        } catch (sessionErr) {
-          console.error('[rachawei] adminDeleteOrder session check failed', sessionErr);
-          showToast('ตรวจ session ไม่สำเร็จ — ลอง login ใหม่แล้วลบอีกครั้ง');
-          return;
-        }
-      }
-
       const setDeleteButtonsBusy = (busy) => {
         document.querySelectorAll(`[data-order-action="delete"][data-order-id="${orderId}"]`).forEach((btn) => {
           btn.disabled = busy;
@@ -6881,11 +6865,28 @@
         });
       };
 
+      // Claim busy BEFORE any await so a second click cannot race past the guard
       adminDeleteBusy = true;
       setDeleteButtonsBusy(true);
       showToast('กำลังลบออเดอร์…');
 
       try {
+        // Local PIN UI can look "logged in" without a Supabase session — gate before RPC
+        if (typeof RachaweiStoreApi.getSession === 'function') {
+          try {
+            const session = await RachaweiStoreApi.getSession();
+            if (!session) {
+              console.error('[rachawei] adminDeleteOrder blocked: no_session', { orderId });
+              showToast('ยังไม่ได้เข้าสู่ระบบแอดมิน — กรุณา login ด้วยบัญชี Supabase ก่อนลบออเดอร์');
+              return;
+            }
+          } catch (sessionErr) {
+            console.error('[rachawei] adminDeleteOrder session check failed', sessionErr);
+            showToast('ตรวจ session ไม่สำเร็จ — ลอง login ใหม่แล้วลบอีกครั้ง');
+            return;
+          }
+        }
+
         let remote;
         try {
           remote = await RachaweiStoreApi.deleteOrderForAdmin(orderId);
