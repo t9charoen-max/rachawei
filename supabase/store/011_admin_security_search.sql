@@ -193,19 +193,22 @@ set search_path = public
 as $$
 declare
   v_limit integer := greatest(1, least(coalesce(p_limit, 50), 200));
-  v_q text := lower(trim(coalesce(p_query, '')));
-  v_digits text := regexp_replace(coalesce(p_query, ''), '\D', '', 'g');
+  v_raw text := trim(coalesce(p_query, ''));
+  v_q text := lower(v_raw);
+  v_digits text := regexp_replace(v_raw, '\D', '', 'g');
+  -- Phone mode only when query is digits / phone punctuation (not letters+digits like ZZZ999)
+  v_phone_mode boolean := (v_raw ~ '^[0-9+().\-\s]+$') and length(v_digits) >= 3;
   v_result jsonb;
 begin
   if auth.uid() is null or not public.store_is_admin() then
     raise exception 'not_admin';
   end if;
 
-  if v_q = '' and v_digits = '' then
+  if v_q = '' then
     return '[]'::jsonb;
   end if;
 
-  -- Thai mobile often stored as 08xxxxxxxx or 668xxxxxxxx — compare digit tails
+  -- Thai mobile often stored as 08xxxxxxxx or 668xxxxxxxx — compare digit tails in phone mode
   select coalesce(
     jsonb_agg(row_json order by created_at desc),
     '[]'::jsonb
@@ -249,18 +252,22 @@ begin
       ) as row_json
     from public.store_orders o
     where
-      (v_q <> '' and (
+      (
         lower(o.id) = v_q
         or lower(o.id) like '%' || v_q || '%'
         or lower(coalesce(o.customer_name, '')) like '%' || v_q || '%'
-      ))
-      or (length(v_digits) >= 3 and (
+      )
+      or (v_phone_mode and (
         regexp_replace(coalesce(o.customer_phone, ''), '\D', '', 'g') like '%' || v_digits || '%'
         or regexp_replace(coalesce(o.phone_display, ''), '\D', '', 'g') like '%' || v_digits || '%'
-        or right(regexp_replace(coalesce(o.customer_phone, ''), '\D', '', 'g'), 9)
-           = right(v_digits, 9)
-        or right(regexp_replace(coalesce(o.phone_display, ''), '\D', '', 'g'), 9)
-           = right(v_digits, 9)
+        or (
+          length(v_digits) >= 9 and (
+            right(regexp_replace(coalesce(o.customer_phone, ''), '\D', '', 'g'), 9)
+              = right(v_digits, 9)
+            or right(regexp_replace(coalesce(o.phone_display, ''), '\D', '', 'g'), 9)
+              = right(v_digits, 9)
+          )
+        )
       ))
     order by o.created_at desc
     limit v_limit

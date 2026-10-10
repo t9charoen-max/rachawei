@@ -45,6 +45,14 @@ ok('client exports searchOrdersForAdmin', /searchOrdersForAdmin/.test(client));
 ok('app customer search UI present', /adminCustomerSearch|runAdminCustomerSearch/.test(app));
 ok('API supports q search param', /req\.query\.q|store_admin_search_orders/.test(api));
 ok('API rejects missing token before data', /missing_token/.test(api));
+ok(
+  '011 phone mode avoids letter+digit false positives',
+  /v_phone_mode/.test(sql011) && /ZZZNOMATCH|letters\+digits|phone punctuation/i.test(sql011),
+);
+ok(
+  'admin helpers fall back when Vercel env missing',
+  /PUBLIC_FALLBACK/.test(fs.readFileSync(path.join(ROOT, 'api/_lib/storeSupabaseAdmin.ts'), 'utf8')),
+);
 
 // dry-run apply (no credentials → exit 2 is expected for apply mode; --dry-run should exit 0)
 try {

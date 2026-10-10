@@ -1,25 +1,59 @@
 /**
  * Server-only Supabase helpers (service role). Never import from frontend bundles.
+ * When Vercel env is missing, use the same public fallback as api/store-config.ts
+ * so JWT verify + admin RPC proxy work on rachawei-gamma.vercel.app.
  */
+
+/** Keep in sync with artifacts/js/supabase-public-fallback.json and api/store-config.ts */
+const PUBLIC_FALLBACK = {
+  url: 'https://jvgfudxdwdwfumdznymu.supabase.co',
+  anonKey: 'sb_publishable_oG6s4HUGebJ-XRyqU5gjeg_kfKqhYnY',
+} as const;
 
 function read(name: string): string {
   return String(process.env[name] || '').trim().replace(/^["']|["']$/g, '');
 }
 
-export function getSupabaseUrl(): string {
+function isValidSupabaseUrl(value: string): boolean {
+  try {
+    const parsed = new URL(value);
+    if (parsed.protocol !== 'https:') return false;
+    return (
+      parsed.hostname.endsWith('.supabase.co') ||
+      parsed.hostname.endsWith('.supabase.in')
+    );
+  } catch {
+    return false;
+  }
+}
+
+function isValidAnonKey(value: string, url: string): boolean {
+  if (!value || value === url) return false;
+  if (/service_role/i.test(value)) return false;
   return (
-    read('VITE_SUPABASE_URL') ||
-    read('SUPABASE_URL') ||
-    read('NEXT_PUBLIC_SUPABASE_URL')
+    value.startsWith('eyJ') ||
+    value.startsWith('sb_publishable_') ||
+    value.startsWith('sb_')
   );
 }
 
+export function getSupabaseUrl(): string {
+  const fromEnv =
+    read('VITE_SUPABASE_URL') ||
+    read('SUPABASE_URL') ||
+    read('NEXT_PUBLIC_SUPABASE_URL');
+  if (isValidSupabaseUrl(fromEnv)) return fromEnv;
+  return isValidSupabaseUrl(PUBLIC_FALLBACK.url) ? PUBLIC_FALLBACK.url : '';
+}
+
 export function getAnonKey(): string {
-  return (
+  const url = getSupabaseUrl();
+  const fromEnv =
     read('VITE_SUPABASE_ANON_KEY') ||
     read('SUPABASE_ANON_KEY') ||
-    read('NEXT_PUBLIC_SUPABASE_ANON_KEY')
-  );
+    read('NEXT_PUBLIC_SUPABASE_ANON_KEY');
+  if (isValidAnonKey(fromEnv, url)) return fromEnv;
+  return isValidAnonKey(PUBLIC_FALLBACK.anonKey, url) ? PUBLIC_FALLBACK.anonKey : '';
 }
 
 /** Prefer dedicated service role; never fall back to anon/publishable. */
