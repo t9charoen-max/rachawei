@@ -193,9 +193,42 @@ async function installOrderMocks(page, mode) {
       });
     }
     api.isConfigured = () => true;
+    // Session present unless explicitly testing unauthorized/no-session
+    api.getSession = async () => {
+      if (mockMode === 'no_session') return null;
+      return { user: { id: 'mock-admin-user' }, access_token: 'mock' };
+    };
     api.deleteOrderForAdmin = async (id) => {
+      if (mockMode === 'no_session') {
+        return { ok: false, error: 'no_session', message: 'ยังไม่ได้เข้าสู่ระบบแอดมิน — กรุณา login ก่อนลบออเดอร์' };
+      }
+      if (mockMode === 'not_admin') {
+        return {
+          ok: false,
+          error: 'not_admin',
+          message: 'ไม่มีสิทธิ์ลบออเดอร์ — ต้องเข้าสู่ระบบด้วยบัญชีแอดมินใน store_admins',
+        };
+      }
+      if (mockMode === 'order_not_found') {
+        return {
+          ok: false,
+          error: 'order_not_found',
+          message: 'ไม่พบออเดอร์นี้ในระบบ (อาจถูกลบไปแล้ว)',
+        };
+      }
       if (mockMode === 'fail') {
         return { ok: false, error: 'mock_fail', message: `ลบออเดอร์ไม่สำเร็จ (mock): ${id}` };
+      }
+      if (mockMode === 'false_ok') {
+        // Simulate RPC claiming ok while server list still has the row
+        return { ok: true, orderId: id, deletedItems: 1 };
+      }
+      if (mockMode === 'slow_ok') {
+        if (id !== 'RW-UI-SMOKE-001') {
+          return { ok: false, error: 'refused', message: 'ทดสอบลบได้เฉพาะ RW-UI-SMOKE-001' };
+        }
+        await new Promise((r) => setTimeout(r, 900));
+        return { ok: true, orderId: id, deletedItems: 1 };
       }
       if (id !== 'RW-UI-SMOKE-001') {
         return { ok: false, error: 'refused', message: 'ทดสอบลบได้เฉพาะ RW-UI-SMOKE-001' };
@@ -246,7 +279,10 @@ const browser = await puppeteer.launch({
 });
 
 const consoleErrors = [];
-const noise = (t) => /favicon|Failed to load resource|net::ERR|supabase|manifest|store-manifest|bad HTTP response code/i.test(t);
+const noise = (t) =>
+  /favicon|Failed to load resource|net::ERR|supabase|manifest|store-manifest|bad HTTP response code/i.test(t)
+  // Intentional diagnostics from delete failure paths under test
+  || /\[rachawei\]\s*(adminDeleteOrder|deleteOrderForAdmin)/i.test(t);
 
 try {
   const page = await browser.newPage();
@@ -485,11 +521,128 @@ try {
     );
   }
 
-  // Mocked delete success — only RW-UI-SMOKE-001
+  // Unauthorized (not_admin) — row stays, readable error, never success
   {
-    await installOrderMocks(page, 'ok');
-    // fetchOrdersForAdmin should return remaining after local filter — patch to exclude deleted id
+    await installOrderMocks(page, 'not_admin');
+    const onDlg = async (d) => { await d.accept(); };
+    page.on('dialog', onDlg);
+    await page.evaluate(() => window.adminDeleteOrder('RW-UI-SMOKE-001'));
+    await new Promise((r) => setTimeout(r, 600));
+    page.off('dialog', onDlg);
+    const still = await page.$('[data-order-id="RW-UI-SMOKE-001"]');
+    const toastText = await page.evaluate(() => document.getElementById('toast')?.textContent || '');
+    ok(
+      'not_admin delete keeps row + shows permission error',
+      !!still && /ไม่มีสิทธิ์|store_admins|แอดมิน/i.test(toastText) && !/ลบออเดอร์ RW-UI-SMOKE-001 สำเร็จ/.test(toastText),
+      `toast=${toastText.slice(0, 120)}`,
+    );
+  }
+
+  // No Supabase session — blocked before delete, row stays
+  {
+    await installOrderMocks(page, 'no_session');
+    const onDlg = async (d) => { await d.accept(); };
+    page.on('dialog', onDlg);
+    await page.evaluate(() => window.adminDeleteOrder('RW-UI-SMOKE-001'));
+    await new Promise((r) => setTimeout(r, 600));
+    page.off('dialog', onDlg);
+    const still = await page.$('[data-order-id="RW-UI-SMOKE-001"]');
+    const toastText = await page.evaluate(() => document.getElementById('toast')?.textContent || '');
+    ok(
+      'no_session delete keeps row + asks to login',
+      !!still && /login|เข้าสู่ระบบ|session/i.test(toastText) && !/สำเร็จ/.test(toastText),
+      `toast=${toastText.slice(0, 120)}`,
+    );
+  }
+
+  // False RPC ok + refresh still has order — must NOT claim success
+  {
+    await installOrderMocks(page, 'false_ok');
     await page.evaluate(() => {
+      window.RachaweiStoreApi.fetchOrdersForAdmin = async () => ({
+        ok: true,
+        source: 'mock',
+        orders: [
+          {
+            id: 'RW-UI-SMOKE-001',
+            name: 'ยังอยู่',
+            phone: '0800000000',
+            phoneDisplay: '080-000-0000',
+            address: 'mock',
+            method: 'cod',
+            statusIndex: 0,
+            subtotal: 1,
+            shippingFee: 0,
+            promoDiscount: 0,
+            total: 1,
+            items: [],
+            paymentSlip: null,
+            history: [],
+            createdAt: Date.now(),
+          },
+          {
+            id: 'RW-UI-SMOKE-002',
+            name: 'ลูกค้า สำรอง',
+            phone: '0800000000',
+            phoneDisplay: '080-000-0000',
+            address: 'mock',
+            method: 'cod',
+            statusIndex: 1,
+            subtotal: 1,
+            shippingFee: 0,
+            promoDiscount: 0,
+            total: 1,
+            items: [],
+            paymentSlip: null,
+            history: [],
+            createdAt: Date.now(),
+          },
+        ],
+      });
+    });
+    const onDlg = async (d) => { await d.accept(); };
+    page.on('dialog', onDlg);
+    await page.evaluate(() => window.adminDeleteOrder('RW-UI-SMOKE-001'));
+    await new Promise((r) => setTimeout(r, 800));
+    page.off('dialog', onDlg);
+    const after = await page.evaluate(() => ({
+      smoke1: !!document.querySelector('[data-order-id="RW-UI-SMOKE-001"]'),
+      toast: document.getElementById('toast')?.textContent || '',
+    }));
+    ok(
+      'refresh still has order → no false success toast',
+      after.smoke1 && /ไม่สำเร็จ|ยังอยู่/.test(after.toast) && !/ลบออเดอร์ RW-UI-SMOKE-001 สำเร็จ$/.test(after.toast.trim()),
+      JSON.stringify(after),
+    );
+  }
+
+  // order_not_found — keep row, readable error, never success
+  {
+    await installOrderMocks(page, 'order_not_found');
+    const onDlg = async (d) => { await d.accept(); };
+    page.on('dialog', onDlg);
+    await page.evaluate(() => window.adminDeleteOrder('RW-UI-SMOKE-001'));
+    await new Promise((r) => setTimeout(r, 600));
+    page.off('dialog', onDlg);
+    const still = await page.$('[data-order-id="RW-UI-SMOKE-001"]');
+    const toastText = await page.evaluate(() => document.getElementById('toast')?.textContent || '');
+    ok(
+      'order_not_found keeps row + clear message',
+      !!still && /ไม่พบออเดอร์|ถูกลบไปแล้ว/i.test(toastText) && !/ลบออเดอร์ RW-UI-SMOKE-001 สำเร็จ/.test(toastText),
+      `toast=${toastText.slice(0, 120)}`,
+    );
+  }
+
+  // Double-click while busy + successful delete (single RPC) + refresh stay-gone
+  {
+    await installOrderMocks(page, 'slow_ok');
+    await page.evaluate(() => {
+      window.__deleteCallCount = 0;
+      const prev = window.RachaweiStoreApi.deleteOrderForAdmin;
+      window.RachaweiStoreApi.deleteOrderForAdmin = async (id) => {
+        window.__deleteCallCount += 1;
+        return prev(id);
+      };
       window.RachaweiStoreApi.fetchOrdersForAdmin = async () => {
         const keep = ['RW-UI-SMOKE-002', 'RW-TEST-DIRECT', 'RW-DIRECT-SHOULD-FAIL'];
         return {
@@ -517,13 +670,17 @@ try {
     });
     const onDlg = async (d) => { await d.accept(); };
     page.on('dialog', onDlg);
-    await page.evaluate(() => window.adminDeleteOrder('RW-UI-SMOKE-001'));
+    await page.evaluate(() => {
+      void window.adminDeleteOrder('RW-UI-SMOKE-001');
+      void window.adminDeleteOrder('RW-UI-SMOKE-001');
+    });
     await page.waitForFunction(
       () => !document.querySelector('[data-order-id="RW-UI-SMOKE-001"]'),
-      { timeout: 8000 },
+      { timeout: 10000 },
     );
     page.off('dialog', onDlg);
     const after = await page.evaluate(() => ({
+      calls: window.__deleteCallCount,
       smoke1: !!document.querySelector('[data-order-id="RW-UI-SMOKE-001"]'),
       smoke2: !!document.querySelector('[data-order-id="RW-UI-SMOKE-002"]'),
       test: !!document.querySelector('[data-order-id="RW-TEST-DIRECT"]'),
@@ -531,9 +688,42 @@ try {
       toast: document.getElementById('toast')?.textContent || '',
     }));
     ok(
+      'double delete while busy calls RPC once only',
+      after.calls === 1,
+      JSON.stringify({ calls: after.calls, toast: after.toast.slice(0, 80) }),
+    );
+    ok(
       'mocked Supabase delete success removes only RW-UI-SMOKE-001',
       !after.smoke1 && after.smoke2 && after.test && after.fail && /สำเร็จ/.test(after.toast),
       JSON.stringify(after),
+    );
+
+    // Refresh again — deleted order must not reappear
+    await page.evaluate(() => {
+      document.getElementById('adminRetryOrdersBtn')?.click();
+    });
+    await new Promise((r) => setTimeout(r, 500));
+    const afterRefresh = await page.evaluate(() => ({
+      smoke1: !!document.querySelector('[data-order-id="RW-UI-SMOKE-001"]'),
+      smoke2: !!document.querySelector('[data-order-id="RW-UI-SMOKE-002"]'),
+    }));
+    ok(
+      'deleted order stays gone after list refresh',
+      !afterRefresh.smoke1 && afterRefresh.smoke2,
+      JSON.stringify(afterRefresh),
+    );
+
+    // Already-deleted / missing from list — clear toast, no crash
+    const onDlg2 = async (d) => { await d.accept(); };
+    page.on('dialog', onDlg2);
+    await page.evaluate(() => window.adminDeleteOrder('RW-UI-SMOKE-001'));
+    await new Promise((r) => setTimeout(r, 400));
+    page.off('dialog', onDlg2);
+    const missingToast = await page.evaluate(() => document.getElementById('toast')?.textContent || '');
+    ok(
+      'delete already-removed order shows not-found (no false success)',
+      /ไม่พบออเดอร์/.test(missingToast) && !/ลบออเดอร์ RW-UI-SMOKE-001 สำเร็จ/.test(missingToast),
+      `toast=${missingToast.slice(0, 120)}`,
     );
   }
 
