@@ -37,9 +37,10 @@ npm run dev
 3. สร้างผู้ใช้เจ้าของร้านใน Authentication (อีเมลจริง — ห้ามใช้ owner@example.com)
    - แนะนำ Auto Confirm / ปิด Confirm email สำหรับร้าน
    - ปิด public sign-up หลังมีเจ้าของร้านแล้ว
-4. ลิงก์สิทธิ์แอดมินอย่างใดอย่างหนึ่ง:
-   - login ครั้งแรกที่ `/store/#admin` (ถ้า `store_admins` ว่าง → `store_claim_first_admin`)
-   - หรือ SQL: `select public.store_link_admin_by_email('you@yourdomain.com');`
+4. ลิงก์สิทธิ์แอดมินอย่างใดอย่างหนึ่ง (ห้าม auto-claim จาก login ครั้งแรก):
+   - SQL Editor: `select public.store_link_admin_by_email('you@yourdomain.com');`
+   - หรือ `POST /api/store-admin-bootstrap` พร้อม `STORE_ADMIN_BOOTSTRAP_SECRET` + `SUPABASE_SERVICE_ROLE_KEY`
+   - รัน `006` + `011` ให้ claim ถูกปิด และมี `store_admin_search_orders`
 5. ตั้งค่าใน Vercel (Production) ให้ถูกต้อง — คนละค่า:
    - `VITE_SUPABASE_URL` = `https://YOUR_PROJECT.supabase.co`
    - `VITE_SUPABASE_ANON_KEY` = anon/publishable key (`eyJ…` หรือ `sb_publishable_…`)

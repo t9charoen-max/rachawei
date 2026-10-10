@@ -48,7 +48,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       projectUrlHost: host,
       hint: hasServiceRole()
         ? 'พร้อม bootstrap — ส่ง POST พร้อม secret + email + password'
-        : 'ยังไม่มี SUPABASE_SERVICE_ROLE_KEY บน Vercel — หรือรัน supabase/store/006_admin_auth_grants_bootstrap.sql ใน SQL Editor แล้วใช้ store_claim_first_admin / store_link_admin_by_email',
+        : 'ยังไม่มี SUPABASE_SERVICE_ROLE_KEY บน Vercel — หรือรัน SQL 006+011 ใน SQL Editor แล้วใช้ store_link_admin_by_email (first-user claim ถูกปิดแล้ว)',
     });
   }
 

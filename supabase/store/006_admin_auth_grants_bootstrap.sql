@@ -67,36 +67,27 @@ $$;
 revoke all on function public.store_is_admin() from public;
 grant execute on function public.store_is_admin() to anon, authenticated;
 
--- First authenticated user may claim admin ONLY while store_admins is empty.
--- Disable public sign-up in Auth settings after the owner is set.
+-- First-user auto-claim DISABLED (security).
+-- Promote admins only via store_link_admin_by_email (SQL Editor / service role)
+-- or POST /api/store-admin-bootstrap with STORE_ADMIN_BOOTSTRAP_SECRET.
+-- See also 011_admin_security_search.sql for hardening + search RPC.
 create or replace function public.store_claim_first_admin()
 returns jsonb
 language plpgsql
 security definer
 set search_path = public
 as $$
-declare
-  v_email text;
-  v_count integer;
 begin
   if auth.uid() is null then
     raise exception 'not_authenticated';
   end if;
 
-  select count(*)::integer into v_count from public.store_admins;
-  if v_count > 0 then
-    if public.store_is_admin() then
-      return jsonb_build_object('ok', true, 'claimed', false, 'already_admin', true);
-    end if;
-    raise exception 'admin_already_configured';
+  if public.store_is_admin() then
+    return jsonb_build_object('ok', true, 'claimed', false, 'already_admin', true);
   end if;
 
-  select email into v_email from auth.users where id = auth.uid();
-  insert into public.store_admins (user_id, email)
-  values (auth.uid(), v_email)
-  on conflict (user_id) do nothing;
-
-  return jsonb_build_object('ok', true, 'claimed', true, 'email', v_email);
+  raise exception 'bootstrap_disabled'
+    using hint = 'Use store_link_admin_by_email in SQL Editor or POST /api/store-admin-bootstrap with server secret';
 end;
 $$;
 

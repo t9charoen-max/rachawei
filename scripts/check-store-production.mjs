@@ -61,10 +61,11 @@ check(
   client.ok && client.text.includes('store_create_order'),
 );
 check(
-  'supabase-client has ensureAdminAccess / claimFirstAdmin',
+  'supabase-client has ensureAdminAccess (no live claim RPC)',
   client.ok &&
     client.text.includes('ensureAdminAccess') &&
-    client.text.includes('claimFirstAdmin'),
+    !client.text.includes("rpc('store_claim_first_admin')") &&
+    !client.text.includes('rpc("store_claim_first_admin")'),
 );
 check(
   'supabase-client has deleteOrderForAdmin',

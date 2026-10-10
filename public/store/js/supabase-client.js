@@ -1045,73 +1045,77 @@
   }
 
   /**
-   * Claim first admin when store_admins is empty (SQL 006).
-   * Returns { ok, claimed, alreadyAdmin, error, message }
+   * Deprecated stub — never calls store_claim_first_admin.
+   * Kept for API compatibility; Production may still have the old promoting RPC
+   * until SQL 011 is applied, so the client must not invoke it.
    */
   async function claimFirstAdmin() {
-    const sb = getClient();
-    if (!sb) {
-      return {
-        ok: false,
-        error: 'supabase_not_configured',
-        message: 'ยังเชื่อมต่อ Supabase ไม่ได้',
-      };
-    }
-    const { data, error } = await sb.rpc('store_claim_first_admin');
-    if (error) {
-      const msg = String(error.message || '');
-      if (/admin_already_configured/i.test(msg)) {
-        return {
-          ok: false,
-          error: 'admin_already_configured',
-          message:
-            'มีแอดมินในระบบแล้ว — บัญชีนี้ยังไม่อยู่ใน store_admins ให้เจ้าของร้านเพิ่มสิทธิ์ใน Supabase',
-        };
-      }
-      if (/not_authenticated/i.test(msg)) {
-        return {
-          ok: false,
-          error: 'not_authenticated',
-          message: 'ยังไม่ได้เข้าสู่ระบบ',
-        };
-      }
-      if (/store_claim_first_admin|PGRST202|404|function/i.test(msg)) {
-        return {
-          ok: false,
-          error: 'rpc_missing',
-          message:
-            'ยังไม่ได้รัน SQL 006 (store_claim_first_admin) ใน Supabase — หรือใช้ /api/store-admin-bootstrap ฝั่งเซิร์ฟเวอร์',
-        };
-      }
-      return { ok: false, error: 'claim_failed', message: msg };
-    }
     return {
-      ok: true,
-      claimed: Boolean(data?.claimed),
-      alreadyAdmin: Boolean(data?.already_admin),
-      email: data?.email || null,
+      ok: false,
+      claimed: false,
+      error: 'bootstrap_disabled',
+      message:
+        'บัญชีนี้ไม่มีสิทธิ์แอดมิน — ให้เจ้าของร้านเพิ่มใน store_admins ผ่าน SQL (store_link_admin_by_email) หรือ /api/store-admin-bootstrap (ไม่มีการให้สิทธิ์อัตโนมัติจากการสมัครครั้งแรก)',
     };
   }
 
+  /** Admin gate: membership in store_admins only — never auto-promote. */
   async function ensureAdminAccess() {
     if (await isAdminUser()) return { ok: true, via: 'store_admins' };
-    const claim = await claimFirstAdmin();
-    if (claim.ok) {
-      const ok = await isAdminUser();
-      return ok
-        ? { ok: true, via: claim.claimed ? 'claimed_first_admin' : 'already_admin' }
-        : {
-            ok: false,
-            error: 'not_admin',
-            message: 'เข้าสู่ระบบแล้วแต่ยังไม่มีสิทธิ์แอดมิน',
-          };
-    }
     return {
       ok: false,
-      error: claim.error || 'not_admin',
+      error: 'not_admin',
       message:
-        claim.message ||
-        'บัญชีนี้ไม่มีสิทธิ์แอดมิน — ต้องอยู่ในตาราง store_admins',
+        'บัญชีนี้ไม่มีสิทธิ์แอดมิน — ต้องอยู่ในตาราง store_admins (ไม่มีการให้สิทธิ์อัตโนมัติจากการสมัครครั้งแรก)',
+    };
+  }
+
+  /**
+   * Admin-only search by phone digits and/or order id (SQL 011 RPC).
+   * Falls back to null when RPC missing so UI can use local filter.
+   */
+  async function searchOrdersForAdmin(query, limit = 50) {
+    const sb = getClient();
+    if (!sb) {
+      return { ok: false, error: 'supabase_not_configured', orders: [] };
+    }
+    const session = await getSession();
+    if (!session) {
+      return { ok: false, error: 'no_session', orders: [], message: 'ยังไม่ได้เข้าสู่ระบบแอดมิน' };
+    }
+    const q = String(query || '').trim();
+    if (!q) {
+      return { ok: true, orders: [], emptyQuery: true };
+    }
+    const { data, error } = await sb.rpc('store_admin_search_orders', {
+      p_query: q,
+      p_limit: Math.max(1, Math.min(Number(limit) || 50, 200)),
+    });
+    if (error) {
+      const msg = String(error.message || '');
+      if (/not_admin/i.test(msg)) {
+        return {
+          ok: false,
+          error: 'not_admin',
+          orders: [],
+          message: 'ไม่มีสิทธิ์ค้นหาออเดอร์ลูกค้า',
+        };
+      }
+      if (/PGRST202|Could not find the function|404/i.test(msg)) {
+        return {
+          ok: false,
+          error: 'rpc_missing',
+          orders: [],
+          message: 'ยังไม่มี RPC store_admin_search_orders — รัน SQL 011',
+        };
+      }
+      return { ok: false, error: 'search_failed', orders: [], message: msg };
+    }
+    const rows = Array.isArray(data) ? data : [];
+    return {
+      ok: true,
+      orders: rows.map((row) => normalizeAdminOrder(row, row.items || [])),
+      source: 'store_admin_search_orders',
     };
   }
 
@@ -1185,5 +1189,6 @@
     isAdminUser,
     claimFirstAdmin,
     ensureAdminAccess,
+    searchOrdersForAdmin,
   };
 })(typeof window !== 'undefined' ? window : globalThis);
