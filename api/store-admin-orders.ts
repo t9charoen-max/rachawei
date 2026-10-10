@@ -25,6 +25,13 @@ function digitsOnly(s: string): string {
   return String(s || '').replace(/\D/g, '');
 }
 
+/** True when query is phone-like (digits / phone punctuation only). */
+function isPhoneQuery(query: string): boolean {
+  const q = query.trim();
+  if (!q) return false;
+  return /^[0-9+().\-\s]+$/.test(q) && digitsOnly(q).length >= 3;
+}
+
 /** In-memory filter when RPC 011 is not yet applied — still admin-gated. */
 function filterOrdersLocal(
   orders: Array<Record<string, unknown>>,
@@ -32,6 +39,7 @@ function filterOrdersLocal(
 ): Array<Record<string, unknown>> {
   const q = query.trim().toLowerCase();
   const dig = digitsOnly(query);
+  const phoneMode = isPhoneQuery(query);
   if (!q) return orders;
   return orders.filter((o) => {
     const id = String(o.id || '').toLowerCase();
@@ -40,9 +48,12 @@ function filterOrdersLocal(
     const phoneDisp = digitsOnly(String(o.phone_display || ''));
     const addr = String(o.customer_address || '').toLowerCase();
     if (id.includes(q) || name.includes(q) || addr.includes(q)) return true;
-    if (dig.length >= 3) {
+    // Avoid false positives from letters+digits (e.g. ZZZNOMATCH999 → 999)
+    if (phoneMode && dig.length >= 3) {
       if (phone.includes(dig) || phoneDisp.includes(dig)) return true;
-      if (phone.slice(-9) === dig.slice(-9) || phoneDisp.slice(-9) === dig.slice(-9)) return true;
+      if (dig.length >= 9 && (phone.slice(-9) === dig.slice(-9) || phoneDisp.slice(-9) === dig.slice(-9))) {
+        return true;
+      }
     }
     return false;
   });
@@ -66,10 +77,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const auth = await verifyUserJwt(token);
   if (!auth.ok || !auth.user) {
+    const err = auth.error || 'invalid_session';
     return res.status(401).json({
       ok: false,
-      error: 'invalid_session',
-      message: 'เซสชันหมดอายุหรือไม่ถูกต้อง — กรุณาเข้าสู่ระบบใหม่',
+      error: err,
+      message:
+        err === 'auth_not_configured'
+          ? 'เซิร์ฟเวอร์ยังตั้งค่า Supabase ไม่ครบ — ตรวจ VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY'
+          : 'เซสชันหมดอายุหรือไม่ถูกต้อง — กรุณาเข้าสู่ระบบใหม่',
     });
   }
 

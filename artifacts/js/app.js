@@ -6070,6 +6070,7 @@
       // Fallback: local filter on already-loaded admin orders (still requires admin session to have loaded them)
       const qLower = q.toLowerCase();
       const qDigits = q.replace(/\D/g, '');
+      const phoneMode = /^[0-9+().\-\s]+$/.test(q) && qDigits.length >= 3;
       const local = orders.filter((o) => {
         const id = String(o.id || '').toLowerCase();
         const name = String(o.name || '').toLowerCase();
@@ -6079,8 +6080,9 @@
           id.includes(qLower)
           || name.includes(qLower)
           || address.includes(qLower)
-          || (qDigits.length >= 3 && phoneDigits.includes(qDigits))
-          || (qDigits.length >= 9 && phoneDigits.slice(-9) === qDigits.slice(-9))
+          // Avoid false positives from letters+digits (e.g. ZZZNOMATCH999 → 999)
+          || (phoneMode && qDigits.length >= 3 && phoneDigits.includes(qDigits))
+          || (phoneMode && qDigits.length >= 9 && phoneDigits.slice(-9) === qDigits.slice(-9))
         );
       });
       adminCustomerSearchRows = local;
