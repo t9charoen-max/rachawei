@@ -718,17 +718,23 @@
   async function deleteOrderForAdmin(orderId) {
     const sb = getClient();
     if (!sb) {
-      return { ok: false, error: 'supabase_not_configured', message: mapDeleteOrderError('supabase_not_configured') };
+      const message = mapDeleteOrderError('supabase_not_configured');
+      console.error('[rachawei] deleteOrderForAdmin:', 'supabase_not_configured');
+      return { ok: false, error: 'supabase_not_configured', message };
     }
 
     const session = await getSession();
     if (!session) {
-      return { ok: false, error: 'no_session', message: mapDeleteOrderError('no_session') };
+      const message = mapDeleteOrderError('no_session');
+      console.error('[rachawei] deleteOrderForAdmin:', 'no_session', { orderId: String(orderId || '') });
+      return { ok: false, error: 'no_session', message };
     }
 
     const id = String(orderId || '').trim();
     if (!id) {
-      return { ok: false, error: 'missing_order_id', message: mapDeleteOrderError('missing_order_id') };
+      const message = mapDeleteOrderError('missing_order_id');
+      console.error('[rachawei] deleteOrderForAdmin:', 'missing_order_id');
+      return { ok: false, error: 'missing_order_id', message };
     }
 
     try {
@@ -736,29 +742,37 @@
         p_order_id: id,
       });
       if (error) {
+        const message = mapDeleteOrderError(error);
+        console.error('[rachawei] deleteOrderForAdmin RPC error', { orderId: id, error });
         return {
           ok: false,
           error: error.message || 'delete_failed',
-          message: mapDeleteOrderError(error),
+          message,
         };
       }
-      if (data && data.ok === false) {
+      // Require explicit ok:true — never treat null/undefined payload as success
+      if (!data || data.ok !== true) {
+        const code = (data && (data.error || data.message)) || 'delete_failed';
+        const message = mapDeleteOrderError(code);
+        console.error('[rachawei] deleteOrderForAdmin rejected payload', { orderId: id, data });
         return {
           ok: false,
-          error: data.error || 'delete_failed',
-          message: mapDeleteOrderError(data.error || data.message || 'delete_failed'),
+          error: code,
+          message,
         };
       }
       return {
         ok: true,
-        orderId: (data && data.order_id) || id,
-        deletedItems: data && data.deleted_items != null ? Number(data.deleted_items) : null,
+        orderId: data.order_id || id,
+        deletedItems: data.deleted_items != null ? Number(data.deleted_items) : null,
       };
     } catch (e) {
+      const message = mapDeleteOrderError(e);
+      console.error('[rachawei] deleteOrderForAdmin exception', { orderId: id, error: e });
       return {
         ok: false,
         error: e?.message || 'delete_failed',
-        message: mapDeleteOrderError(e),
+        message,
       };
     }
   }
@@ -1176,6 +1190,7 @@
     updateOrderStatus,
     rejectPaymentSlipForAdmin,
     deleteOrderForAdmin,
+    mapDeleteOrderError,
     upsertProduct,
     deleteProductRemote,
     fetchActiveVideos,

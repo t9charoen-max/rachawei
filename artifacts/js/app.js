@@ -6858,42 +6858,93 @@
         return;
       }
 
+      const setDeleteButtonsBusy = (busy) => {
+        document.querySelectorAll(`[data-order-action="delete"][data-order-id="${orderId}"]`).forEach((btn) => {
+          btn.disabled = busy;
+          btn.textContent = busy ? 'กำลังลบ…' : 'ลบออเดอร์';
+        });
+      };
+
+      // Claim busy BEFORE any await so a second click cannot race past the guard
       adminDeleteBusy = true;
-      document.querySelectorAll(`[data-order-action="delete"][data-order-id="${orderId}"]`).forEach((btn) => {
-        btn.disabled = true;
-        btn.textContent = 'กำลังลบ…';
-      });
+      setDeleteButtonsBusy(true);
       showToast('กำลังลบออเดอร์…');
 
-      let remote;
       try {
-        remote = await RachaweiStoreApi.deleteOrderForAdmin(orderId);
-      } catch (err) {
-        remote = { ok: false, error: err?.message || 'delete_failed', message: err?.message || 'ลบออเดอร์ไม่สำเร็จ' };
-      }
+        // Local PIN UI can look "logged in" without a Supabase session — gate before RPC
+        if (typeof RachaweiStoreApi.getSession === 'function') {
+          try {
+            const session = await RachaweiStoreApi.getSession();
+            if (!session) {
+              console.error('[rachawei] adminDeleteOrder blocked: no_session', { orderId });
+              showToast('ยังไม่ได้เข้าสู่ระบบแอดมิน — กรุณา login ด้วยบัญชี Supabase ก่อนลบออเดอร์');
+              return;
+            }
+          } catch (sessionErr) {
+            console.error('[rachawei] adminDeleteOrder session check failed', sessionErr);
+            showToast('ตรวจ session ไม่สำเร็จ — ลอง login ใหม่แล้วลบอีกครั้ง');
+            return;
+          }
+        }
 
-      if (!remote || !remote.ok) {
+        let remote;
+        try {
+          remote = await RachaweiStoreApi.deleteOrderForAdmin(orderId);
+        } catch (err) {
+          remote = {
+            ok: false,
+            error: err?.message || 'delete_failed',
+            message: err?.message || 'ลบออเดอร์ไม่สำเร็จ',
+          };
+        }
+
+        if (!remote || !remote.ok) {
+          console.error('[rachawei] adminDeleteOrder failed', { orderId, remote });
+          // Keep the row on screen — never hide on failure
+          showToast(remote?.message || remote?.error || 'ลบออเดอร์ไม่สำเร็จ');
+          refreshOpenAdminOrderDetail(orderId);
+          return;
+        }
+
+        // Only remove locally after Supabase confirms delete
+        orders = orders.filter((x) => x.id !== orderId);
+        saveOrders();
+        closeAdminOrderDetail();
+
+        let refresh = { ok: false };
+        try {
+          refresh = await refreshAdminOrdersFromSupabase();
+        } catch (refreshErr) {
+          console.error('[rachawei] adminDeleteOrder refresh failed', refreshErr);
+          refresh = { ok: false, error: refreshErr?.message || 'refresh_failed' };
+        }
+
+        const stillPresent = orders.some((x) => x.id === orderId);
+        if (refresh?.ok && stillPresent) {
+          // RPC claimed success but authoritative list still has the order — never false success
+          console.error('[rachawei] adminDeleteOrder: order still present after refresh', {
+            orderId,
+            refresh,
+          });
+          showToast('ลบออเดอร์ไม่สำเร็จ: ออเดอร์ยังอยู่ในฐานข้อมูลหลังลบ — ลองรีเฟรชหรือตรวจสิทธิ์แอดมิน');
+          renderAdminTab(adminTab);
+          return;
+        }
+
+        renderAdminTab(adminTab);
+        if (!refresh?.ok) {
+          console.warn('[rachawei] adminDeleteOrder: deleted remotely but list refresh failed', {
+            orderId,
+            refresh,
+          });
+          showToast(`ลบออเดอร์ ${orderId} สำเร็จ — แต่รีเฟรชรายการไม่สำเร็จ ลองกดรีเฟรช`);
+          return;
+        }
+        showToast(`ลบออเดอร์ ${orderId} สำเร็จ`);
+      } finally {
         adminDeleteBusy = false;
-        document.querySelectorAll(`[data-order-action="delete"][data-order-id="${orderId}"]`).forEach((btn) => {
-          btn.disabled = false;
-          btn.textContent = 'ลบออเดอร์';
-        });
-        // Keep the row on screen — never hide on failure
-        showToast(remote?.message || remote?.error || 'ลบออเดอร์ไม่สำเร็จ');
-        refreshOpenAdminOrderDetail(orderId);
-        return;
+        setDeleteButtonsBusy(false);
       }
-
-      // Only remove locally after Supabase confirms delete
-      orders = orders.filter((x) => x.id !== orderId);
-      saveOrders();
-      closeAdminOrderDetail();
-      try {
-        await refreshAdminOrdersFromSupabase();
-      } catch (_) { /* local list already updated from ack */ }
-      adminDeleteBusy = false;
-      renderAdminTab(adminTab);
-      showToast(`ลบออเดอร์ ${orderId} สำเร็จ`);
     };
 
     window.closeAdminOrderDetail = closeAdminOrderDetail;
