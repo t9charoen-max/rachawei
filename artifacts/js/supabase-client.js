@@ -1045,65 +1045,27 @@
   }
 
   /**
-   * Legacy RPC probe only — first-user claim is DISABLED (SQL 011).
-   * Never promotes the caller into store_admins.
+   * Deprecated stub — never calls store_claim_first_admin.
+   * Kept for API compatibility; Production may still have the old promoting RPC
+   * until SQL 011 is applied, so the client must not invoke it.
    */
   async function claimFirstAdmin() {
-    const sb = getClient();
-    if (!sb) {
-      return {
-        ok: false,
-        error: 'supabase_not_configured',
-        message: 'ยังเชื่อมต่อ Supabase ไม่ได้',
-      };
-    }
-    const { data, error } = await sb.rpc('store_claim_first_admin');
-    if (error) {
-      const msg = String(error.message || '');
-      if (/bootstrap_disabled|admin_already_configured/i.test(msg)) {
-        return {
-          ok: false,
-          error: 'bootstrap_disabled',
-          message:
-            'บัญชีนี้ไม่มีสิทธิ์แอดมิน — ให้เจ้าของร้านเพิ่มใน store_admins ผ่าน SQL (store_link_admin_by_email) หรือ /api/store-admin-bootstrap',
-        };
-      }
-      if (/not_authenticated/i.test(msg)) {
-        return {
-          ok: false,
-          error: 'not_authenticated',
-          message: 'ยังไม่ได้เข้าสู่ระบบ',
-        };
-      }
-      if (/store_claim_first_admin|PGRST202|404|function/i.test(msg)) {
-        return {
-          ok: false,
-          error: 'rpc_missing',
-          message:
-            'ยังไม่ได้รัน SQL 006/011 ใน Supabase — หรือใช้ /api/store-admin-bootstrap ฝั่งเซิร์ฟเวอร์',
-        };
-      }
-      return { ok: false, error: 'claim_failed', message: msg };
-    }
-    // Even if RPC returns already_admin, require store_is_admin()
     return {
-      ok: Boolean(data?.already_admin),
+      ok: false,
       claimed: false,
-      alreadyAdmin: Boolean(data?.already_admin),
-      email: data?.email || null,
+      error: 'bootstrap_disabled',
+      message:
+        'บัญชีนี้ไม่มีสิทธิ์แอดมิน — ให้เจ้าของร้านเพิ่มใน store_admins ผ่าน SQL (store_link_admin_by_email) หรือ /api/store-admin-bootstrap (ไม่มีการให้สิทธิ์อัตโนมัติจากการสมัครครั้งแรก)',
     };
   }
 
   /** Admin gate: membership in store_admins only — never auto-promote. */
   async function ensureAdminAccess() {
     if (await isAdminUser()) return { ok: true, via: 'store_admins' };
-    // Probe legacy RPC for clearer error copy; do not treat claim as success path.
-    const claim = await claimFirstAdmin();
     return {
       ok: false,
-      error: claim.error || 'not_admin',
+      error: 'not_admin',
       message:
-        claim.message ||
         'บัญชีนี้ไม่มีสิทธิ์แอดมิน — ต้องอยู่ในตาราง store_admins (ไม่มีการให้สิทธิ์อัตโนมัติจากการสมัครครั้งแรก)',
     };
   }

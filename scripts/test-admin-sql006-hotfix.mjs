@@ -36,6 +36,11 @@ ok('apply script has --status mode', /STATUS_ONLY|--status/.test(apply));
 ok('workflow does not fail when secrets missing', /ready=false/.test(wf) && /skip apply/i.test(wf));
 ok('workflow no longer uses secrets!= empty job if', !/if:\s*\$\{\{\s*secrets\.SUPABASE_ACCESS_TOKEN\s*!=/.test(wf));
 ok('client ensureAdminAccess never auto-promotes', /never auto-promote|ไม่มีการให้สิทธิ์อัตโนมัติ/.test(client));
+ok(
+  'client never invokes store_claim_first_admin RPC',
+  !/\.rpc\(\s*['"]store_claim_first_admin['"]/.test(client) &&
+    !/ensureAdminAccess[\s\S]{0,500}?claimFirstAdmin\s*\(/.test(client),
+);
 ok('client exports searchOrdersForAdmin', /searchOrdersForAdmin/.test(client));
 ok('app customer search UI present', /adminCustomerSearch|runAdminCustomerSearch/.test(app));
 ok('API supports q search param', /req\.query\.q|store_admin_search_orders/.test(api));
