@@ -8,9 +8,12 @@
 2. ถ้ามีตารางแล้ว: รัน `004_ensure_production_rpc.sql` (ไม่ลบสินค้า)
 3. **จำเป็นสำหรับ Admin:** รัน `006_admin_auth_grants_bootstrap.sql`
    - ให้สิทธิ์ตาราง (GRANT) ที่ขาด
-   - สร้าง `store_claim_first_admin()`
+   - `store_claim_first_admin()` **ถูกปิด** (ไม่ให้สิทธิ์แอดมินอัตโนมัติจากการสมัครครั้งแรก)
    - สร้าง/อัปเดต `store_admin_list_orders()`
    - มี `store_link_admin_by_email(email)` สำหรับลิงก์จาก SQL Editor
+3b. **ความปลอดภัย + ค้นหาลูกค้า:** รัน `011_admin_security_search.sql`
+   - Harden RLS ให้ `authenticated` ต้องผ่าน `store_is_admin()`
+   - สร้าง `store_admin_search_orders(p_query, p_limit)` ค้นด้วยเบอร์/เลขออเดอร์
 4. **ลบออเดอร์ (Admin):** รัน `007_store_admin_delete_order.sql` (ถ้ายังไม่มี)
    - สร้าง `store_admin_delete_order(p_order_id)` ตรวจสิทธิ์ด้วย `store_is_admin()`
 5. **Shop settings public view:** รัน `008_fix_shop_settings_public_view.sql` (ถ้า anon อ่าน settings ไม่ได้)
@@ -30,8 +33,11 @@
    - ใส่อีเมลจริงของเจ้าของร้าน + รหัสผ่าน  
    - ติ๊ก Auto Confirm user (หรือปิด Confirm email ใน Auth settings)
 2. ปิด **Public sign-up** ใน Auth settings
-3. เปิด `/store/#admin` → login ด้วยอีเมล/รหัสนั้น  
-   - ถ้า `store_admins` ว่าง ระบบจะเรียก `store_claim_first_admin()` ให้อัตโนมัติ
+3. ใน SQL Editor ลิงก์สิทธิ์แอดมิน (บังคับ — ไม่มี auto-claim):
+```sql
+select public.store_link_admin_by_email('อีเมลจริงของคุณ@domain.com');
+```
+4. เปิด `/store/#admin` → login ด้วยอีเมล/รหัสนั้น
 
 ### วิธี B — ลิงก์ user ที่มีอยู่แล้ว (SQL Editor)
 ```sql

@@ -3551,7 +3551,8 @@
         if (hint) {
           hint.innerHTML =
             'เข้าด้วยบัญชีเจ้าของร้านจาก <strong>Supabase Auth</strong><br>' +
-            '<small>ต้องมีสิทธิ์ในตาราง <code>store_admins</code> — ไม่ใช่บัญชีตัวอย่าง และไม่มีรหัสผ่านเริ่มต้นในเว็บ</small>';
+            '<small>ต้องถูกเพิ่มใน <code>store_admins</code> แล้วเท่านั้น — <strong>ไม่มีสิทธิ์แอดมินอัตโนมัติ</strong>จากการสมัครครั้งแรก<br>' +
+            'เพิ่มสิทธิ์ด้วย <code>store_link_admin_by_email</code> ใน SQL Editor หรือ <code>/api/store-admin-bootstrap</code></small>';
         }
         if (btn) btn.textContent = 'เข้าสู่ระบบ';
         if (err) err.textContent = 'อีเมลหรือรหัสผ่านไม่ถูกต้อง';
@@ -3831,11 +3832,7 @@
           if (label) label.textContent = email;
           await refreshAdminOrdersFromSupabase();
           showAdminMain();
-          showToast(
-            access.via === 'claimed_first_admin'
-              ? 'ตั้งสิทธิ์แอดมินครั้งแรกสำเร็จ ✓'
-              : 'เข้าสู่ระบบหลังร้านแล้ว ✓',
-          );
+          showToast('เข้าสู่ระบบหลังร้านแล้ว ✓');
         } catch (e) {
           if (errEl) {
             errEl.textContent = 'เข้าสู่ระบบไม่สำเร็จ — ลองใหม่อีกครั้ง';
@@ -6006,17 +6003,24 @@
       adminContent.querySelector('[data-jump-content]')?.addEventListener('click', () => jumpAdminTab('content'));
     }
 
-    function renderAdminCustomers() {
+    let adminCustomerQuery = '';
+    let adminCustomerSearchRows = null; // null = show summary from loaded orders
+    let adminCustomerSearchMeta = '';
+
+    function summarizeCustomersFromOrders(list) {
       const map = new Map();
-      orders.forEach((o) => {
+      (list || []).forEach((o) => {
         const phone = String(o.phone || o.phoneDisplay || '').replace(/\D/g, '') || String(o.phoneDisplay || o.name || o.id);
         const prev = map.get(phone) || {
           phone: o.phoneDisplay || o.phone || '—',
           name: o.name || '—',
+          address: o.address || '',
           orders: 0,
           total: 0,
           lastAt: 0,
           lastId: '',
+          statusIndex: o.statusIndex,
+          items: o.items || [],
         };
         prev.orders += 1;
         prev.total += Number(o.total) || 0;
@@ -6026,34 +6030,168 @@
           prev.lastId = o.id;
           prev.name = o.name || prev.name;
           prev.phone = o.phoneDisplay || o.phone || prev.phone;
+          prev.address = o.address || prev.address;
+          prev.statusIndex = o.statusIndex;
+          prev.items = o.items || prev.items;
         }
         map.set(phone, prev);
       });
-      const rows = Array.from(map.values()).sort((a, b) => b.lastAt - a.lastAt);
+      return Array.from(map.values()).sort((a, b) => b.lastAt - a.lastAt);
+    }
+
+    function statusLabelForIndex(idx) {
+      const s = STATUS_FLOW[Number(idx)] || STATUS_FLOW[0];
+      return s?.label || `สถานะ ${idx}`;
+    }
+
+    async function runAdminCustomerSearch(rawQuery) {
+      const q = String(rawQuery || '').trim();
+      adminCustomerQuery = q;
+      if (!q) {
+        adminCustomerSearchRows = null;
+        adminCustomerSearchMeta = '';
+        renderAdminCustomers();
+        return;
+      }
+      setAdminSaveStatus('saving', 'กำลังค้นหาลูกค้า…');
+      let remote = null;
+      if (typeof RachaweiStoreApi !== 'undefined' && typeof RachaweiStoreApi.searchOrdersForAdmin === 'function') {
+        remote = await RachaweiStoreApi.searchOrdersForAdmin(q, 50);
+      }
+      if (remote?.ok) {
+        adminCustomerSearchRows = remote.orders || [];
+        adminCustomerSearchMeta = remote.orders?.length
+          ? `พบ ${remote.orders.length} ออเดอร์จากฐานข้อมูล`
+          : 'ไม่พบข้อมูลที่ตรงกับคำค้นหา';
+        setAdminSaveStatus(remote.orders?.length ? 'ok' : 'error', adminCustomerSearchMeta);
+        renderAdminCustomers();
+        return;
+      }
+      // Fallback: local filter on already-loaded admin orders (still requires admin session to have loaded them)
+      const qLower = q.toLowerCase();
+      const qDigits = q.replace(/\D/g, '');
+      const local = orders.filter((o) => {
+        const id = String(o.id || '').toLowerCase();
+        const name = String(o.name || '').toLowerCase();
+        const phoneDigits = String(o.phoneDisplay || o.phone || '').replace(/\D/g, '');
+        const address = String(o.address || '').toLowerCase();
+        return (
+          id.includes(qLower)
+          || name.includes(qLower)
+          || address.includes(qLower)
+          || (qDigits.length >= 3 && phoneDigits.includes(qDigits))
+          || (qDigits.length >= 9 && phoneDigits.slice(-9) === qDigits.slice(-9))
+        );
+      });
+      adminCustomerSearchRows = local;
+      adminCustomerSearchMeta = remote?.message
+        ? `${remote.message} — ใช้รายการในเครื่องชั่วคราว${local.length ? ` (พบ ${local.length})` : ' (ไม่พบ)'}`
+        : (local.length ? `พบ ${local.length} ออเดอร์ (กรองจากรายการที่โหลดแล้ว)` : 'ไม่พบข้อมูลที่ตรงกับคำค้นหา');
+      setAdminSaveStatus(local.length ? 'ok' : 'error', adminCustomerSearchMeta);
+      renderAdminCustomers();
+    }
+
+    function renderAdminCustomers() {
+      const searching = adminCustomerSearchRows != null;
+      const hitOrders = searching ? adminCustomerSearchRows : [];
+      const rows = searching
+        ? hitOrders.map((o) => ({
+            phone: o.phoneDisplay || o.phone || '—',
+            name: o.name || '—',
+            address: o.address || '',
+            orders: 1,
+            total: Number(o.total) || 0,
+            lastAt: Number(o.createdAt) || 0,
+            lastId: o.id,
+            statusIndex: o.statusIndex,
+            items: o.items || [],
+            order: o,
+          }))
+        : summarizeCustomersFromOrders(orders);
+
       adminContent.innerHTML = `
         ${adminCloudStatusBannerHtml()}
         ${adminOrdersStatusBannerHtml()}
-        <div class="admin-section-title"><span>ลูกค้าจากออเดอร์ (${rows.length})</span></div>
-        <p style="font-size:0.88rem;color:var(--text-soft);margin:0 0 1rem;line-height:1.5;">
-          รายชื่อสรุปจาก <code>store_orders</code> ตามเบอร์โทร — ไม่มีตารางลูกค้าแยก และไม่สร้าง schema ใหม่
+        <div class="admin-section-title"><span>ค้นหาลูกค้า / ออเดอร์</span></div>
+        <p style="font-size:0.88rem;color:var(--text-soft);margin:0 0 0.75rem;line-height:1.5;">
+          ค้นด้วย <strong>เบอร์โทร</strong> หรือ <strong>เลขที่คำสั่งซื้อ</strong> — เฉพาะแอดมินที่ login แล้ว
+          (RPC <code>store_admin_search_orders</code> / SQL 011)
         </p>
+        <div class="admin-order-filters" style="margin-bottom:1rem;">
+          <input type="search" class="admin-input" id="adminCustomerSearch"
+            placeholder="เช่น 0814707089 หรือ RW2026…"
+            value="${escapeHtml(adminCustomerQuery)}"
+            autocomplete="off" />
+          <button type="button" class="btn btn-primary btn-sm" id="adminCustomerSearchBtn">ค้นหา</button>
+          <button type="button" class="btn btn-outline btn-sm" id="adminCustomerSearchClear">ล้าง</button>
+        </div>
+        ${adminCustomerSearchMeta
+          ? `<p style="font-size:0.85rem;margin:0 0 0.75rem;color:var(--text-soft);">${escapeHtml(adminCustomerSearchMeta)}</p>`
+          : ''}
+        <div class="admin-section-title"><span>${searching ? `ผลค้นหา (${rows.length})` : `ลูกค้าจากออเดอร์ที่โหลดแล้ว (${rows.length})`}</span></div>
         ${rows.length === 0
-          ? '<div class="empty-admin">ยังไม่มีข้อมูลลูกค้าจากออเดอร์</div>'
+          ? `<div class="empty-admin">${searching ? 'ไม่พบข้อมูล' : 'ยังไม่มีข้อมูลลูกค้าจากออเดอร์'}</div>`
           : `
           <div class="admin-product-list" style="display:flex;">
-            ${rows.slice(0, 80).map((c) => `
+            ${rows.slice(0, 80).map((c) => {
+              const itemLine = (c.items || [])
+                .slice(0, 4)
+                .map((it) => `${it.emoji || '🧺'} ${it.name || it.product_name || ''} × ${it.qty || 0}`)
+                .join('<br>');
+              return `
               <article class="admin-product-card" style="grid-template-columns:1fr;">
                 <div class="admin-product-card__body">
                   <div class="admin-product-card__name">${escapeHtml(c.name)}</div>
                   <div class="admin-product-card__meta">
-                    ${escapeHtml(c.phone)} · ${c.orders} ออเดอร์ · รวม ${formatPrice(c.total)}
-                    ${c.lastAt ? `<br>ล่าสุด ${formatDateTime(c.lastAt)} · ${escapeHtml(c.lastId)}` : ''}
+                    โทร: ${escapeHtml(c.phone)}
+                    ${c.lastId ? `<br>ออเดอร์: <strong>${escapeHtml(c.lastId)}</strong>` : ''}
+                    ${c.statusIndex != null ? `<br>สถานะ: ${escapeHtml(statusLabelForIndex(c.statusIndex))}` : ''}
+                    ${c.address ? `<br>ที่อยู่: ${escapeHtml(c.address)}` : ''}
+                    <br>${searching ? `ยอด ${formatPrice(c.total)}` : `${c.orders} ออเดอร์ · รวม ${formatPrice(c.total)}`}
+                    ${c.lastAt ? `<br>ล่าสุด ${formatDateTime(c.lastAt)}` : ''}
+                    ${itemLine ? `<br><span style="opacity:0.9">${itemLine}</span>` : ''}
                   </div>
+                  ${c.lastId ? `<div class="admin-actions" style="margin-top:0.45rem;">
+                    <button type="button" class="btn btn-outline btn-xs" data-open-order="${escapeAttr(c.lastId)}">เปิดออเดอร์</button>
+                  </div>` : ''}
                 </div>
-              </article>
-            `).join('')}
+              </article>`;
+            }).join('')}
           </div>`}
       `;
+
+      const run = () => {
+        const input = document.getElementById('adminCustomerSearch');
+        void runAdminCustomerSearch(input?.value || '');
+      };
+      document.getElementById('adminCustomerSearchBtn')?.addEventListener('click', run);
+      document.getElementById('adminCustomerSearch')?.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          run();
+        }
+      });
+      document.getElementById('adminCustomerSearchClear')?.addEventListener('click', () => {
+        adminCustomerQuery = '';
+        adminCustomerSearchRows = null;
+        adminCustomerSearchMeta = '';
+        renderAdminCustomers();
+      });
+      adminContent.querySelectorAll('[data-open-order]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const id = btn.getAttribute('data-open-order');
+          const hit = (adminCustomerSearchRows || []).find((x) => String(x.id) === String(id));
+          if (hit && !orders.some((x) => String(x.id) === String(id))) {
+            orders.unshift(hit);
+          }
+          if (id && typeof window.adminViewOrderDetail === 'function') {
+            window.adminViewOrderDetail(id);
+          } else if (id) {
+            adminOrderQuery = id;
+            jumpAdminTab('orders');
+          }
+        });
+      });
     }
 
     function getFilteredAdminOrders() {
