@@ -265,7 +265,10 @@ const browser = await puppeteer.launch({
 });
 
 const consoleErrors = [];
-const noise = (t) => /favicon|Failed to load resource|net::ERR|supabase|manifest|store-manifest|bad HTTP response code/i.test(t);
+const noise = (t) =>
+  /favicon|Failed to load resource|net::ERR|supabase|manifest|store-manifest|bad HTTP response code/i.test(t)
+  // Intentional diagnostics from delete failure paths under test
+  || /\[rachawei\]\s*(adminDeleteOrder|deleteOrderForAdmin)/i.test(t);
 
 try {
   const page = await browser.newPage();
