@@ -1,0 +1,34 @@
+name: Supabase keepalive
+
+# Free tier pauses a project after 7 days without API activity.
+# This pings one product id every 5 days. Anon key only — never service_role.
+on:
+  schedule:
+    - cron: '15 2 */5 * *'
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Select one active product id
+        env:
+          SUPABASE_URL: https://jvgfudxdwdwfumdznymu.supabase.co
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: |
+          set -euo pipefail
+          KEY="${SUPABASE_ANON_KEY:-}"
+          if [ -z "$KEY" ]; then
+            KEY="$(node -e "const j=require('./artifacts/js/supabase-public-fallback.json'); const k=String(j.anonKey||''); if(!k || /service_role/i.test(k)) process.exit(1); process.stdout.write(k)")"
+          fi
+          code="$(curl -sS -o /tmp/sb-keepalive.json -w '%{http_code}' \
+            "${SUPABASE_URL}/rest/v1/store_products?select=id&status=eq.active&limit=1" \
+            -H "apikey: ${KEY}" \
+            -H "Authorization: Bearer ${KEY}" \
+            -H "Accept: application/json")"
+          if [ "$code" != "200" ]; then
+            echo "keepalive failed HTTP ${code}"
+            exit 1
+          fi
+          echo "keepalive ok"

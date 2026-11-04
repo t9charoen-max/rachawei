@@ -344,11 +344,39 @@
       return typeof RachaweiStoreApi !== 'undefined' && RachaweiStoreApi.isConfigured();
     }
 
-    async function fetchLiveCatalogProducts() {
-      // 1) Supabase เป็นแหล่งจริงเมื่อตั้งค่าแล้ว
+    function rememberStorefrontProducts() {
+      if (!isSupabaseReady() || typeof RachaweiStoreApi.rememberPublicCache !== 'function') return;
+      try {
+        RachaweiStoreApi.rememberPublicCache('products', products);
+      } catch (e) {
+        console.warn('[rachawei] product cache write failed', e);
+      }
+    }
+
+    function rememberStorefrontVideos() {
+      if (!isSupabaseReady() || typeof RachaweiStoreApi.rememberPublicCache !== 'function') return;
+      try {
+        const active = (shopVideos || []).filter((v) => v && v.isActive !== false);
+        RachaweiStoreApi.rememberPublicCache('videos', active);
+      } catch (e) {
+        console.warn('[rachawei] video cache write failed', e);
+      }
+    }
+
+    function rememberStorefrontShop() {
+      if (!isSupabaseReady() || typeof RachaweiStoreApi.rememberShopSettings !== 'function') return;
+      try {
+        RachaweiStoreApi.rememberShopSettings(SHOP_CONFIG);
+      } catch (e) {
+        console.warn('[rachawei] shop cache write failed', e);
+      }
+    }
+
+    async function fetchLiveCatalogProducts(options) {
+      // 1) localStorage cache (inside fetchActiveProducts) then Supabase if stale/forced
       if (isSupabaseReady()) {
         try {
-          const remote = await RachaweiStoreApi.fetchActiveProducts();
+          const remote = await RachaweiStoreApi.fetchActiveProducts(options);
           if (Array.isArray(remote) && remote.length) {
             return remote.sort((a, b) => a.id - b.id);
           }
@@ -357,7 +385,7 @@
         }
       }
 
-      // 2) Fallback: static catalog (ใช้ตอนยังไม่ตั้ง env / offline)
+      // 2) Fallback: static catalog, then caller uses DEFAULT_PRODUCTS
       const ver = typeof CATALOG_SYNC_VERSION !== 'undefined' ? CATALOG_SYNC_VERSION : 'rachawei-catalog-v2';
       try {
         const res = await fetch(`/catalog/products.json?v=${ver}`, { cache: 'no-cache' });
@@ -2441,7 +2469,7 @@
         id = remote.orderId;
         // Refresh catalog so stock reflects server decrement (after SQL 009)
         try {
-          const fresh = await fetchLiveCatalogProducts();
+          const fresh = await fetchLiveCatalogProducts({ force: true });
           if (Array.isArray(fresh) && fresh.length) {
             products = fresh;
             nextProductId = Math.max(...products.map((p) => Number(p.id) || 0), 0) + 1;
@@ -3421,6 +3449,7 @@
       }
 
       await persistAll();
+      rememberStorefrontProducts();
       saveCart();
       updateBadge();
       renderProducts(document.querySelector('.filter-btn.active')?.dataset.filter || 'all');
@@ -4075,6 +4104,7 @@
       applyShopConfig();
       renderPopularCats();
       refreshHeroSlides();
+      rememberStorefrontShop();
       if (dbReady) {
         try {
           await idbSet('shopSettings', toSave);
@@ -5316,6 +5346,7 @@
       editingProductId = null;
       window._apImages = [];
       await persistAll();
+      rememberStorefrontProducts();
       renderProducts(catalogFilter);
       renderPopularCats();
       renderAdminProducts();
@@ -5362,6 +5393,7 @@
         if (Number(v.productId) === Number(id)) v.productId = null;
       });
       await persistAll();
+      rememberStorefrontProducts();
       saveCart();
       updateBadge();
       renderProducts(catalogFilter);
@@ -5604,6 +5636,7 @@
 
       editingVideoId = null;
       await persistAll();
+      rememberStorefrontVideos();
       renderShopVideos();
       renderAdminVideos();
       setAdminSaveStatus('ok', outcome.message);
@@ -5646,6 +5679,7 @@
       if (idx >= 0) shopVideos.splice(idx, 1);
       if (editingVideoId === id) editingVideoId = null;
       await persistAll();
+      rememberStorefrontVideos();
       renderShopVideos();
       renderAdminVideos();
       setAdminSaveStatus('ok', 'ลบวิดีโอจาก Supabase แล้ว ✓');
@@ -6804,7 +6838,7 @@
         }
         if (idx === ORDER_CANCELLED_INDEX) {
           try {
-            const fresh = await fetchLiveCatalogProducts();
+            const fresh = await fetchLiveCatalogProducts({ force: true });
             if (Array.isArray(fresh) && fresh.length) {
               products = fresh;
               renderProducts(catalogFilter);

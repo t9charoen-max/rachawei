@@ -9,10 +9,20 @@
     { "source": "/store", "destination": "/store/index.html" },
     { "source": "/rachawei-surin", "destination": "/store/index.html" }
   ],
+  "crons": [
+    {
+      "path": "/api/store-keepalive",
+      "schedule": "15 2 */5 * *"
+    }
+  ],
   "functions": {
     "api/mcp.ts": {
       "maxDuration": 60,
       "memory": 1024
+    },
+    "api/store-keepalive.ts": {
+      "maxDuration": 10,
+      "memory": 256
     },
     "api/store-config.ts": {
       "maxDuration": 10,

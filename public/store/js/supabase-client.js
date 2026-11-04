@@ -145,8 +145,105 @@
         detectSessionInUrl: true,
         storageKey: 'rachawei-store-supabase-auth',
       },
+      // Storefront does not use Realtime. Disconnect so a socket is never left open.
+      realtime: {
+        params: { eventsPerSecond: 1 },
+      },
     });
+    try {
+      if (client.realtime && typeof client.realtime.disconnect === 'function') {
+        client.realtime.disconnect();
+      }
+    } catch (_) { /* realtime optional */ }
     return client;
+  }
+
+  /** Public catalog cache — localStorage only. Orders are never cached here. */
+  const PUBLIC_CACHE_VERSION = 1;
+  const PUBLIC_CACHE_TTL_MS = {
+    products: 18 * 60 * 60 * 1000,
+    shop: 9 * 60 * 60 * 1000,
+    videos: 18 * 60 * 60 * 1000,
+  };
+
+  function publicCacheKey(kind) {
+    return `rachawei_sb_cache_v${PUBLIC_CACHE_VERSION}:${kind}`;
+  }
+
+  function readPublicCacheEntry(kind) {
+    try {
+      const storage = global.localStorage;
+      if (!storage) return null;
+      const raw = storage.getItem(publicCacheKey(kind));
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      if (!parsed || parsed.v !== PUBLIC_CACHE_VERSION || typeof parsed.ts !== 'number') return null;
+      return parsed;
+    } catch {
+      return null;
+    }
+  }
+
+  function readFreshPublicCache(kind) {
+    const entry = readPublicCacheEntry(kind);
+    if (!entry) return null;
+    const ttl = PUBLIC_CACHE_TTL_MS[kind];
+    if (!ttl || Date.now() - entry.ts > ttl) return null;
+    return entry.data;
+  }
+
+  function readStalePublicCache(kind) {
+    const entry = readPublicCacheEntry(kind);
+    return entry ? entry.data : null;
+  }
+
+  function writePublicCache(kind, data) {
+    try {
+      const storage = global.localStorage;
+      if (!storage) return false;
+      storage.setItem(
+        publicCacheKey(kind),
+        JSON.stringify({ v: PUBLIC_CACHE_VERSION, ts: Date.now(), data }),
+      );
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  function rememberPublicCache(kind, data) {
+    if (kind !== 'products' && kind !== 'shop' && kind !== 'videos') return false;
+    if (kind === 'products' && (!Array.isArray(data) || !data.length)) return false;
+    if (kind === 'videos' && !Array.isArray(data)) return false;
+    if (kind === 'shop' && (!data || typeof data !== 'object')) return false;
+    return writePublicCache(kind, data);
+  }
+
+  function rememberShopSettings(settings) {
+    if (!settings || typeof settings !== 'object') return false;
+    return writePublicCache('shop', {
+      id: 'default',
+      shop_name: settings.shopName,
+      shop_sub: settings.shopSub,
+      phone_display: settings.phoneDisplay,
+      phone_tel: settings.phoneTel,
+      line_url: settings.lineUrl,
+      facebook_url: settings.facebookUrl,
+      map_url: settings.mapUrl,
+      address_html: settings.addressHtml,
+      promo_min: settings.promoMin,
+      promo_discount: settings.promoDiscount,
+      shipping_fee: settings.shippingFee,
+      free_shipping_min: settings.freeShippingMin,
+      bank_name: settings.bankName,
+      bank_account_name: settings.bankAccountName,
+      promptpay_no: settings.promptPayNo,
+      bank_account_no: settings.bankAccountNo,
+      bank_note: settings.bankNote,
+      hero_images: settings.heroImages || [],
+      storefront_photos: settings.storefrontPhotos || [],
+      content: settings.content || {},
+    });
   }
 
   function resolveProductImage(file) {
@@ -248,38 +345,75 @@
     };
   }
 
-  async function fetchActiveProducts() {
-    const sb = getClient();
-    if (!sb) return null;
-    const { data, error } = await sb
-      .from('store_products')
-      .select(
-        'id,name,description,price,images,category,store_cat,stock,emoji,badge,featured,size,panorama360,status,sort_order',
-      )
-      .eq('status', 'active')
-      .order('sort_order', { ascending: true })
-      .order('id', { ascending: true });
-    if (error) {
-      console.error('[rachawei] fetch products:', error.message);
-      return null;
+  // List columns only. description stays because pack markers + product detail live in it;
+  // cards render a 110-char desc after download. status is filtered, not selected.
+  const PRODUCT_LIST_COLUMNS =
+    'id,name,description,price,images,category,store_cat,stock,emoji,badge,featured,size,panorama360,sort_order';
+  const SHOP_PUBLIC_COLUMNS =
+    'id,shop_name,shop_sub,phone_display,phone_tel,line_url,facebook_url,map_url,address_html,promo_min,promo_discount,shipping_fee,free_shipping_min,bank_name,bank_account_name,promptpay_no,bank_account_no,bank_note,hero_images,storefront_photos,content';
+
+  async function fetchActiveProducts(options) {
+    const force = Boolean(options && options.force);
+    if (!force) {
+      const cached = readFreshPublicCache('products');
+      if (Array.isArray(cached) && cached.length) return cached;
     }
-    if (!Array.isArray(data)) return [];
-    return data.map(rowToStoreProduct).filter(Boolean);
+
+    const sb = getClient();
+    if (!sb) {
+      const stale = readStalePublicCache('products');
+      return Array.isArray(stale) && stale.length ? stale : null;
+    }
+
+    try {
+      const { data, error } = await sb
+        .from('store_products')
+        .select(PRODUCT_LIST_COLUMNS)
+        .eq('status', 'active')
+        .order('sort_order', { ascending: true })
+        .order('id', { ascending: true });
+      if (error) {
+        console.error('[rachawei] fetch products:', error.message);
+        const stale = readStalePublicCache('products');
+        return Array.isArray(stale) && stale.length ? stale : null;
+      }
+      if (!Array.isArray(data) || !data.length) return [];
+      const mapped = data.map(rowToStoreProduct).filter(Boolean);
+      if (mapped.length) writePublicCache('products', mapped);
+      return mapped;
+    } catch (e) {
+      console.error('[rachawei] fetch products exception:', e?.message || e);
+      const stale = readStalePublicCache('products');
+      return Array.isArray(stale) && stale.length ? stale : null;
+    }
   }
 
-  async function fetchPublicShopSettings() {
-    const sb = getClient();
-    if (!sb) return null;
-    const { data, error } = await sb
-      .from('store_shop_settings_public')
-      .select('*')
-      .eq('id', 'default')
-      .maybeSingle();
-    if (error) {
-      console.error('[rachawei] shop settings:', error.message);
-      return null;
+  async function fetchPublicShopSettings(options) {
+    const force = Boolean(options && options.force);
+    if (!force) {
+      const cached = readFreshPublicCache('shop');
+      if (cached && typeof cached === 'object') return cached;
     }
-    return data;
+
+    const sb = getClient();
+    if (!sb) return readStalePublicCache('shop');
+
+    try {
+      const { data, error } = await sb
+        .from('store_shop_settings_public')
+        .select(SHOP_PUBLIC_COLUMNS)
+        .eq('id', 'default')
+        .maybeSingle();
+      if (error) {
+        console.error('[rachawei] shop settings:', error.message);
+        return readStalePublicCache('shop');
+      }
+      if (data) writePublicCache('shop', data);
+      return data;
+    } catch (e) {
+      console.error('[rachawei] shop settings exception:', e?.message || e);
+      return readStalePublicCache('shop');
+    }
   }
 
   async function createOrderRemote(payload) {
@@ -845,20 +979,41 @@
     };
   }
 
-  async function fetchActiveVideos() {
+  async function fetchActiveVideos(options) {
+    const force = Boolean(options && options.force);
+    if (!force) {
+      const cached = readFreshPublicCache('videos');
+      if (Array.isArray(cached)) {
+        return { ok: true, videos: cached, source: 'cache' };
+      }
+    }
+
     const sb = getClient();
-    if (!sb) return { ok: false, videos: [], error: 'supabase_not_configured' };
-    const { data, error } = await sb
-      .from('store_videos')
-      .select('id,title,video_url,product_id,thumbnail,views,sort_order,is_active')
-      .eq('is_active', true)
-      .order('sort_order', { ascending: true })
-      .order('id', { ascending: true });
-    if (error) return { ok: false, videos: [], error: error.message };
-    return {
-      ok: true,
-      videos: (data || []).map(normalizeVideoRow).filter(Boolean),
-    };
+    if (!sb) {
+      const stale = readStalePublicCache('videos');
+      if (Array.isArray(stale)) return { ok: true, videos: stale, source: 'stale-cache' };
+      return { ok: false, videos: [], error: 'supabase_not_configured' };
+    }
+    try {
+      const { data, error } = await sb
+        .from('store_videos')
+        .select('id,title,video_url,product_id,thumbnail,views,sort_order,is_active')
+        .eq('is_active', true)
+        .order('sort_order', { ascending: true })
+        .order('id', { ascending: true });
+      if (error) {
+        const stale = readStalePublicCache('videos');
+        if (Array.isArray(stale)) return { ok: true, videos: stale, source: 'stale-cache' };
+        return { ok: false, videos: [], error: error.message };
+      }
+      const videos = (data || []).map(normalizeVideoRow).filter(Boolean);
+      writePublicCache('videos', videos);
+      return { ok: true, videos, source: 'supabase' };
+    } catch (e) {
+      const stale = readStalePublicCache('videos');
+      if (Array.isArray(stale)) return { ok: true, videos: stale, source: 'stale-cache' };
+      return { ok: false, videos: [], error: e?.message || 'videos_failed' };
+    }
   }
 
   async function fetchVideosForAdmin() {
@@ -1182,6 +1337,8 @@
     getClient,
     fetchActiveProducts,
     fetchPublicShopSettings,
+    rememberPublicCache,
+    rememberShopSettings,
     createOrderRemote,
     attachPaymentSlipRemote,
     lookupOrdersRemote,
