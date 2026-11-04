@@ -1,7 +1,8 @@
 name: Supabase keepalive
 
 # Free tier pauses a project after 7 days without API activity.
-# This pings one product id every 5 days. Anon key only — never service_role.
+# GitHub runs this every 5 days. Vercel Hobby cron (daily) is the other ping.
+# Anon key only — never service_role.
 on:
   schedule:
     - cron: '15 2 */5 * *'

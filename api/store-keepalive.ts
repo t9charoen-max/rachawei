@@ -3,6 +3,7 @@ import { getAnonKey, getSupabaseUrl } from './_lib/storeSupabaseAdmin';
 
 /**
  * Tiny public ping so the Supabase free project does not pause after 7 idle days.
+ * Vercel Hobby only allows a cron that runs at most once per day, so this route is daily.
  * Uses the anon key only. Selects one product id — never service_role, never a full row.
  */
 export default async function handler(req: VercelRequest, res: VercelResponse) {

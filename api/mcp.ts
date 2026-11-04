@@ -2,7 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { TOOL_DEFS, callTool } from './_lib/tools.js';
 
 export const config = {
-  maxDuration: 60,
+  maxDuration: 10,
   api: {
     bodyParser: {
       sizeLimit: '9mb',
