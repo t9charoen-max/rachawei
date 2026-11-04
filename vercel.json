@@ -12,12 +12,12 @@
   "crons": [
     {
       "path": "/api/store-keepalive",
-      "schedule": "15 2 */5 * *"
+      "schedule": "15 2 * * *"
     }
   ],
   "functions": {
     "api/mcp.ts": {
-      "maxDuration": 60,
+      "maxDuration": 10,
       "memory": 1024
     },
     "api/store-keepalive.ts": {
@@ -29,11 +29,11 @@
       "memory": 256
     },
     "api/store-admin-bootstrap.ts": {
-      "maxDuration": 30,
+      "maxDuration": 10,
       "memory": 256
     },
     "api/store-admin-orders.ts": {
-      "maxDuration": 20,
+      "maxDuration": 10,
       "memory": 512
     }
   },

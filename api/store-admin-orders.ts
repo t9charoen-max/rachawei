@@ -166,8 +166,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
   }
 
+  const orderCols =
+    'id,customer_name,customer_phone,phone_display,customer_address,note,method,subtotal,promo_discount,shipping_fee,total,status_index,history,slip_uploaded_at,created_at';
   const ordersRes = await supabaseAdminFetch(
-    `/rest/v1/store_orders?select=*&order=created_at.desc&limit=${limit}`,
+    `/rest/v1/store_orders?select=${orderCols}&order=created_at.desc&limit=${limit}`,
   );
   if (!ordersRes.ok) {
     const detail = await ordersRes.text();
@@ -186,7 +188,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (ids.length) {
     const inList = ids.map((id) => `"${String(id).replace(/"/g, '')}"`).join(',');
     const itemsRes = await supabaseAdminFetch(
-      `/rest/v1/store_order_items?select=*&order_id=in.(${inList})`,
+      `/rest/v1/store_order_items?select=order_id,product_id,product_name,emoji,qty,unit_price,line_total&order_id=in.(${inList})`,
     );
     if (itemsRes.ok) items = await itemsRes.json();
   }

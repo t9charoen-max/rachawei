@@ -2452,7 +2452,7 @@
           shippingFee: payload.shippingFee,
           total: payload.total,
           paymentSlip:
-            payload.paymentSlip && payload.paymentSlip.length <= 350000
+            payload.paymentSlip && payload.paymentSlip.length <= 140000
               ? payload.paymentSlip
               : null,
           items: payload.items.map((it) => ({
@@ -2591,7 +2591,13 @@
       }
       try {
         const dataUrl = await readFileAsDataURL(file);
-        return await compressSlipImage(dataUrl);
+        let slip = await compressSlipImage(dataUrl, 960, 0.62);
+        if (slip && slip.length > 140000) slip = await compressSlipImage(dataUrl, 720, 0.5);
+        if (slip && slip.length > 140000) {
+          showToast('รูปสลิปยังใหญ่เกินกว่าที่แผนฟรีรับได้ — ถ่ายให้ใกล้ขึ้นหรือครอปให้เล็กลง');
+          return null;
+        }
+        return slip;
       } catch (e) {
         showToast('อ่านไฟล์ไม่สำเร็จ ลองใหม่อีกครั้ง');
         return null;
@@ -5120,7 +5126,7 @@
       });
     }
 
-    function compressSlipImage(dataUrl, maxEdge = 1400, quality = 0.85) {
+    function compressSlipImage(dataUrl, maxEdge = 960, quality = 0.62) {
       return new Promise((resolve, reject) => {
         const img = new Image();
         img.onload = () => {
@@ -6343,8 +6349,12 @@
                             <button type="button" class="btn btn-outline btn-xs" onclick="adminRejectSlip('${oid}')">✕ ปฏิเสธ</button>
                           </div>`
                         : (o.paymentSlip === '__remote__'
-                          ? `<span style="color:#2e7d32;">มีสลิป</span>
-                             <button type="button" class="btn btn-primary btn-xs" style="margin-top:0.25rem;" onclick="adminConfirmPayment('${oid}')">✓ ยืนยัน</button>`
+                          ? `<div class="admin-slip-actions">
+                            <span style="color:#2e7d32;">มีสลิป</span>
+                            <button type="button" class="btn btn-outline btn-xs" onclick="adminViewSlip('${oid}')">🧾 ดู</button>
+                            <button type="button" class="btn btn-primary btn-xs" onclick="adminConfirmPayment('${oid}')">✓ ยืนยัน</button>
+                            <button type="button" class="btn btn-outline btn-xs" onclick="adminRejectSlip('${oid}')">✕ ปฏิเสธ</button>
+                          </div>`
                           : (paymentNeedsSlip(o.method) ? '<span style="color:var(--text-soft);">รอสลิป</span>' : '—'))}
                     </td>
                     <td><span class="status-badge-tag ${st.badge}">${st.label}</span></td>
@@ -6993,15 +7003,34 @@
       printShippingLabel(o);
     };
 
-    window.adminViewSlip = function(id) {
+    window.adminViewSlip = async function(id) {
       const o = orders.find(x => x.id === id);
       if (!o?.paymentSlip) return;
+      let src = o.paymentSlip;
+      if (src === '__remote__' || src === '[attached]') {
+        if (!isSupabaseReady() || typeof RachaweiStoreApi.fetchPaymentSlipForAdmin !== 'function') {
+          showToast('โหลดสลิปจากคลาวด์ไม่ได้');
+          return;
+        }
+        showToast('กำลังโหลดสลิป…');
+        const remote = await RachaweiStoreApi.fetchPaymentSlipForAdmin(id);
+        if (!remote?.ok || !remote.slip) {
+          showToast(remote?.message || 'โหลดสลิปไม่สำเร็จ');
+          return;
+        }
+        src = remote.slip;
+        o.paymentSlip = src;
+      }
+      if (!String(src).startsWith('data:') && !String(src).startsWith('http') && !String(src).startsWith('blob:')) {
+        showToast('ออเดอร์นี้ไม่มีไฟล์สลิป');
+        return;
+      }
       const w = window.open('', '_blank', 'noopener,noreferrer');
       if (!w) {
         showToast('เปิดหน้าต่างดูสลิปไม่ได้ — ลองปลดบล็อก popup');
         return;
       }
-      w.document.write(`<!DOCTYPE html><html lang="th"><head><meta charset="utf-8"><title>สลิป ${o.id}</title></head><body style="margin:0;background:#1a1612;display:flex;justify-content:center;padding:1rem;"><img src="${o.paymentSlip}" alt="สลิป ${o.id}" style="max-width:100%;height:auto;border-radius:8px;" /></body></html>`);
+      w.document.write(`<!DOCTYPE html><html lang="th"><head><meta charset="utf-8"><title>สลิป ${o.id}</title></head><body style="margin:0;background:#1a1612;display:flex;justify-content:center;padding:1rem;"><img src="${src}" alt="สลิป ${o.id}" style="max-width:100%;height:auto;border-radius:8px;" /></body></html>`);
       w.document.close();
     };
 
