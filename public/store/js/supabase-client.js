@@ -556,6 +556,17 @@
     return m || 'cod';
   }
 
+  function paymentSlipForList(o) {
+    const raw = o?.payment_slip || o?.paymentSlip || '';
+    const text = String(raw || '');
+    const marker = text === '[attached]' || text === '__remote__';
+    const hasFlag = o?.has_payment_slip === true || o?.has_payment_slip === 't' || o?.has_payment_slip === 'true';
+    const real = text && !marker && text.length > 32 && (text.startsWith('data:') || text.startsWith('http'));
+    if (real) return text;
+    if (marker || hasFlag || o?.slip_uploaded_at || o?.slipUploadedAt) return '__remote__';
+    return null;
+  }
+
   function normalizeAdminOrder(o, items) {
     const itemRows = Array.isArray(items) ? items : [];
     return {
@@ -577,7 +588,7 @@
         : o.createdAt
           ? Number(o.createdAt) || Date.now()
           : Date.now(),
-      paymentSlip: o.payment_slip || o.paymentSlip || null,
+      paymentSlip: paymentSlipForList(o),
       slipUploadedAt: o.slip_uploaded_at
         ? Date.parse(o.slip_uploaded_at)
         : o.slipUploadedAt
@@ -653,7 +664,7 @@
     let selectError = null;
     const { data: orderRows, error } = await sb
       .from('store_orders')
-      .select('*')
+      .select('id,customer_name,customer_phone,phone_display,customer_address,note,method,subtotal,promo_discount,shipping_fee,total,status_index,history,slip_uploaded_at,created_at')
       .order('created_at', { ascending: false })
       .limit(200);
     if (!error) {
@@ -662,7 +673,7 @@
       if (ids.length) {
         const { data: itemRows, error: itemErr } = await sb
           .from('store_order_items')
-          .select('*')
+          .select('order_id,product_id,product_name,emoji,qty,unit_price,line_total')
           .in('order_id', ids);
         if (itemErr) {
           console.error('[rachawei] admin order items:', itemErr.message);
@@ -908,6 +919,26 @@
         error: e?.message || 'delete_failed',
         message,
       };
+    }
+  }
+
+  async function fetchPaymentSlipForAdmin(orderId) {
+    const sb = getClient();
+    if (!sb) return { ok: false, error: 'supabase_not_configured', message: 'ยังไม่ได้เชื่อมต่อ Supabase' };
+    const session = await getSession();
+    if (!session) return { ok: false, error: 'no_session', message: 'ยังไม่ได้เข้าสู่ระบบแอดมิน' };
+    const id = String(orderId || '').trim();
+    if (!id) return { ok: false, error: 'missing_order_id', message: 'เลขออเดอร์ไม่ถูกต้อง' };
+    try {
+      const { data, error } = await sb.rpc('store_admin_get_payment_slip', { p_order_id: id });
+      if (error) {
+        return { ok: false, error: error.message, message: 'โหลดสลิปไม่สำเร็จ' };
+      }
+      const slip = typeof data === 'string' ? data : '';
+      if (!slip) return { ok: false, error: 'slip_missing', message: 'ออเดอร์นี้ไม่มีไฟล์สลิป' };
+      return { ok: true, slip };
+    } catch (e) {
+      return { ok: false, error: e?.message || 'slip_failed', message: 'โหลดสลิปไม่สำเร็จ' };
     }
   }
 
@@ -1343,6 +1374,7 @@
     attachPaymentSlipRemote,
     lookupOrdersRemote,
     fetchOrdersForAdmin,
+    fetchPaymentSlipForAdmin,
     fetchOrdersViaServiceProxy,
     updateOrderStatus,
     rejectPaymentSlipForAdmin,
